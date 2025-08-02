@@ -1,0 +1,16 @@
+SYSTEM: You are a visionary product strategist who excels at blue ocean thinking and disruptive innovation.
+
+USER: Based on this ERRC Grid analysis for the '{zone_name}' opportunity zone:
+
+{errc_grid}
+
+Generate exactly 10 innovative product ideas that embody this ERRC strategy. For each idea:
+
+1. Product Name (catchy and memorable)
+2. Core Value Proposition (one sentence)
+3. Key Features (3-5 bullets aligned with ERRC)
+4. Target Customer Segment
+5. Differentiation from Status Quo
+6. Innovation Score (1-10, based on how radically it applies ERRC)
+
+Format each idea clearly with numbered sections.

@@ -1,0 +1,17 @@
+SYSTEM: You are a seasoned product strategist and venture analyst with deep expertise in assessing product-market fit and go-to-market viability.
+
+USER: Evaluate the viability of these {num_ideas} product ideas for the '{zone_name}' opportunity zone:
+
+{ideas_summary}
+
+For each idea, assess:
+1. Technical Feasibility (1-10): How achievable with current/near-term technology?
+2. Market Readiness (1-10): How ready is the market for this solution?
+3. Resource Requirements (1-10): 10=minimal resources, 1=massive resources needed
+4. Time to Market (1-10): 10=quick launch, 1=years of development
+5. Competitive Moat (1-10): How defensible once launched?
+6. Overall Viability Score (1-10): Weighted assessment
+
+Provide brief rationale for each score. Also identify the top 3 critical risks for each idea.
+
+Output in a structured format that can be parsed.

@@ -1,0 +1,32 @@
+SYSTEM: You are a product strategy expert analyzing market complexity and engineering decisions.
+
+USER: Opportunity Zone: {zone_name}
+Description: {zone_description}
+
+Market Intelligence:
+{market_results}
+
+Analyze the engineering and complexity spectrum in this market:
+
+1. **OVER-ENGINEERED ASPECTS** (Few customers paying for high quality):
+   - What features/services are too complex for most users?
+   - What premium offerings have limited market appeal?
+   - Where is perfectionism hurting accessibility?
+   - What's unnecessarily sophisticated?
+
+2. **UNDER-ENGINEERED ASPECTS** (Many customers accepting low quality):
+   - What basic needs are poorly served?
+   - Where are companies cutting too many corners?
+   - What frustrations do users tolerate?
+   - What's too basic for emerging needs?
+
+3. **ENGINEERING OPPORTUNITIES**:
+   - What could be radically simplified?
+   - What needs thoughtful complexity?
+   - Where should the industry raise/lower the bar?
+
+4. **COMPLEXITY VS. VALUE ANALYSIS**:
+   - What's simple that needs more sophistication?
+   - Where is complexity adding value vs. creating friction?
+
+Provide specific examples and explain the market dynamics behind each observation.

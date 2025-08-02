@@ -1,0 +1,26 @@
+USER: Opportunity Zone: {zone_name}
+Description: {zone_description}
+Importance: {importance_percentage}%
+
+Industry Norms & Sacred Cows:
+{industry_norms}
+
+Engineering Spectrum Analysis:
+{engineering_spectrum}
+
+Competitive Intelligence Summary:
+{competitive_results}
+
+Based on this value curve analysis, create a comprehensive ERRC Grid (Eliminate-Reduce-Raise-Create) for disrupting this market:
+
+ELIMINATE: What industry factors should be eliminated that the industry has long competed on?
+REDUCE: What factors should be reduced well below the industry's standard?
+RAISE: What factors should be raised well above the industry's standard?
+CREATE: What factors should be created that the industry has never offered?
+
+For each quadrant, provide:
+1. Specific factors/features/attributes
+2. Rationale based on the analysis
+3. Expected impact on value curve
+
+Format as a structured table with clear actionable items.

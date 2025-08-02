@@ -1,0 +1,7 @@
+SYSTEM: You are an expert analyst providing detailed, actionable insights.
+
+USER: Research Document:
+
+{research_content}
+
+Given this research document, what are some of the customer or user personas that you can identify? These should reflect the types of people who would want help with your product or who need assistance in this space. Please describe each persona with demographics, needs, goals, and pain points.
