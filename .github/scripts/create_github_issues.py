@@ -41,6 +41,17 @@ class GitHubIssueCreator:
             "Content-Type": "application/json"
         }
         
+        # Label definitions with colors
+        self.label_definitions = {
+            "testing": {"color": "0e8a16", "description": "Related to testing"},
+            "developer-tools": {"color": "5319e7", "description": "Tools for developers"},
+            "logging": {"color": "006b75", "description": "Logging and monitoring"},
+            "monitoring": {"color": "1d76db", "description": "System monitoring"},
+            "cost-optimization": {"color": "fbca04", "description": "Reduce costs"},
+            "algorithm": {"color": "d93f0b", "description": "Algorithm improvements"},
+            "critical": {"color": "b60205", "description": "Critical priority"}
+        }
+        
         # Issue configurations
         self.issues = [
             {
@@ -92,6 +103,72 @@ class GitHubIssueCreator:
                 
         except Exception as e:
             console.print(f"[red]❌ Connection error: {e}[/red]")
+            return False
+    
+    def ensure_labels_exist(self) -> bool:
+        """Check and create missing labels"""
+        try:
+            # Get existing labels
+            url = f"{self.api_base}/repos/{self.repo_owner}/{self.repo_name}/labels"
+            response = requests.get(url, headers=self.headers)
+            
+            if response.status_code != 200:
+                console.print(f"[red]Failed to get labels: {response.status_code}[/red]")
+                return False
+            
+            existing_labels = {label["name"].lower() for label in response.json()}
+            
+            # Check which labels we need
+            needed_labels = set()
+            for issue in self.issues:
+                needed_labels.update(label.lower() for label in issue["labels"])
+            
+            # Find missing labels
+            missing_labels = []
+            for label in needed_labels:
+                if label not in existing_labels and label in self.label_definitions:
+                    missing_labels.append(label)
+            
+            # Create missing labels
+            if missing_labels:
+                console.print(f"[yellow]Creating {len(missing_labels)} missing labels...[/yellow]")
+                for label_name in missing_labels:
+                    if self.create_label(label_name):
+                        console.print(f"  [green]✅ Created label: {label_name}[/green]")
+                    else:
+                        console.print(f"  [red]❌ Failed to create label: {label_name}[/red]")
+                        return False
+            else:
+                console.print("[green]✅ All required labels exist[/green]")
+            
+            return True
+            
+        except Exception as e:
+            console.print(f"[red]Error checking labels: {e}[/red]")
+            return False
+    
+    def create_label(self, name: str) -> bool:
+        """Create a single label"""
+        if name not in self.label_definitions:
+            # Use default color for unknown labels
+            label_data = {
+                "name": name,
+                "color": "000000",
+                "description": f"Label: {name}"
+            }
+        else:
+            label_def = self.label_definitions[name]
+            label_data = {
+                "name": name,
+                "color": label_def["color"],
+                "description": label_def["description"]
+            }
+        
+        try:
+            url = f"{self.api_base}/repos/{self.repo_owner}/{self.repo_name}/labels"
+            response = requests.post(url, headers=self.headers, json=label_data)
+            return response.status_code == 201
+        except Exception:
             return False
     
     def check_existing_issues(self) -> Dict[str, bool]:
@@ -171,6 +248,12 @@ class GitHubIssueCreator:
         # Test connection
         console.print("\n[cyan]Testing GitHub connection...[/cyan]")
         if not self.test_connection():
+            return
+        
+        # Ensure labels exist
+        console.print("\n[cyan]Checking and creating labels...[/cyan]")
+        if not self.ensure_labels_exist():
+            console.print("[red]Failed to ensure labels exist. Aborting.[/red]")
             return
         
         # Check existing issues
