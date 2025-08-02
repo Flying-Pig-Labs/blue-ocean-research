@@ -46,6 +46,22 @@ A Python application suite that demonstrates multi-step LLM workflows using the 
 - 🎯 Value curve disruption opportunities identification
 - 📊 Comprehensive strategic insights report
 
+### Product Idea Generator (`product_idea_generator.py`)
+- 🎨 OpenAI o1 for ERRC grid generation (Eliminate-Reduce-Raise-Create)
+- 💡 Claude Opus generates 10 product ideas per opportunity zone
+- 🔍 Claude Opus evaluates viability of each idea
+- 📊 Percentage-based filtering (zone importance × 10 ideas)
+- 🎯 Sequential processing per zone (o1 → Opus → Opus)
+- 📋 Final report with top filtered ideas across all zones
+
+### Idea Consolidator (`idea_consolidator.py`)
+- 📚 Consolidates all filtered ideas into comprehensive portfolio
+- 🎯 Exhaustive details for each idea including justification
+- 💼 Complete implementation roadmap and resource allocation
+- 📊 Risk assessment and growth potential analysis
+- 🔍 Traces ideas back to original pain points and market data
+- 📋 Final JSON with complete innovation portfolio
+
 ## Installation
 
 1. Clone or create this project:
@@ -166,6 +182,23 @@ python value_curve_mapper.py zones.json --json-output curves.json --report-outpu
 python value_curve_mapper.py --test
 ```
 
+### Product Idea Generation
+
+#### Generate ideas from value curves
+```bash
+python product_idea_generator.py
+```
+
+#### Custom files
+```bash
+python product_idea_generator.py --input curves.json --json-output ideas.json --report-output ideas.md
+```
+
+#### Test API connections (OpenAI & Opus)
+```bash
+python product_idea_generator.py --test
+```
+
 ## Example Workflow
 
 The included example demonstrates a creative writing workflow with 5 steps:
@@ -274,7 +307,7 @@ See `example_research.json` for a complete example.
 
 ## Complete Workflow Example
 
-The five applications create a comprehensive research and strategy pipeline:
+The seven applications create a comprehensive research, strategy, and product innovation pipeline:
 
 ```bash
 # Step 1: Pull research from S3 and analyze
@@ -287,10 +320,16 @@ python jobs_researcher.py --input analysis_results.md --output jtbd_research.md
 python cluster_jtbd.py jtbd_research_pain_points.txt --output opportunity_zones.json
 
 # Step 4: Map value curves for each opportunity zone
-python value_curve_mapper.py opportunity_zones.json --output value_curves_report.md
+python value_curve_mapper.py opportunity_zones.json --output value_curves.json
 
-# Step 5: Review strategic insights
-cat value_curves_report.md
+# Step 5: Generate and filter product ideas
+python product_idea_generator.py --input value_curves.json --output product_ideas.json
+
+# Step 6: Consolidate into final innovation portfolio
+python idea_consolidator.py --input product_ideas.json --output final_innovation_portfolio.json
+
+# Step 7: Review final comprehensive portfolio
+cat final_innovation_portfolio_summary.md
 ```
 
 ## Jobs Researcher Details
@@ -390,7 +429,8 @@ The complete pipeline provides:
 - **Clustering**: 5-10 seconds (Cohere embeddings)
 - **Opportunity Zones**: 10-15 seconds (GPT-4o processing)
 - **Value Curve Mapping**: 20-30 seconds per zone (EXA + 2 Opus)
-- **Total Pipeline**: ~2-3 minutes for comprehensive strategy analysis
+- **Product Idea Generation**: 30-45 seconds per zone (o1 + 2 Opus)
+- **Total Pipeline**: ~3-5 minutes for complete innovation analysis
 
 ## License
 
