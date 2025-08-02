@@ -1,0 +1,37 @@
+# Environment variables
+.env
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+env/
+*.egg-info/
+.pytest_cache/
+htmlcov/
+.coverage
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Output files
+analysis_results.md
+jtbd_research.md
+jtbd_research_pain_points.txt
+jtbd_clusters.json
+opportunity_zones.json
+value_curves.json
+value_curves_report.md
+pain_points.txt
+workflow_results.md

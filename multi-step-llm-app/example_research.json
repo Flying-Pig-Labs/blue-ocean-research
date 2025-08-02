@@ -1,0 +1,12 @@
+{
+  "metadata": {
+    "title": "AI Market Research Report",
+    "date": "2024-08-01",
+    "version": "1.0"
+  },
+  "content": "This is where your research content goes. It can be a long-form text document containing market analysis, user interviews, competitive analysis, technical specifications, or any other research material. The analyzer will extract this content field and use it as input for the parallel LLM analysis.\n\nThe content can include:\n- Market trends and dynamics\n- User feedback and testimonials\n- Technical challenges and opportunities\n- Competitive landscape analysis\n- Industry reports and statistics\n\nThe more comprehensive your research document, the better insights the parallel analysis will provide.",
+  "additional_data": {
+    "sources": ["interviews", "surveys", "market_reports"],
+    "confidence": "high"
+  }
+}
