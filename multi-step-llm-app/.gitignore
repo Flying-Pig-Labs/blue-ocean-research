@@ -35,3 +35,15 @@ value_curves.json
 value_curves_report.md
 pain_points.txt
 workflow_results.md
+
+# Logs
+logs/
+*.log
+
+# Claude Flow
+.claude-flow/
+memory/
+
+# Test files
+demo_*.py
+test_*.py

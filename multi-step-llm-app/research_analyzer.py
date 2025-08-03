@@ -22,6 +22,11 @@ from rich.progress import Progress, SpinnerColumn, TextColumn
 from rich.table import Table
 from rich.markdown import Markdown
 
+# Import logging system
+from src.utils.pipeline_logger import initialize_logger, get_logger, close_logger
+from src.models.logging_models import ComponentType, ModelProvider
+from src.config import Config
+
 # Load environment variables
 load_dotenv()
 
@@ -41,11 +46,21 @@ class AnalysisTask:
 class ResearchAnalyzer:
     """Main application for parallel research analysis"""
     
-    def __init__(self):
+    def __init__(self, logger=None):
         """Initialize AWS S3 and Anthropic clients"""
+        # Initialize logger if not provided
+        self.logger = logger or get_logger()
+        if not self.logger:
+            # Initialize a new logger for this component
+            config = Config()
+            self.logger = initialize_logger(config)
+        
+        self.logger.info("Initializing Research Analyzer", ComponentType.RESEARCH_ANALYZER)
+        
         # Anthropic setup
         self.api_key = os.getenv("ANTHROPIC_API_KEY")
         if not self.api_key:
+            self.logger.error("ANTHROPIC_API_KEY not found in environment variables", ComponentType.RESEARCH_ANALYZER)
             console.print("[red]Error: ANTHROPIC_API_KEY not found![/red]")
             sys.exit(1)
         
@@ -53,7 +68,9 @@ class ResearchAnalyzer:
             self.client = anthropic.Anthropic(api_key=self.api_key)
             self.model_sonnet = "claude-3-5-sonnet-20241022"
             self.model_opus = "claude-3-opus-20240229"
+            self.logger.info("Anthropic client initialized successfully", ComponentType.RESEARCH_ANALYZER)
         except Exception as e:
+            self.logger.error(f"Error initializing Anthropic client: {e}", ComponentType.RESEARCH_ANALYZER)
             console.print(f"[red]Error initializing Anthropic client: {e}[/red]")
             sys.exit(1)
         
@@ -65,6 +82,7 @@ class ResearchAnalyzer:
         self.file_key = os.getenv("S3_FILE_KEY")
         
         if not all([self.aws_access_key, self.aws_secret_key, self.bucket_name]):
+            self.logger.warning("AWS credentials not fully configured. S3 functionality disabled", ComponentType.RESEARCH_ANALYZER)
             console.print("[yellow]Warning: AWS credentials not fully configured. Use --local flag for local file.[/yellow]")
             self.s3_client = None
         else:
@@ -75,7 +93,9 @@ class ResearchAnalyzer:
                     aws_secret_access_key=self.aws_secret_key,
                     region_name=self.aws_region
                 )
+                self.logger.info("S3 client initialized successfully", ComponentType.RESEARCH_ANALYZER)
             except Exception as e:
+                self.logger.error(f"Error initializing S3 client: {e}", ComponentType.RESEARCH_ANALYZER)
                 console.print(f"[red]Error initializing S3 client: {e}[/red]")
                 self.s3_client = None
     
@@ -85,39 +105,62 @@ class ResearchAnalyzer:
         key = key or self.file_key
         
         if not self.s3_client:
+            self.logger.error("S3 client not initialized. Check AWS credentials", ComponentType.RESEARCH_ANALYZER)
             console.print("[red]S3 client not initialized. Check AWS credentials.[/red]")
             sys.exit(1)
         
-        console.print(f"[cyan]Pulling file from S3: s3://{bucket}/{key}[/cyan]")
-        
-        try:
-            response = self.s3_client.get_object(Bucket=bucket, Key=key)
-            content = response['Body'].read().decode('utf-8')
-            data = json.loads(content)
-            console.print("[green]✅ Successfully pulled file from S3[/green]")
-            return data
-        except ClientError as e:
-            console.print(f"[red]Error pulling from S3: {e}[/red]")
-            sys.exit(1)
-        except json.JSONDecodeError as e:
-            console.print(f"[red]Error parsing JSON: {e}[/red]")
-            sys.exit(1)
+        with self.logger.log_operation(ComponentType.RESEARCH_ANALYZER, "s3_download", metadata={"bucket": bucket, "key": key}) as op:
+            self.logger.info(f"Pulling file from S3: s3://{bucket}/{key}", ComponentType.RESEARCH_ANALYZER, "s3_download")
+            console.print(f"[cyan]Pulling file from S3: s3://{bucket}/{key}[/cyan]")
+            
+            try:
+                response = self.s3_client.get_object(Bucket=bucket, Key=key)
+                content = response['Body'].read().decode('utf-8')
+                data = json.loads(content)
+                
+                # Update operation metadata
+                op.output_data_size = len(content)
+                op.records_processed = 1
+                
+                self.logger.info(f"Successfully pulled file from S3 ({len(content)} bytes)", ComponentType.RESEARCH_ANALYZER, "s3_download")
+                console.print("[green]✅ Successfully pulled file from S3[/green]")
+                return data
+                
+            except ClientError as e:
+                self.logger.error(f"S3 ClientError: {e}", ComponentType.RESEARCH_ANALYZER, "s3_download")
+                console.print(f"[red]Error pulling from S3: {e}[/red]")
+                sys.exit(1)
+            except json.JSONDecodeError as e:
+                self.logger.error(f"JSON parsing error: {e}", ComponentType.RESEARCH_ANALYZER, "s3_download")
+                console.print(f"[red]Error parsing JSON: {e}[/red]")
+                sys.exit(1)
     
     def load_local_file(self, filepath: str) -> Dict:
         """Load JSON file from local filesystem"""
-        console.print(f"[cyan]Loading local file: {filepath}[/cyan]")
-        
-        try:
-            with open(filepath, 'r') as f:
-                data = json.load(f)
-            console.print("[green]✅ Successfully loaded local file[/green]")
-            return data
-        except FileNotFoundError:
-            console.print(f"[red]Error: File not found: {filepath}[/red]")
-            sys.exit(1)
-        except json.JSONDecodeError as e:
-            console.print(f"[red]Error parsing JSON: {e}[/red]")
-            sys.exit(1)
+        with self.logger.log_operation(ComponentType.RESEARCH_ANALYZER, "file_load", metadata={"filepath": filepath}) as op:
+            self.logger.info(f"Loading local file: {filepath}", ComponentType.RESEARCH_ANALYZER, "file_load")
+            console.print(f"[cyan]Loading local file: {filepath}[/cyan]")
+            
+            try:
+                with open(filepath, 'r') as f:
+                    data = json.load(f)
+                
+                # Update operation metadata
+                op.output_data_size = len(json.dumps(data))
+                op.records_processed = 1
+                
+                self.logger.info(f"Successfully loaded local file ({len(json.dumps(data))} bytes)", ComponentType.RESEARCH_ANALYZER, "file_load")
+                console.print("[green]✅ Successfully loaded local file[/green]")
+                return data
+                
+            except FileNotFoundError:
+                self.logger.error(f"File not found: {filepath}", ComponentType.RESEARCH_ANALYZER, "file_load")
+                console.print(f"[red]Error: File not found: {filepath}[/red]")
+                sys.exit(1)
+            except json.JSONDecodeError as e:
+                self.logger.error(f"JSON parsing error: {e}", ComponentType.RESEARCH_ANALYZER, "file_load")
+                console.print(f"[red]Error parsing JSON: {e}[/red]")
+                sys.exit(1)
     
     def extract_content(self, data: Dict) -> str:
         """Extract content attribute from JSON data"""
@@ -203,81 +246,148 @@ class ResearchAnalyzer:
     
     def analyze_with_llm(self, task: AnalysisTask, research_content: str) -> Tuple[str, str]:
         """Execute a single analysis task with the appropriate model"""
+        # Select the appropriate model
+        model = self.model_sonnet if task.model == "sonnet" else self.model_opus
+        model_display = "Sonnet" if task.model == "sonnet" else "Opus"
+        
+        # Prepare the prompt with research content
+        full_prompt = f"Research Document:\n\n{research_content}\n\n{task.prompt}"
+        
+        self.logger.info(f"Starting {task.name} analysis with Claude {model_display}", 
+                        ComponentType.RESEARCH_ANALYZER, "llm_analysis",
+                        metadata={"task": task.name, "model": model})
+        console.print(f"[cyan]Running {task.name} analysis with Claude {model_display}...[/cyan]")
+        
+        # Use the API call tracker
+        with self.logger.track_api_call(ComponentType.RESEARCH_ANALYZER, ModelProvider.ANTHROPIC, model) as call_data:
+            try:
+                # Calculate approximate input tokens (rough estimate: 4 chars = 1 token)
+                estimated_prompt_tokens = len(full_prompt + task.system_prompt) // 4
+                call_data["prompt_tokens"] = estimated_prompt_tokens
+                call_data["request_size"] = len(full_prompt.encode('utf-8'))
+                
+                # Make API call
+                message = self.client.messages.create(
+                    model=model,
+                    max_tokens=task.max_tokens,
+                    temperature=task.temperature,
+                    system=task.system_prompt,
+                    messages=[
+                        {"role": "user", "content": full_prompt}
+                    ]
+                )
+                
+                response_text = message.content[0].text
+                
+                # Update call data with response information
+                call_data["completion_tokens"] = len(response_text) // 4  # Rough estimate
+                call_data["response_size"] = len(response_text.encode('utf-8'))
+                
+                self.logger.info(f"Completed {task.name} analysis ({len(response_text)} chars)", 
+                               ComponentType.RESEARCH_ANALYZER, "llm_analysis",
+                               metadata={"task": task.name, "response_length": len(response_text)})
+                
+                return (task.name, response_text)
+                
+            except anthropic.RateLimitError as e:
+                self.logger.warning(f"Rate limit reached for {task.name}. Retrying in 5s...", 
+                                  ComponentType.RESEARCH_ANALYZER, "llm_analysis")
+                console.print(f"[yellow]Rate limit reached for {task.name}. Retrying...[/yellow]")
+                
+                # Re-raise to trigger the tracker's error handling, then retry
+                call_data["error"] = str(e)
+                raise
+                
+            except Exception as e:
+                self.logger.error(f"Error in {task.name} analysis: {e}", 
+                                ComponentType.RESEARCH_ANALYZER, "llm_analysis",
+                                metadata={"task": task.name})
+                console.print(f"[red]Error in {task.name} analysis: {e}[/red]")
+                
+                # Set error in call_data and re-raise
+                call_data["error"] = str(e)
+                raise
+        
+        # Handle rate limit retry outside the context manager
         try:
-            # Select the appropriate model
-            model = self.model_sonnet if task.model == "sonnet" else self.model_opus
-            model_display = "Sonnet" if task.model == "sonnet" else "Opus"
-            
-            # Prepare the prompt with research content
-            full_prompt = f"Research Document:\n\n{research_content}\n\n{task.prompt}"
-            
-            console.print(f"[cyan]Running {task.name} analysis with Claude {model_display}...[/cyan]")
-            
-            # Make API call
-            message = self.client.messages.create(
-                model=model,
-                max_tokens=task.max_tokens,
-                temperature=task.temperature,
-                system=task.system_prompt,
-                messages=[
-                    {"role": "user", "content": full_prompt}
-                ]
-            )
-            
             return (task.name, message.content[0].text)
-            
         except anthropic.RateLimitError:
-            console.print(f"[yellow]Rate limit reached for {task.name}. Retrying...[/yellow]")
             import time
             time.sleep(5)
             return self.analyze_with_llm(task, research_content)
         except Exception as e:
-            console.print(f"[red]Error in {task.name} analysis: {e}[/red]")
             return (task.name, f"Error: {str(e)}")
     
     def run_parallel_analysis(self, research_content: str) -> Dict[str, str]:
         """Run all analysis tasks in parallel"""
-        tasks = self.create_analysis_tasks()
-        results = {}
-        
-        console.print("\n[bold cyan]Starting parallel analysis with 4 LLM calls...[/bold cyan]")
-        
-        # Create a summary table
-        table = Table(title="Analysis Tasks")
-        table.add_column("Task", style="cyan")
-        table.add_column("Model", style="magenta")
-        table.add_column("Status", style="green")
-        
-        for task in tasks:
-            table.add_row(task.name, f"Claude {task.model.title()}", "Queued")
-        
-        console.print(table)
-        console.print()
-        
-        # Execute tasks in parallel
-        with Progress(
-            SpinnerColumn(),
-            TextColumn("[progress.description]{task.description}"),
-            transient=False,
-        ) as progress:
+        with self.logger.log_operation(ComponentType.RESEARCH_ANALYZER, "parallel_analysis", 
+                                     input_data_size=len(research_content),
+                                     metadata={"task_count": 4}) as op:
             
-            progress_task = progress.add_task("[cyan]Running parallel analysis...", total=len(tasks))
+            tasks = self.create_analysis_tasks()
+            results = {}
             
-            with ThreadPoolExecutor(max_workers=4) as executor:
-                # Submit all tasks
-                future_to_task = {
-                    executor.submit(self.analyze_with_llm, task, research_content): task
-                    for task in tasks
-                }
+            self.logger.info("Starting parallel analysis with 4 LLM calls", 
+                           ComponentType.RESEARCH_ANALYZER, "parallel_analysis")
+            console.print("\n[bold cyan]Starting parallel analysis with 4 LLM calls...[/bold cyan]")
+            
+            # Create a summary table
+            table = Table(title="Analysis Tasks")
+            table.add_column("Task", style="cyan")
+            table.add_column("Model", style="magenta")
+            table.add_column("Status", style="green")
+            
+            for task in tasks:
+                table.add_row(task.name, f"Claude {task.model.title()}", "Queued")
+            
+            console.print(table)
+            console.print()
+            
+            # Create progress tracker
+            progress_id = self.logger.create_progress_bar("Running parallel analysis", len(tasks), ComponentType.RESEARCH_ANALYZER)
+            
+            # Execute tasks in parallel
+            with Progress(
+                SpinnerColumn(),
+                TextColumn("[progress.description]{task.description}"),
+                transient=False,
+            ) as progress:
                 
-                # Process completed tasks
-                for future in as_completed(future_to_task):
-                    task_name, result = future.result()
-                    results[task_name] = result
-                    progress.update(progress_task, advance=1)
-                    console.print(f"[green]✅ Completed: {task_name}[/green]")
-        
-        return results
+                progress_task = progress.add_task("[cyan]Running parallel analysis...", total=len(tasks))
+                
+                with ThreadPoolExecutor(max_workers=4) as executor:
+                    # Submit all tasks
+                    future_to_task = {
+                        executor.submit(self.analyze_with_llm, task, research_content): task
+                        for task in tasks
+                    }
+                    
+                    # Process completed tasks
+                    for future in as_completed(future_to_task):
+                        task_name, result = future.result()
+                        results[task_name] = result
+                        
+                        # Update progress bars
+                        progress.update(progress_task, advance=1)
+                        self.logger.update_progress(progress_id, advance=1)
+                        
+                        self.logger.info(f"Completed analysis task: {task_name}", 
+                                       ComponentType.RESEARCH_ANALYZER, "parallel_analysis",
+                                       metadata={"task": task_name, "result_length": len(result)})
+                        console.print(f"[green]✅ Completed: {task_name}[/green]")
+            
+            # Complete progress tracking
+            self.logger.complete_progress(progress_id)
+            
+            # Update operation metadata
+            op.records_processed = len(results)
+            total_output_size = sum(len(result) for result in results.values())
+            op.output_data_size = total_output_size
+            
+            self.logger.info(f"Parallel analysis completed. Processed {len(results)} tasks, generated {total_output_size} chars", 
+                           ComponentType.RESEARCH_ANALYZER, "parallel_analysis")
+            
+            return results
     
     def combine_results(self, results: Dict[str, str]) -> str:
         """Combine all analysis results into a single document"""
@@ -302,49 +412,79 @@ class ResearchAnalyzer:
     def run(self, source: str, is_s3: bool = True, bucket: Optional[str] = None, 
             key: Optional[str] = None, output_file: str = "analysis_results.md"):
         """Main execution flow"""
-        console.print(Panel.fit(
-            "[bold green]Research Analysis with Parallel LLM Processing[/bold green]\n"
-            "Using Claude Sonnet and Opus for comprehensive analysis",
-            border_style="green"
-        ))
-        
-        # Step 1: Load data
-        if is_s3:
-            data = self.pull_from_s3(bucket, key)
-        else:
-            data = self.load_local_file(source)
-        
-        # Step 2: Extract content
-        research_content = self.extract_content(data)
-        console.print(f"\n[green]✅ Extracted research content ({len(research_content)} characters)[/green]")
-        
-        # Step 3: Run parallel analysis
-        results = self.run_parallel_analysis(research_content)
-        
-        # Step 4: Combine results
-        combined_results = self.combine_results(results)
-        
-        # Step 5: Display summary
-        console.print("\n[bold green]Analysis Complete![/bold green]")
-        console.print(Panel(
-            f"• Industry Verticals: {len(results.get('Industry Verticals', '').split())} words\n"
-            f"• User Personas: {len(results.get('User Personas', '').split())} words\n"
-            f"• Pain Points: {len(results.get('Pain Points', '').split())} words\n"
-            f"• Solution Types: {len(results.get('Solution Types', '').split())} words\n"
-            f"\nTotal output: {len(combined_results.split())} words",
-            title="Summary",
-            border_style="blue"
-        ))
-        
-        # Step 6: Save results
-        self.save_results(combined_results, output_file)
-        
-        # Optional: Display preview
-        if console.input("\n[yellow]Display preview of results? (y/n): [/yellow]").lower() == 'y':
-            preview = combined_results[:1000] + "..." if len(combined_results) > 1000 else combined_results
-            console.print(Panel(Markdown(preview), title="Preview", border_style="dim"))
-        
-        return combined_results
+        with self.logger.log_operation(ComponentType.RESEARCH_ANALYZER, "research_analysis_pipeline") as op:
+            self.logger.info("Starting Research Analysis Pipeline", ComponentType.RESEARCH_ANALYZER, "research_analysis_pipeline")
+            
+            console.print(Panel.fit(
+                "[bold green]Research Analysis with Parallel LLM Processing[/bold green]\n"
+                "Using Claude Sonnet and Opus for comprehensive analysis",
+                border_style="green"
+            ))
+            
+            # Step 1: Load data
+            self.logger.info("Step 1: Loading data", ComponentType.RESEARCH_ANALYZER, "research_analysis_pipeline")
+            if is_s3:
+                data = self.pull_from_s3(bucket, key)
+            else:
+                data = self.load_local_file(source)
+            
+            # Step 2: Extract content
+            self.logger.info("Step 2: Extracting content", ComponentType.RESEARCH_ANALYZER, "research_analysis_pipeline")
+            research_content = self.extract_content(data)
+            op.input_data_size = len(research_content)
+            
+            self.logger.info(f"Extracted research content ({len(research_content)} characters)", 
+                           ComponentType.RESEARCH_ANALYZER, "research_analysis_pipeline")
+            console.print(f"\n[green]✅ Extracted research content ({len(research_content)} characters)[/green]")
+            
+            # Step 3: Run parallel analysis
+            self.logger.info("Step 3: Running parallel analysis", ComponentType.RESEARCH_ANALYZER, "research_analysis_pipeline")
+            results = self.run_parallel_analysis(research_content)
+            
+            # Step 4: Combine results
+            self.logger.info("Step 4: Combining results", ComponentType.RESEARCH_ANALYZER, "research_analysis_pipeline")
+            combined_results = self.combine_results(results)
+            op.output_data_size = len(combined_results)
+            op.records_processed = len(results)
+            
+            # Step 5: Display summary
+            self.logger.info("Step 5: Displaying summary", ComponentType.RESEARCH_ANALYZER, "research_analysis_pipeline")
+            console.print("\n[bold green]Analysis Complete![/bold green]")
+            
+            summary_stats = {
+                "industry_verticals_words": len(results.get('Industry Verticals', '').split()),
+                "user_personas_words": len(results.get('User Personas', '').split()),
+                "pain_points_words": len(results.get('Pain Points', '').split()),
+                "solution_types_words": len(results.get('Solution Types', '').split()),
+                "total_words": len(combined_results.split())
+            }
+            
+            console.print(Panel(
+                f"• Industry Verticals: {summary_stats['industry_verticals_words']} words\n"
+                f"• User Personas: {summary_stats['user_personas_words']} words\n"
+                f"• Pain Points: {summary_stats['pain_points_words']} words\n"
+                f"• Solution Types: {summary_stats['solution_types_words']} words\n"
+                f"\nTotal output: {summary_stats['total_words']} words",
+                title="Summary",
+                border_style="blue"
+            ))
+            
+            self.logger.info("Analysis summary generated", ComponentType.RESEARCH_ANALYZER, "research_analysis_pipeline", 
+                           metadata=summary_stats)
+            
+            # Step 6: Save results
+            self.logger.info("Step 6: Saving results", ComponentType.RESEARCH_ANALYZER, "research_analysis_pipeline")
+            self.save_results(combined_results, output_file)
+            
+            # Optional: Display preview
+            if console.input("\n[yellow]Display preview of results? (y/n): [/yellow]").lower() == 'y':
+                preview = combined_results[:1000] + "..." if len(combined_results) > 1000 else combined_results
+                console.print(Panel(Markdown(preview), title="Preview", border_style="dim"))
+            
+            self.logger.info("Research Analysis Pipeline completed successfully", 
+                           ComponentType.RESEARCH_ANALYZER, "research_analysis_pipeline")
+            
+            return combined_results
 
 def main():
     """Main entry point"""
@@ -376,51 +516,97 @@ Examples:
     parser.add_argument("--output", type=str, default="analysis_results.md", 
                        help="Output file name (default: analysis_results.md)")
     parser.add_argument("--test", action="store_true", help="Test connections only")
+    parser.add_argument("--config", type=str, help="Configuration file path")
+    parser.add_argument("--session-id", type=str, help="Custom session ID")
     
     args = parser.parse_args()
     
-    # Initialize analyzer
-    analyzer = ResearchAnalyzer()
+    # Initialize logging configuration
+    config = Config(args.config) if args.config else Config()
     
-    if args.test:
-        # Test mode
-        console.print("[cyan]Testing connections...[/cyan]")
+    # Initialize the pipeline logger with session management
+    logger = initialize_logger(config, args.session_id)
+    
+    try:
+        # Initialize analyzer with logger
+        analyzer = ResearchAnalyzer(logger)
         
-        # Test Anthropic
-        try:
-            response = analyzer.client.messages.create(
-                model=analyzer.model_sonnet,
-                max_tokens=10,
-                messages=[{"role": "user", "content": "Say 'Sonnet connected!'"}]
-            )
-            console.print(f"[green]✅ Claude Sonnet: {response.content[0].text}[/green]")
+        if args.test:
+            # Test mode with logging
+            logger.info("Starting connection tests", ComponentType.RESEARCH_ANALYZER, "connection_test")
+            console.print("[cyan]Testing connections...[/cyan]")
             
-            response = analyzer.client.messages.create(
-                model=analyzer.model_opus,
-                max_tokens=10,
-                messages=[{"role": "user", "content": "Say 'Opus connected!'"}]
-            )
-            console.print(f"[green]✅ Claude Opus: {response.content[0].text}[/green]")
-        except Exception as e:
-            console.print(f"[red]❌ Anthropic test failed: {e}[/red]")
-        
-        # Test S3
-        if analyzer.s3_client:
+            # Test Anthropic
             try:
-                analyzer.s3_client.head_bucket(Bucket=analyzer.bucket_name)
-                console.print(f"[green]✅ S3 bucket accessible: {analyzer.bucket_name}[/green]")
+                with logger.track_api_call(ComponentType.RESEARCH_ANALYZER, ModelProvider.ANTHROPIC, analyzer.model_sonnet) as call_data:
+                    call_data["prompt_tokens"] = 5
+                    response = analyzer.client.messages.create(
+                        model=analyzer.model_sonnet,
+                        max_tokens=10,
+                        messages=[{"role": "user", "content": "Say 'Sonnet connected!'"}]
+                    )
+                    call_data["completion_tokens"] = 5
+                    
+                logger.info("Claude Sonnet connection test successful", ComponentType.RESEARCH_ANALYZER, "connection_test")
+                console.print(f"[green]✅ Claude Sonnet: {response.content[0].text}[/green]")
+                
+                with logger.track_api_call(ComponentType.RESEARCH_ANALYZER, ModelProvider.ANTHROPIC, analyzer.model_opus) as call_data:
+                    call_data["prompt_tokens"] = 5
+                    response = analyzer.client.messages.create(
+                        model=analyzer.model_opus,
+                        max_tokens=10,
+                        messages=[{"role": "user", "content": "Say 'Opus connected!'"}]
+                    )
+                    call_data["completion_tokens"] = 5
+                    
+                logger.info("Claude Opus connection test successful", ComponentType.RESEARCH_ANALYZER, "connection_test")
+                console.print(f"[green]✅ Claude Opus: {response.content[0].text}[/green]")
+                
             except Exception as e:
-                console.print(f"[red]❌ S3 test failed: {e}[/red]")
-        else:
-            console.print("[yellow]⚠️  S3 not configured[/yellow]")
+                logger.error(f"Anthropic connection test failed: {e}", ComponentType.RESEARCH_ANALYZER, "connection_test")
+                console.print(f"[red]❌ Anthropic test failed: {e}[/red]")
+            
+            # Test S3
+            if analyzer.s3_client:
+                try:
+                    with logger.log_operation(ComponentType.RESEARCH_ANALYZER, "s3_test") as op:
+                        analyzer.s3_client.head_bucket(Bucket=analyzer.bucket_name)
+                        op.records_processed = 1
+                    
+                    logger.info(f"S3 bucket access test successful: {analyzer.bucket_name}", ComponentType.RESEARCH_ANALYZER, "connection_test")
+                    console.print(f"[green]✅ S3 bucket accessible: {analyzer.bucket_name}[/green]")
+                except Exception as e:
+                    logger.error(f"S3 connection test failed: {e}", ComponentType.RESEARCH_ANALYZER, "connection_test")
+                    console.print(f"[red]❌ S3 test failed: {e}[/red]")
+            else:
+                logger.warning("S3 not configured", ComponentType.RESEARCH_ANALYZER, "connection_test")
+                console.print("[yellow]⚠️  S3 not configured[/yellow]")
+            
+            logger.info("Connection tests completed", ComponentType.RESEARCH_ANALYZER, "connection_test")
+            return
         
-        return
+        # Run analysis with comprehensive logging
+        logger.info("Starting research analysis application", ComponentType.RESEARCH_ANALYZER)
+        
+        if args.local:
+            analyzer.run(args.local, is_s3=False, output_file=args.output)
+        else:
+            analyzer.run("", is_s3=True, bucket=args.bucket, key=args.key, output_file=args.output)
+            
+        logger.info("Research analysis application completed successfully", ComponentType.RESEARCH_ANALYZER)
+        
+    except Exception as e:
+        # Log any uncaught exceptions
+        if logger:
+            logger.critical(f"Unhandled exception in main: {e}", ComponentType.RESEARCH_ANALYZER, 
+                          stack_trace=str(e))
+        console.print(f"[red]Critical error: {e}[/red]")
+        raise
     
-    # Run analysis
-    if args.local:
-        analyzer.run(args.local, is_s3=False, output_file=args.output)
-    else:
-        analyzer.run("", is_s3=True, bucket=args.bucket, key=args.key, output_file=args.output)
+    finally:
+        # Always close the logger to ensure data is saved
+        if logger:
+            close_logger()
 
 if __name__ == "__main__":
     main()
