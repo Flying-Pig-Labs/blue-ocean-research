@@ -1,0 +1,120 @@
+# Sophisticated Scoring System Configuration
+# ========================================
+
+# Core scoring weights (must sum to 1.0)
+weights:
+  viability: 0.35      # Technical feasibility and market readiness
+  innovation: 0.25     # Degree of innovation and novelty
+  breakthrough: 0.25   # Game-changing and paradigm-shifting potential
+  confidence: 0.15     # Confidence in the assessment
+
+# Viability sub-factor weights (must sum to 1.0)
+viability_factors:
+  technical_feasibility: 0.30    # Can it be built with current/near-term technology?
+  market_readiness: 0.25         # Is the market ready for this solution?
+  resource_requirements: 0.20    # How much resources (time, money, people) needed?
+  time_to_market: 0.15          # How quickly can it be brought to market?
+  competitive_moat: 0.10        # How defensible is the solution?
+
+# Innovation sub-factor weights (must sum to 1.0)
+innovation_factors:
+  novelty: 0.40                  # How new and original is the idea?
+  uniqueness: 0.30               # How unique compared to existing solutions?
+  disruption_potential: 0.20     # Potential to disrupt existing markets?
+  technology_advancement: 0.10   # Does it advance the state of technology?
+
+# Breakthrough detection thresholds
+breakthrough_thresholds:
+  moonshot_threshold: 8.5        # Score needed to qualify as moonshot
+  game_changer_threshold: 7.5    # Score needed to qualify as game changer
+  incremental_threshold: 5.0     # Below this is incremental improvement
+
+# Smart filtering parameters
+excellence_threshold: 8.5         # Ideas above this must be preserved
+moonshot_preservation_threshold: 8.0  # Moonshots above this are auto-preserved
+minimum_viable_score: 4.0         # Minimum composite score for consideration
+base_quota_flexibility: 0.2       # 20% flexibility in zone quotas
+excellence_quota_boost: 0.3       # 30% quota boost for zones with excellence ideas
+min_ideas_per_zone: 1            # Minimum ideas to select per zone
+max_ideas_per_zone: 8            # Maximum ideas to select per zone
+
+# Confidence scoring parameters
+high_confidence_threshold: 8.0    # High confidence threshold
+medium_confidence_threshold: 6.0  # Medium confidence threshold
+low_confidence_threshold: 4.0     # Low confidence threshold
+max_risk_adjustment: 0.3          # Maximum downward adjustment (30%)
+confidence_weight: 0.7            # Weight of confidence in risk adjustment
+
+# Final selection strategy weights (must sum to 1.0)
+strategy_weights:
+  composite_ranking: 0.30          # Pure composite score ranking
+  breakthrough_prioritized: 0.25   # Breakthrough and moonshot prioritization
+  balanced_portfolio: 0.20         # Balanced across multiple dimensions
+  risk_optimized: 0.15            # Risk-adjusted selection
+  innovation_focused: 0.10         # Innovation and novelty focus
+
+# Safety check parameters
+min_consensus_threshold: 0.6       # 60% strategy agreement for selection
+safety_preservation_threshold: 8.5 # Must preserve ideas above this score
+high_value_warning_threshold: 7.5  # Warn when dropping ideas above this score
+
+# Portfolio optimization weights
+portfolio_weights:
+  innovation_diversity: 0.25       # Diversity of innovation approaches
+  risk_balance: 0.20              # Balance of risk levels
+  market_coverage: 0.20           # Coverage across market segments
+  technical_synergy: 0.20         # Technical synergies between ideas
+  resource_efficiency: 0.15       # Resource optimization
+
+# Reporting configuration
+reporting:
+  include_detailed_breakdowns: true
+  include_zone_analysis: true
+  include_breakthrough_metrics: true
+  include_risk_analysis: true
+  include_recommendations: true
+  export_formats: ["json", "markdown"]
+
+# Debug and logging options
+debug:
+  log_scoring_decisions: true
+  log_filtering_steps: true
+  log_selection_rationale: true
+  save_intermediate_results: true
+  detailed_confidence_analysis: true
+
+# Advanced features
+advanced:
+  enable_cross_zone_optimization: true
+  enable_ensemble_selection: true
+  enable_breakthrough_detection: true
+  enable_smart_filtering: true
+  enable_confidence_scoring: true
+  
+  # Experimental features (use with caution)
+  experimental:
+    adaptive_thresholds: false      # Adapt thresholds based on idea quality
+    dynamic_weights: false          # Adjust weights based on portfolio needs
+    market_timing_adjustment: false # Adjust scores based on market timing
+    competitive_landscape_weighting: false # Weight based on competitive analysis
+
+# Model-specific configurations
+models:
+  breakthrough_detection:
+    enable_text_analysis: true
+    enable_keyword_detection: true
+    enable_sentiment_analysis: false
+    enable_semantic_analysis: false
+  
+  confidence_scoring:
+    enable_consistency_checks: true
+    enable_completeness_analysis: true
+    enable_validation_detection: true
+    enable_uncertainty_quantification: true
+
+# Integration settings
+integration:
+  logging_system: true             # Integrate with pipeline logger
+  debug_system: true              # Integrate with debug mode
+  cost_tracking: true             # Track API costs for scoring
+  performance_monitoring: true    # Monitor scoring performance

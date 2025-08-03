@@ -19,6 +19,14 @@ from rich.progress import Progress, SpinnerColumn, TextColumn, BarColumn
 from rich.table import Table
 from rich.markdown import Markdown
 
+# Import sophisticated scoring system
+from src.scoring import (
+    IdeaScore, BreakthroughDetector, SmartFilterer, 
+    CrossZoneOptimizer, ConfidenceScorer, FinalSelector, SelectionReporter
+)
+from src.utils.debug_logger import DebugLogger
+from src.utils.pipeline_logger import PipelineLogger
+
 # Load environment variables
 load_dotenv()
 
@@ -26,10 +34,30 @@ load_dotenv()
 console = Console()
 
 class ProductIdeaGenerator:
-    """Generate and filter product ideas based on value curve analysis"""
+    """Generate and filter product ideas based on value curve analysis with sophisticated scoring"""
     
-    def __init__(self):
-        """Initialize API clients"""
+    def __init__(self, debug_mode: bool = False):
+        """Initialize API clients and scoring system"""
+        self.debug_mode = debug_mode
+        
+        # Initialize logging
+        self.debug_logger = DebugLogger() if debug_mode else None
+        self.pipeline_logger = PipelineLogger()
+        
+        # Initialize scoring system components
+        self.breakthrough_detector = BreakthroughDetector()
+        self.smart_filterer = SmartFilterer()
+        self.cross_zone_optimizer = CrossZoneOptimizer()
+        self.confidence_scorer = ConfidenceScorer()
+        self.final_selector = FinalSelector()
+        self.selection_reporter = SelectionReporter()
+        
+        if debug_mode:
+            self.debug_logger.log_operation("system_init", {
+                "component": "ProductIdeaGenerator",
+                "scoring_system": "sophisticated_scoring_v5",
+                "features": ["breakthrough_detection", "smart_filtering", "cross_zone_optimization"]
+            })
         # OpenAI setup for o1 model
         self.openai_api_key = os.getenv("OPENAI_API_KEY")
         if not self.openai_api_key:
@@ -318,8 +346,50 @@ Output in a structured format that can be parsed."""
         
         return ideas
     
+    def _apply_sophisticated_scoring(self, ideas: List[Dict], zone_name: str) -> List[Dict]:
+        """Apply sophisticated scoring system to ideas"""
+        enhanced_ideas = []
+        
+        for idea in ideas:
+            # Add zone context
+            idea['zone_name'] = zone_name
+            
+            # Calculate comprehensive scores
+            idea_score = IdeaScore.from_idea_data(idea)
+            breakthrough_analysis = self.breakthrough_detector.analyze_idea(idea, idea_score)
+            confidence_analysis = self.confidence_scorer.calculate_confidence(idea, idea_score)
+            
+            # Add all scoring data to idea
+            idea['scoring'] = {
+                'idea_score': idea_score,
+                'breakthrough_analysis': breakthrough_analysis,
+                'confidence_analysis': confidence_analysis,
+                'composite_score': confidence_analysis.adjusted_scores.get('composite_score', idea_score.composite_score),
+                'adjusted_scores': confidence_analysis.adjusted_scores,
+                'is_excellence': idea_score.is_high_potential(),
+                'is_moonshot': breakthrough_analysis.is_moonshot,
+                'is_breakthrough': breakthrough_analysis.is_breakthrough,
+                'risk_level': idea_score.get_risk_level(),
+                'confidence_category': self.confidence_scorer.get_confidence_category(confidence_analysis.overall_confidence)
+            }
+            
+            if self.debug_mode:
+                self.debug_logger.log_operation("idea_scoring", {
+                    "idea_name": idea.get('name', 'Unknown'),
+                    "zone_name": zone_name,
+                    "composite_score": idea_score.composite_score,
+                    "adjusted_composite": confidence_analysis.adjusted_scores.get('composite_score', idea_score.composite_score),
+                    "is_breakthrough": breakthrough_analysis.is_breakthrough,
+                    "is_moonshot": breakthrough_analysis.is_moonshot,
+                    "confidence_level": confidence_analysis.overall_confidence
+                })
+            
+            enhanced_ideas.append(idea)
+        
+        return enhanced_ideas
+    
     def process_opportunity_zone(self, zone_analysis: Dict) -> Dict:
-        """Process a single opportunity zone through the entire pipeline"""
+        """Process a single opportunity zone through the entire pipeline with sophisticated scoring"""
         zone = zone_analysis['zone']
         zone_name = zone['name']
         importance_percentage = zone.get('importance_percentage', 50)
@@ -330,25 +400,42 @@ Output in a structured format that can be parsed."""
             border_style="cyan"
         ))
         
+        if self.debug_mode:
+            self.debug_logger.log_operation("zone_processing_start", {
+                "zone_name": zone_name,
+                "importance_percentage": importance_percentage
+            })
+        
         # Step 1: Generate ERRC Grid (OpenAI o1)
         errc_grid = self.generate_errc_grid(zone_analysis)
         
         # Step 2: Generate Product Ideas (Claude Opus)
         product_ideas = self.generate_product_ideas(zone_name, errc_grid)
         
-        # Step 3: Evaluate Viability (Claude Opus)
+        # Step 3: Evaluate Viability (Claude Opus)  
         scored_ideas = self.scope_viability(product_ideas, zone_name)
         
-        # Step 4: Filter by Percentage
-        filtered_ideas = self.filter_ideas_by_percentage(scored_ideas, importance_percentage)
+        # Step 4: Apply sophisticated scoring to all ideas
+        console.print(f"[cyan]🔬 Applying sophisticated scoring system...[/cyan]")
+        enhanced_ideas = self._apply_sophisticated_scoring(scored_ideas, zone_name)
+        
+        # Step 5: Basic filtering by percentage (sophisticated filtering applied later)
+        filtered_ideas = self.filter_ideas_by_percentage(enhanced_ideas, importance_percentage)
+        
+        if self.debug_mode:
+            self.debug_logger.log_operation("zone_processing_complete", {
+                "zone_name": zone_name,
+                "total_ideas": len(enhanced_ideas),
+                "filtered_ideas": len(filtered_ideas)
+            })
         
         return {
             'zone': zone,
             'errc_grid': errc_grid,
-            'all_ideas': scored_ideas,
+            'all_ideas': enhanced_ideas,
             'filtered_ideas': filtered_ideas,
             'ideas_kept': len(filtered_ideas),
-            'ideas_total': len(scored_ideas)
+            'ideas_total': len(enhanced_ideas)
         }
     
     def generate_final_report(self, results: List[Dict]) -> str:
@@ -445,12 +532,18 @@ Output in a structured format that can be parsed."""
     def run(self, value_curves_file: str = "value_curves.json",
             json_output: str = "product_ideas.json",
             report_output: str = "product_ideas_report.md"):
-        """Main execution flow"""
+        """Main execution flow with sophisticated scoring and selection"""
         console.print(Panel.fit(
-            "[bold green]Product Idea Generation Pipeline[/bold green]\n"
-            "ERRC Analysis → Idea Generation → Viability Scoring → Filtering",
+            "[bold green]Product Idea Generation Pipeline with Sophisticated Scoring[/bold green]\n"
+            "ERRC → Ideas → Viability → Scoring → Smart Filtering → Selection → Optimization",
             border_style="green"
         ))
+        
+        if self.debug_mode:
+            self.debug_logger.log_operation("pipeline_start", {
+                "input_file": value_curves_file,
+                "output_files": {"json": json_output, "report": report_output}
+            })
         
         # Load value curves
         value_curves_data = self.load_value_curves(value_curves_file)
@@ -462,7 +555,7 @@ Output in a structured format that can be parsed."""
         
         console.print(f"\n[cyan]Found {len(analyses)} opportunity zones to process[/cyan]")
         
-        # Process each zone
+        # Step 1: Process each zone with basic scoring
         results = []
         with Progress(
             SpinnerColumn(),
@@ -483,27 +576,243 @@ Output in a structured format that can be parsed."""
                 
                 progress.update(task, advance=1)
         
-        # Generate report
-        console.print("\n[cyan]📊 Generating final report...[/cyan]")
-        report = self.generate_final_report(results)
+        # Step 2: Apply smart filtering across all zones
+        console.print("\n[cyan]🧠 Applying smart filtering with excellence preservation...[/cyan]")
+        filtering_results = self.smart_filterer.filter_ideas(results)
         
-        # Save results
-        self.save_results(results, report, json_output, report_output)
+        if self.debug_mode:
+            self.debug_logger.log_operation("smart_filtering_complete", {
+                "total_selected": len(filtering_results.selected_ideas),
+                "excellence_preserved": len(filtering_results.excellence_preserved),
+                "warnings": len(filtering_results.warnings)
+            })
         
-        # Display summary
-        total_ideas = sum(r['ideas_total'] for r in results)
-        filtered_ideas = sum(r['ideas_kept'] for r in results)
+        # Step 3: Apply final selection with ensemble approach
+        console.print("[cyan]🎯 Applying final selection with ensemble strategies...[/cyan]")
+        final_selection_results = self.final_selector.select_final_ideas(filtering_results)
+        
+        # Step 4: Cross-zone portfolio optimization
+        console.print("[cyan]⚡ Optimizing portfolio across zones...[/cyan]")
+        optimization_results = self.cross_zone_optimizer.optimize_portfolio(
+            final_selection_results.final_selection
+        )
+        
+        # Step 5: Generate comprehensive report
+        console.print("\n[cyan]📊 Generating comprehensive selection report...[/cyan]")
+        comprehensive_report = self.selection_reporter.generate_report(
+            results, filtering_results, final_selection_results, optimization_results
+        )
+        
+        # Step 6: Generate traditional report for compatibility
+        traditional_report = self.generate_final_report(results)
+        
+        # Step 7: Save all results
+        self._save_comprehensive_results(
+            results, filtering_results, final_selection_results, 
+            optimization_results, comprehensive_report, traditional_report,
+            json_output, report_output
+        )
+        
+        # Display comprehensive summary
+        self._display_comprehensive_summary(
+            results, filtering_results, final_selection_results, 
+            optimization_results, comprehensive_report, report_output
+        )
+        
+        if self.debug_mode:
+            self.debug_logger.log_operation("pipeline_complete", {
+                "zones_processed": len(results),
+                "final_selection_count": len(final_selection_results.final_selection),
+                "optimization_applied": optimization_results is not None
+            })
+    
+    def _save_comprehensive_results(self, zone_results, filtering_results, 
+                                   final_selection_results, optimization_results,
+                                   comprehensive_report, traditional_report,
+                                   json_output: str, report_output: str):
+        """Save all comprehensive results"""
+        
+        # Save comprehensive JSON data
+        comprehensive_data = {
+            "metadata": {
+                "timestamp": datetime.now().isoformat(),
+                "pipeline_version": "sophisticated_scoring_v5",
+                "zones_processed": len(zone_results),
+                "scoring_features": [
+                    "multi_dimensional_scoring", "breakthrough_detection", 
+                    "smart_filtering", "ensemble_selection", "portfolio_optimization"
+                ]
+            },
+            "zone_results": self._serialize_results(zone_results),
+            "filtering_results": self._serialize_filtering_results(filtering_results),
+            "final_selection": self._serialize_final_selection(final_selection_results),
+            "optimization_results": optimization_results,
+            "comprehensive_report": comprehensive_report,
+            "traditional_results": self._serialize_results(zone_results)  # For backward compatibility
+        }
+        
+        # Save comprehensive JSON
+        comprehensive_json_path = json_output.replace('.json', '_comprehensive.json')
+        with open(comprehensive_json_path, 'w') as f:
+            json.dump(comprehensive_data, f, indent=2, default=str)
+        console.print(f"[green]✅ Comprehensive results saved to {comprehensive_json_path}[/green]")
+        
+        # Save traditional JSON for compatibility
+        traditional_data = {
+            "metadata": {
+                "timestamp": datetime.now().isoformat(),
+                "zones_processed": len(zone_results),
+                "total_ideas": sum(r['ideas_total'] for r in zone_results),
+                "filtered_ideas": sum(r['ideas_kept'] for r in zone_results)
+            },
+            "results": zone_results
+        }
+        
+        with open(json_output, 'w') as f:
+            json.dump(traditional_data, f, indent=2, default=str)
+        console.print(f"[green]✅ Traditional results saved to {json_output}[/green]")
+        
+        # Save comprehensive markdown report
+        comprehensive_md_path = report_output.replace('.md', '_comprehensive.md')
+        comprehensive_md = self.selection_reporter.export_report_markdown(comprehensive_report)
+        with open(comprehensive_md_path, 'w') as f:
+            f.write(comprehensive_md)
+        console.print(f"[green]✅ Comprehensive report saved to {comprehensive_md_path}[/green]")
+        
+        # Save traditional markdown report
+        with open(report_output, 'w') as f:
+            f.write(traditional_report)
+        console.print(f"[green]✅ Traditional report saved to {report_output}[/green]")
+    
+    def _serialize_results(self, results):
+        """Serialize results for JSON output"""
+        serialized = []
+        for result in results:
+            serialized_result = result.copy()
+            # Convert complex objects to dictionaries
+            if 'all_ideas' in serialized_result:
+                serialized_result['all_ideas'] = [self._serialize_idea(idea) for idea in serialized_result['all_ideas']]
+            if 'filtered_ideas' in serialized_result:
+                serialized_result['filtered_ideas'] = [self._serialize_idea(idea) for idea in serialized_result['filtered_ideas']]
+            serialized.append(serialized_result)
+        return serialized
+    
+    def _serialize_idea(self, idea):
+        """Serialize idea for JSON output"""
+        serialized_idea = idea.copy()
+        if 'scoring' in serialized_idea:
+            scoring = serialized_idea['scoring']
+            # Convert scoring objects to dictionaries
+            if hasattr(scoring.get('idea_score'), 'to_dict'):
+                scoring['idea_score'] = scoring['idea_score'].to_dict()
+            # Convert other complex objects to dictionaries using their __dict__
+            for key, value in scoring.items():
+                if hasattr(value, '__dict__') and not isinstance(value, (str, int, float, bool, list, dict)):
+                    scoring[key] = value.__dict__
+        return serialized_idea
+    
+    def _serialize_filtering_results(self, filtering_results):
+        """Serialize filtering results"""
+        return {
+            'selected_ideas': [self._serialize_idea(idea) for idea in filtering_results.selected_ideas],
+            'dropped_ideas': [self._serialize_idea(idea) for idea in filtering_results.dropped_ideas],
+            'excellence_preserved': [self._serialize_idea(idea) for idea in filtering_results.excellence_preserved],
+            'quota_adjustments': filtering_results.quota_adjustments,
+            'filtering_stats': filtering_results.filtering_stats,
+            'warnings': filtering_results.warnings
+        }
+    
+    def _serialize_final_selection(self, final_results):
+        """Serialize final selection results"""
+        return {
+            'final_selection': [self._serialize_idea(idea) for idea in final_results.final_selection],
+            'ensemble_strategies': [strategy.__dict__ for strategy in final_results.ensemble_strategies],
+            'consensus_analysis': final_results.consensus_analysis,
+            'safety_checks': final_results.safety_checks,
+            'warnings': final_results.warnings,
+            'selection_confidence': final_results.selection_confidence,
+            'dropped_high_value_ideas': final_results.dropped_high_value_ideas
+        }
+    
+    def _display_comprehensive_summary(self, zone_results, filtering_results, 
+                                     final_selection_results, optimization_results,
+                                     comprehensive_report, report_output: str):
+        """Display comprehensive summary of the pipeline"""
+        
+        # Basic stats
+        total_ideas = sum(r['ideas_total'] for r in zone_results)
+        filtered_ideas = len(filtering_results.selected_ideas)
+        final_ideas = len(final_selection_results.final_selection)
+        
+        # Excellence and breakthrough stats
+        excellence_preserved = len(filtering_results.excellence_preserved)
+        breakthrough_count = sum(
+            1 for idea in final_selection_results.final_selection
+            if idea.get('scoring', {}).get('is_breakthrough', False)
+        )
+        moonshot_count = sum(
+            1 for idea in final_selection_results.final_selection
+            if idea.get('scoring', {}).get('is_moonshot', False)
+        )
+        
+        # Quality metrics
+        exec_summary = comprehensive_report['executive_summary']
+        quality_improvement = exec_summary['process_overview']['quality_improvement']
+        selection_confidence = final_selection_results.selection_confidence
+        
+        # Warnings
+        total_warnings = len(filtering_results.warnings) + len(final_selection_results.warnings)
         
         console.print(Panel(
-            f"✅ Pipeline complete!\n\n"
-            f"• Zones processed: {len(results)}\n"
-            f"• Ideas generated: {total_ideas}\n"
-            f"• Ideas after filtering: {filtered_ideas}\n"
-            f"• Reduction rate: {(1 - filtered_ideas/total_ideas)*100:.1f}%\n\n"
-            f"Top ideas saved to: {report_output}",
-            title="Product Innovation Results",
+            f"🎯 [bold green]Sophisticated Scoring Pipeline Complete![/bold green]\n\n"
+            f"📊 [bold]Processing Results:[/bold]\n"
+            f"  • Zones processed: {len(zone_results)}\n"
+            f"  • Ideas generated: {total_ideas}\n"
+            f"  • After smart filtering: {filtered_ideas}\n"
+            f"  • Final selection: {final_ideas}\n"
+            f"  • Overall reduction: {(1 - final_ideas/total_ideas)*100:.1f}%\n\n"
+            f"⭐ [bold]Quality Metrics:[/bold]\n"
+            f"  • Excellence ideas preserved: {excellence_preserved}\n"
+            f"  • Breakthrough ideas: {breakthrough_count}\n"
+            f"  • Moonshot ideas: {moonshot_count}\n"
+            f"  • Quality improvement: {quality_improvement}\n"
+            f"  • Selection confidence: {selection_confidence:.1f}/10\n\n"
+            f"🎯 [bold]Portfolio Optimization:[/bold]\n"
+            f"  • Strategies applied: {len(final_selection_results.ensemble_strategies)}\n"
+            f"  • Portfolio balance: {optimization_results['optimized_metrics'].overall_balance:.1f}/10\n"
+            f"  • Technical synergy: {optimization_results['optimized_metrics'].technical_synergy:.1f}/10\n\n"
+            f"⚠️  [bold]Warnings & Alerts:[/bold] {total_warnings}\n\n"
+            f"📋 [bold]Reports Generated:[/bold]\n"
+            f"  • Comprehensive report: {report_output.replace('.md', '_comprehensive.md')}\n"
+            f"  • Traditional report: {report_output}\n"
+            f"  • JSON data: {report_output.replace('.md', '.json')}",
+            title="🚀 Sophisticated Scoring Results",
             border_style="green"
         ))
+        
+        # Display warnings if any
+        if total_warnings > 0:
+            console.print(f"\n[yellow]⚠️  {total_warnings} warnings generated. Check reports for details.[/yellow]")
+        
+        # Display top ideas
+        if final_selection_results.final_selection:
+            console.print(f"\n[cyan]🏆 Top 3 Selected Ideas:[/cyan]")
+            
+            sorted_final = sorted(
+                final_selection_results.final_selection,
+                key=lambda x: x.get('scoring', {}).get('composite_score', 0),
+                reverse=True
+            )
+            
+            for i, idea in enumerate(sorted_final[:3], 1):
+                name = idea.get('name', 'Unknown')
+                score = idea.get('scoring', {}).get('composite_score', 0)
+                zone = idea.get('zone_name', 'Unknown')
+                is_breakthrough = "🚀" if idea.get('scoring', {}).get('is_breakthrough', False) else ""
+                is_moonshot = "🌙" if idea.get('scoring', {}).get('is_moonshot', False) else ""
+                
+                console.print(f"  {i}. [bold]{name}[/bold] {is_breakthrough}{is_moonshot}")
+                console.print(f"     Zone: {zone} | Score: {score:.2f}")
 
 def main():
     """Main entry point"""
@@ -530,11 +839,15 @@ Examples:
     parser.add_argument("--report-output", type=str, default="product_ideas_report.md",
                        help="Output report file")
     parser.add_argument("--test", action="store_true", help="Test API connections")
+    parser.add_argument("--debug", action="store_true", help="Enable debug mode with detailed logging")
     
     args = parser.parse_args()
     
-    # Initialize generator
-    generator = ProductIdeaGenerator()
+    # Initialize generator with debug mode
+    generator = ProductIdeaGenerator(debug_mode=args.debug)
+    
+    if args.debug:
+        console.print("[yellow]🐛 Debug mode enabled - detailed logging activated[/yellow]")
     
     if args.test:
         # Test mode
