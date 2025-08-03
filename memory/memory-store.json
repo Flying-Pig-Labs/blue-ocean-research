@@ -1,0 +1,46 @@
+{
+  "default": [
+    {
+      "key": "swarm_objective",
+      "value": "Work GitHub issues 1 by 1 with QA verification",
+      "namespace": "default",
+      "timestamp": 1754185400691
+    },
+    {
+      "key": "project_context",
+      "value": "helios repository - systematic GitHub issue resolution with quality assurance",
+      "namespace": "default",
+      "timestamp": 1754185411692
+    },
+    {
+      "key": "issue_1_analysis",
+      "value": "Issue #1: Fix Mermaid Diagram - Critical bug affecting documentation accuracy. Needs correction of EXA calls representation, clustering pipeline grouping, and visual clarity improvements. Priority: HIGH (affects developer understanding)",
+      "namespace": "default",
+      "timestamp": 1754185607596
+    },
+    {
+      "key": "issue_1_fix_plan",
+      "value": "Fix Mermaid diagram issues: 1) Combine 5 EXA boxes into 1 with bullet points, 2) Group clustering operations (Embed->Cluster->Label->Zones), 3) Remove Sequential diamond shapes, 4) Add zone percentage filtering detail, 5) Improve visual clarity with better grouping",
+      "namespace": "default",
+      "timestamp": 1754185660833
+    },
+    {
+      "key": "issue_1_resolution",
+      "value": "Fixed Mermaid diagram: 1) Consolidated 5 EXA boxes into single box with bullet points, 2) Grouped clustering operations into pipeline box, 3) Removed unnecessary sequential diamonds, 4) Added zone percentage filtering details, 5) Improved visual grouping with grouped class styling, 6) Added simplified view option",
+      "namespace": "default",
+      "timestamp": 1754185698880
+    },
+    {
+      "key": "issue_1_status",
+      "value": "COMPLETED - Issue #1 fixed and committed. All requirements from GitHub issue addressed: EXA consolidation, clustering grouping, visual clarity, percentage filtering visibility, simplified view added. Ready for verification.",
+      "namespace": "default",
+      "timestamp": 1754185726626
+    },
+    {
+      "key": "issue_2_analysis",
+      "value": "Issue #2: Implement Comprehensive Logging System - Major enhancement requiring: 1) PipelineLogger class with Rich console + file handlers, 2) API call tracking (tokens, costs, duration), 3) Performance metrics (JSONL format), 4) Component-specific logs, 5) Log analysis tools, 6) Session-based directory structure",
+      "namespace": "default",
+      "timestamp": 1754185770876
+    }
+  ]
+}
