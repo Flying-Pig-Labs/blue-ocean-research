@@ -584,6 +584,71 @@ Results are automatically saved to `workflow_results.md` after completion, conta
 - Anthropic API key
 - Dependencies listed in requirements.txt
 
+## Testing
+
+### Unit Tests
+
+The project includes comprehensive unit tests for all components, including the GitHub integration:
+
+```bash
+# Run all unit tests
+python -m pytest tests/ -v
+
+# Run specific test file
+python -m pytest tests/test_github_integration.py -v
+
+# Run with coverage
+python -m pytest tests/ --cov=. --cov-report=html
+```
+
+### Integration Tests
+
+A complete end-to-end integration test is available that runs the entire pipeline with mocked APIs:
+
+```bash
+# Run integration test
+python -m pytest tests/test_integration_e2e.py -v
+
+# Run integration test with detailed output
+python -m pytest tests/test_integration_e2e.py -v -s
+```
+
+The integration test:
+- Uses mocked API responses (no real API calls)
+- Creates temporary directories for outputs
+- Runs all 7 pipeline stages
+- Verifies GitHub repository creation
+- Cleans up after itself automatically
+
+### Cleanup Script
+
+After running the pipeline, use the cleanup script to remove all generated files:
+
+```bash
+# Interactive cleanup (with confirmation)
+python cleanup_pipeline.py
+
+# Dry run (show what would be removed)
+python cleanup_pipeline.py --dry-run
+
+# Force cleanup (no confirmation)
+python cleanup_pipeline.py --force
+```
+
+The cleanup script removes:
+- All JSON output files
+- All markdown reports
+- Pain points text files
+- Test outputs
+- Log files (optional)
+- Temporary files
+
+It preserves:
+- Source code files
+- Configuration files (.env, requirements.txt)
+- Documentation
+- Git repository data
+
 ## Environment Variables
 
 ### Required
