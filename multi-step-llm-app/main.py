@@ -21,6 +21,12 @@ from src.utils.pipeline_logger import initialize_logger, get_logger, close_logge
 from src.models.logging_models import ComponentType, ModelProvider
 from src.config import Config
 
+# Import debug system
+from src.utils.debug_config import initialize_debug_config, is_debug_mode
+from src.utils.debug_logger import initialize_debug_logger, close_debug_logger
+from src.utils.debug_dashboard import get_debug_dashboard
+from src.utils.debug_aware_component import DebugAwareComponent
+
 # Load environment variables
 load_dotenv()
 
@@ -36,11 +42,14 @@ class WorkflowStep:
     max_tokens: int = 1000
     temperature: float = 0.7
 
-class MultiStepLLMApp:
+class MultiStepLLMApp(DebugAwareComponent):
     """Main application class for multi-step LLM workflows"""
     
     def __init__(self, api_key: Optional[str] = None, logger=None):
         """Initialize the app with Anthropic client"""
+        # Initialize debug-aware component
+        super().__init__(ComponentType.MAIN_PIPELINE, logger)
+        
         # Initialize logger if not provided
         self.logger = logger or get_logger()
         if not self.logger:
@@ -49,6 +58,15 @@ class MultiStepLLMApp:
             self.logger = initialize_logger(config)
         
         self.logger.info("Initializing Multi-step LLM Application", ComponentType.MAIN_PIPELINE)
+        
+        # Show debug mode status
+        if self.debug_enabled:
+            console.print(Panel.fit(
+                "[bold yellow]🐛 DEBUG MODE ENABLED[/bold yellow]\n"
+                "Using cost-effective model switching and token limits\n"
+                "See debug logs for detailed cost tracking",
+                border_style="yellow"
+            ))
         
         self.api_key = api_key or os.getenv("ANTHROPIC_API_KEY")
         if not self.api_key:
@@ -59,13 +77,24 @@ class MultiStepLLMApp:
         
         try:
             self.client = anthropic.Anthropic(api_key=self.api_key)
-            self.model = "claude-3-5-sonnet-20241022"
+            self.production_model = "claude-3-5-sonnet-20241022"
+            
+            # Get the actual model to use (debug or production)
+            self.model = self.get_debug_model(self.production_model, "main_workflow")
+            
+            if self.debug_enabled and self.model != self.production_model:
+                console.print(f"[cyan]Model switched for debug: {self.production_model} → {self.model}[/cyan]")
+            
             self.logger.info("Anthropic client initialized successfully", ComponentType.MAIN_PIPELINE, 
-                           metadata={"model": self.model})
+                           metadata={"production_model": self.production_model, "actual_model": self.model})
         except Exception as e:
             self.logger.error(f"Error initializing Anthropic client: {e}", ComponentType.MAIN_PIPELINE)
             console.print(f"[red]Error initializing Anthropic client: {e}[/red]")
             sys.exit(1)
+    
+    def get_default_model(self) -> str:
+        """Get the default production model for this component"""
+        return self.production_model
     
     def create_workflow_steps(self) -> List[WorkflowStep]:
         """Define the multi-step workflow"""
@@ -103,22 +132,33 @@ class MultiStepLLMApp:
         ]
     
     def execute_step(self, step: WorkflowStep, context: str = "") -> str:
-        """Execute a single workflow step"""
+        """Execute a single workflow step with debug-aware processing"""
         # Prepare the full prompt with context from previous steps
         full_prompt = step.user_prompt
         if context:
             full_prompt = f"Previous context:\n{context}\n\nCurrent task:\n{step.user_prompt}"
         
+        # Apply debug content truncation if needed
+        if self.debug_enabled:
+            full_prompt = self.truncate_content_for_debug(full_prompt, f"workflow_step_{step.name}")
+            # Add debug prompt suffix to encourage concise responses
+            step.system_prompt += self.create_debug_prompt_suffix()
+        
+        # Check token limits before proceeding
+        estimated_tokens = (len(full_prompt) + len(step.system_prompt) + step.max_tokens) // 4
+        if not self.check_token_limits(estimated_tokens, f"workflow_step_{step.name}"):
+            console.print(f"[red]Skipping step {step.name} - would exceed debug limits[/red]")
+            return f"[STEP SKIPPED IN DEBUG MODE: {step.name} - would exceed token limits]"
+        
         self.logger.info(f"Starting workflow step: {step.name}", ComponentType.MAIN_PIPELINE, "workflow_step", 
                         metadata={"step": step.name, "max_tokens": step.max_tokens})
         
-        # Use API call tracking
-        with self.logger.track_api_call(ComponentType.MAIN_PIPELINE, ModelProvider.ANTHROPIC, self.model) as call_data:
+        # Use debug-aware API call tracking
+        with self.debug_api_call(self.model, f"workflow_step_{step.name}", len(full_prompt) // 4) as call_data:
             try:
                 # Calculate approximate input tokens
                 estimated_prompt_tokens = len(full_prompt + step.system_prompt) // 4
-                call_data["prompt_tokens"] = estimated_prompt_tokens
-                call_data["request_size"] = len(full_prompt.encode('utf-8'))
+                call_data["actual_prompt_tokens"] = estimated_prompt_tokens
                 
                 # Make API call with progress tracking
                 with Progress(
@@ -144,7 +184,6 @@ class MultiStepLLMApp:
                 
                 # Update call data with response information
                 call_data["completion_tokens"] = len(response_text) // 4
-                call_data["response_size"] = len(response_text.encode('utf-8'))
                 
                 self.logger.info(f"Completed workflow step: {step.name} ({len(response_text)} chars)", 
                                ComponentType.MAIN_PIPELINE, "workflow_step",
@@ -155,14 +194,12 @@ class MultiStepLLMApp:
             except anthropic.RateLimitError as e:
                 self.logger.warning(f"Rate limit reached for step {step.name}", ComponentType.MAIN_PIPELINE, "workflow_step")
                 console.print("[yellow]Rate limit reached. Please wait a moment and try again.[/yellow]")
-                call_data["error"] = str(e)
                 sys.exit(1)
                 
             except Exception as e:
                 self.logger.error(f"Error during API call for step {step.name}: {e}", 
                                 ComponentType.MAIN_PIPELINE, "workflow_step")
                 console.print(f"[red]Error during API call: {e}[/red]")
-                call_data["error"] = str(e)
                 sys.exit(1)
     
     def run_interactive(self):
@@ -307,6 +344,7 @@ Examples:
   python main.py                    # Run in interactive mode
   python main.py --headless         # Run in headless mode
   python main.py --test             # Test API connection
+  DEBUG=true python main.py         # Run in debug mode with cost tracking
         """
     )
     parser.add_argument(
@@ -321,8 +359,18 @@ Examples:
     )
     parser.add_argument("--config", type=str, help="Configuration file path")
     parser.add_argument("--session-id", type=str, help="Custom session ID")
+    parser.add_argument("--debug-config", type=str, help="Debug configuration file path")
+    parser.add_argument("--debug-dashboard", action="store_true", 
+                       help="Show live debug dashboard (requires DEBUG=true)")
     
     args = parser.parse_args()
+    
+    # Initialize debug system first (checks DEBUG environment variable)
+    debug_config = initialize_debug_config(args.debug_config)
+    if debug_config.enabled:
+        debug_logger = initialize_debug_logger()
+        dashboard = get_debug_dashboard()
+        console.print("[cyan]Debug system initialized[/cyan]")
     
     # Initialize logging configuration
     config = Config(args.config) if args.config else Config()
@@ -340,17 +388,33 @@ Examples:
             console.print("[cyan]Testing Anthropic API connection...[/cyan]")
             
             try:
-                with logger.track_api_call(ComponentType.MAIN_PIPELINE, ModelProvider.ANTHROPIC, app.model) as call_data:
-                    call_data["prompt_tokens"] = 5
-                    response = app.client.messages.create(
-                        model=app.model,
-                        max_tokens=10,
-                        messages=[{"role": "user", "content": "Say 'API connected!'"}]
-                    )
-                    call_data["completion_tokens"] = 5
+                # Use debug-aware API call if debug mode is enabled
+                if debug_config.enabled:
+                    with app.debug_api_call(app.model, "connection_test", 5) as call_data:
+                        call_data["actual_prompt_tokens"] = 5
+                        response = app.client.messages.create(
+                            model=app.model,
+                            max_tokens=10,
+                            messages=[{"role": "user", "content": "Say 'API connected!'"}]
+                        )
+                        call_data["completion_tokens"] = 5
+                else:
+                    with logger.track_api_call(ComponentType.MAIN_PIPELINE, ModelProvider.ANTHROPIC, app.model) as call_data:
+                        call_data["prompt_tokens"] = 5
+                        response = app.client.messages.create(
+                            model=app.model,
+                            max_tokens=10,
+                            messages=[{"role": "user", "content": "Say 'API connected!'"}]
+                        )
+                        call_data["completion_tokens"] = 5
                 
                 logger.info("API connection test successful", ComponentType.MAIN_PIPELINE, "connection_test")
                 console.print(f"[green]✅ {response.content[0].text}[/green]")
+                
+                # Show debug summary if in debug mode
+                if debug_config.enabled:
+                    debug_summary = app.get_debug_summary()
+                    console.print(f"[dim]Debug session cost: ${debug_summary['session_stats']['session_cost']:.4f}[/dim]")
                 
             except Exception as e:
                 logger.error(f"API connection test failed: {e}", ComponentType.MAIN_PIPELINE, "connection_test")
@@ -361,14 +425,36 @@ Examples:
         
         # Run the appropriate mode with comprehensive logging
         logger.info("Starting multi-step LLM application", ComponentType.MAIN_PIPELINE,
-                   metadata={"mode": "headless" if args.headless else "interactive"})
+                   metadata={"mode": "headless" if args.headless else "interactive", 
+                            "debug_mode": debug_config.enabled})
         
-        if args.headless:
-            app.run_headless()
+        # Use debug dashboard if requested and debug mode is enabled
+        if args.debug_dashboard and debug_config.enabled:
+            dashboard = get_debug_dashboard()
+            with dashboard.live_dashboard():
+                if args.headless:
+                    app.run_headless()
+                else:
+                    app.run_interactive()
         else:
-            app.run_interactive()
+            if args.headless:
+                app.run_headless()
+            else:
+                app.run_interactive()
             
         logger.info("Multi-step LLM application completed successfully", ComponentType.MAIN_PIPELINE)
+        
+        # Show final debug summary if debug mode was used
+        if debug_config.enabled:
+            debug_summary = app.get_debug_summary()
+            console.print("\n[bold cyan]Debug Session Summary:[/bold cyan]")
+            console.print(f"Cost: ${debug_summary['session_stats']['session_cost']:.4f}")
+            console.print(f"Tokens: {debug_summary['session_stats']['session_tokens']:,}")
+            console.print(f"API Calls: {debug_summary['session_stats']['session_api_calls']}")
+            
+            if debug_summary['cost_tracker_summary'].get('debug_mode'):
+                savings = debug_summary['cost_tracker_summary']['costs']['estimated_savings']
+                console.print(f"Estimated Savings: ${savings:.4f}")
         
     except Exception as e:
         # Log any uncaught exceptions
@@ -379,9 +465,12 @@ Examples:
         raise
     
     finally:
-        # Always close the logger to ensure data is saved
+        # Always close the logger and debug system to ensure data is saved
         if logger:
             close_logger()
+        
+        if debug_config.enabled:
+            close_debug_logger()
 
 if __name__ == "__main__":
     main()
