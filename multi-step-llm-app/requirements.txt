@@ -17,3 +17,4 @@ responses>=0.23.0
 pydantic>=2.0.0
 PyYAML>=6.0.0
 dataclasses>=0.6
+PyGithub>=2.1.0

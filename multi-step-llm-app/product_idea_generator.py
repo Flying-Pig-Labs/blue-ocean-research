@@ -27,6 +27,9 @@ from src.scoring import (
 from src.utils.debug_logger import DebugLogger
 from src.utils.pipeline_logger import PipelineLogger
 
+# Import GitHub integration
+from github_integration import create_github_output
+
 # Load environment variables
 load_dotenv()
 
@@ -531,7 +534,10 @@ Output in a structured format that can be parsed."""
     
     def run(self, value_curves_file: str = "value_curves.json",
             json_output: str = "product_ideas.json",
-            report_output: str = "product_ideas_report.md"):
+            report_output: str = "product_ideas_report.md",
+            create_github_repo: bool = False,
+            github_repo_name: str = "market-research-insights",
+            github_private: bool = False):
         """Main execution flow with sophisticated scoring and selection"""
         console.print(Panel.fit(
             "[bold green]Product Idea Generation Pipeline with Sophisticated Scoring[/bold green]\n"
@@ -683,6 +689,81 @@ Output in a structured format that can be parsed."""
         with open(report_output, 'w') as f:
             f.write(traditional_report)
         console.print(f"[green]✅ Traditional report saved to {report_output}[/green]")
+        
+        # Create GitHub repository if requested
+        if create_github_repo:
+            console.print("\n[cyan]📊 Creating GitHub repository with analysis results...[/cyan]")
+            
+            # Load necessary data for GitHub integration
+            # We need research analysis, JTBD data, zones data, and ideas data
+            
+            # Load JTBD data from the pipeline
+            jtbd_file = "jobs_to_be_done.json"
+            if os.path.exists(jtbd_file):
+                with open(jtbd_file, 'r') as f:
+                    jtbd_data = json.load(f)
+            else:
+                jtbd_data = {"jtbd_data": {"jobs_list": []}}
+            
+            # Load research analysis
+            research_file = "research_analysis.json"
+            if os.path.exists(research_file):
+                with open(research_file, 'r') as f:
+                    research_analysis = json.load(f)
+            else:
+                research_analysis = {"executive_summary": "Market research analysis"}
+            
+            # Load zones data (from value curves)
+            zones_data = {"clustered_zones": {}}
+            if os.path.exists(value_curves_file):
+                with open(value_curves_file, 'r') as f:
+                    value_curves_data = json.load(f)
+                    # Convert value curves analyses to zones format
+                    for i, analysis in enumerate(value_curves_data.get('analyses', [])):
+                        zones_data['clustered_zones'][f'zone_{i+1}'] = {
+                            'name': analysis.get('zone_name', f'Zone {i+1}'),
+                            'market_size': analysis.get('market_size', 'N/A'),
+                            'pain_level': analysis.get('pain_level', 'medium'),
+                            'key_themes': analysis.get('key_themes', []),
+                            'competitive_intensity': analysis.get('competitive_intensity', 'medium')
+                        }
+            
+            # Convert our product ideas format to the expected format
+            ideas_data = {
+                'product_ideas': [],
+                'consolidation_analysis': consolidation_results,
+                'viability_analysis': {
+                    'market_assessment': comprehensive_report.get('market_summary', {}),
+                    'financial_projections': comprehensive_report.get('financial_summary', {})
+                }
+            }
+            
+            # Extract all ideas from comprehensive data
+            for zone_result in comprehensive_data.get('traditional_results', []):
+                for idea in zone_result.get('filtered_ideas', []):
+                    ideas_data['product_ideas'].append(idea)
+            
+            # Call GitHub integration
+            try:
+                github_result = create_github_output(
+                    research_analysis=research_analysis,
+                    jtbd_data=jtbd_data,
+                    zones_data=zones_data,
+                    ideas_data=ideas_data,
+                    repo_name=github_repo_name,
+                    create_issues=True,
+                    private=github_private
+                )
+                
+                if github_result['success']:
+                    console.print(f"[green]✅ GitHub repository created: {github_result['repo_url']}[/green]")
+                    console.print(f"[green]✅ Created {github_result['issues_created']} issues[/green]")
+                else:
+                    console.print(f"[red]❌ GitHub creation failed: {github_result.get('error', 'Unknown error')}[/red]")
+                    
+            except Exception as e:
+                console.print(f"[red]❌ GitHub integration error: {str(e)}[/red]")
+                console.print("[yellow]Make sure GITHUB_TOKEN environment variable is set[/yellow]")
     
     def _serialize_results(self, results):
         """Serialize results for JSON output"""
@@ -827,6 +908,12 @@ Examples:
   # Custom input and output files
   python product_idea_generator.py --input my_curves.json --json-output ideas.json --report-output ideas.md
   
+  # Create GitHub repository with results
+  python product_idea_generator.py --github --repo-name "my-product-ideas"
+  
+  # Create private GitHub repository
+  python product_idea_generator.py --github --repo-name "my-product-ideas" --github-private
+  
   # Test API connections
   python product_idea_generator.py --test
         """
@@ -840,6 +927,14 @@ Examples:
                        help="Output report file")
     parser.add_argument("--test", action="store_true", help="Test API connections")
     parser.add_argument("--debug", action="store_true", help="Enable debug mode with detailed logging")
+    
+    # GitHub integration arguments
+    parser.add_argument("--github", action="store_true", 
+                       help="Create GitHub repository with results")
+    parser.add_argument("--repo-name", type=str, default="market-research-insights",
+                       help="GitHub repository name (default: market-research-insights)")
+    parser.add_argument("--github-private", action="store_true",
+                       help="Create private GitHub repository")
     
     args = parser.parse_args()
     
@@ -878,7 +973,14 @@ Examples:
         return
     
     # Run product idea generation
-    generator.run(args.input, args.json_output, args.report_output)
+    generator.run(
+        args.input, 
+        args.json_output, 
+        args.report_output,
+        create_github_repo=args.github,
+        github_repo_name=args.repo_name,
+        github_private=args.github_private
+    )
 
 if __name__ == "__main__":
     main()

@@ -263,6 +263,9 @@ The output is a production-ready JSON portfolio with a human-readable summary re
 - 📊 Percentage-based filtering (zone importance × 10 ideas)
 - 🎯 Sequential processing per zone (o1 → Opus → Opus)
 - 📋 Final report with top filtered ideas across all zones
+- 🚀 **NEW: Automatic GitHub repository creation**
+- 📝 **NEW: GitHub issues for each product idea**
+- 🔗 **NEW: Comprehensive README with all analysis**
 
 ### Idea Consolidator (`idea_consolidator.py`)
 - 📚 Consolidates all filtered ideas into comprehensive portfolio
@@ -408,6 +411,51 @@ python product_idea_generator.py --input curves.json --json-output ideas.json --
 ```bash
 python product_idea_generator.py --test
 ```
+
+### GitHub Repository Creation (NEW!)
+
+The product idea generator can now automatically create a GitHub repository with all analysis results, formatted README, and individual issues for each product idea.
+
+#### Prerequisites
+```bash
+# Set your GitHub personal access token
+export GITHUB_TOKEN=your_github_token_here
+```
+
+#### Create public repository with analysis results
+```bash
+python product_idea_generator.py --github --repo-name "my-product-insights"
+```
+
+#### Create private repository
+```bash
+python product_idea_generator.py --github --repo-name "my-product-insights" --github-private
+```
+
+#### Full pipeline with GitHub output
+```bash
+# Run entire pipeline and create GitHub repo
+python product_idea_generator.py --input value_curves.json --github --repo-name "market-analysis-2024"
+```
+
+The GitHub integration will:
+- Create a new repository with your specified name
+- Generate a comprehensive README with:
+  - Executive summary of market research
+  - Jobs-to-be-Done analysis with opportunity scores
+  - Weighted opportunity zones analysis
+  - Product ideas overview with links to issues
+  - Strategic consolidation opportunities
+  - Implementation roadmap
+  - Financial projections
+- Create GitHub issues for each product idea with:
+  - Detailed product description
+  - Target JTBD mappings
+  - Market analysis and sizing
+  - Feasibility scores
+  - Business case details
+  - Implementation phases
+- Add appropriate labels for prioritization and categorization
 
 ## Example Workflow
 
