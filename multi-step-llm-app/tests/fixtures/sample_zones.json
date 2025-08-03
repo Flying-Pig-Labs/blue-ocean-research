@@ -1,0 +1,265 @@
+{
+  "clustered_zones": {
+    "zone_1": {
+      "name": "Tool Integration and Workflow Optimization",
+      "description": "Jobs focused on streamlining tool usage and workflow efficiency",
+      "jobs": [
+        {
+          "job_statement": "When I start my workday, I want to quickly access all relevant information and tasks so that I can begin productive work immediately",
+          "frequency": "daily",
+          "importance": 9,
+          "satisfaction": 4,
+          "opportunity_score": 45
+        },
+        {
+          "job_statement": "When I'm switching between tools, I want to maintain context and data continuity so that I don't lose my train of thought",
+          "frequency": "hourly", 
+          "importance": 8,
+          "satisfaction": 3,
+          "opportunity_score": 40
+        },
+        {
+          "job_statement": "When I need to update project status, I want to do it once and have it reflected everywhere so that I don't waste time on redundant updates",
+          "frequency": "daily",
+          "importance": 7,
+          "satisfaction": 3,
+          "opportunity_score": 28
+        },
+        {
+          "job_statement": "When I'm collaborating with team members, I want to see real-time changes and contributions so that we can work together effectively",
+          "frequency": "multiple times daily",
+          "importance": 9,
+          "satisfaction": 5,
+          "opportunity_score": 36
+        }
+      ],
+      "key_themes": [
+        "Context preservation",
+        "Single source of truth",
+        "Real-time synchronization",
+        "Workflow automation"
+      ],
+      "pain_level": "high",
+      "market_size": "$15.2B",
+      "competitive_intensity": "high"
+    },
+    "zone_2": {
+      "name": "Mobile Productivity and Flexibility",
+      "description": "Jobs related to productive work on mobile devices and flexible work arrangements",
+      "jobs": [
+        {
+          "job_statement": "When I'm away from my desk, I want to complete meaningful work on my mobile device so that I can maintain productivity regardless of location",
+          "frequency": "daily",
+          "importance": 8,
+          "satisfaction": 4,
+          "opportunity_score": 32
+        },
+        {
+          "job_statement": "When I'm working offline, I want to continue being productive and sync changes when connectivity returns so that I'm not blocked by network issues",
+          "frequency": "weekly",
+          "importance": 7,
+          "satisfaction": 2,
+          "opportunity_score": 35
+        },
+        {
+          "job_statement": "When I switch between devices, I want to continue exactly where I left off so that my workflow is seamless across platforms",
+          "frequency": "multiple times daily",
+          "importance": 8,
+          "satisfaction": 4,
+          "opportunity_score": 32
+        },
+        {
+          "job_statement": "When I'm in a meeting, I want to easily access and share relevant information from my mobile device so that I can contribute effectively",
+          "frequency": "daily",
+          "importance": 7,
+          "satisfaction": 5,
+          "opportunity_score": 14
+        }
+      ],
+      "key_themes": [
+        "Cross-device continuity",
+        "Offline capabilities", 
+        "Mobile-optimized interfaces",
+        "Location independence"
+      ],
+      "pain_level": "medium-high",
+      "market_size": "$8.7B",
+      "competitive_intensity": "medium"
+    },
+    "zone_3": {
+      "name": "Data Intelligence and Decision Making",
+      "description": "Jobs focused on gathering insights, making decisions, and understanding performance",
+      "jobs": [
+        {
+          "job_statement": "When I need to understand team or project performance, I want comprehensive analytics and insights so that I can make informed decisions",
+          "frequency": "weekly",
+          "importance": 9,
+          "satisfaction": 4,
+          "opportunity_score": 45
+        },
+        {
+          "job_statement": "When planning future work, I want predictive insights based on historical data so that I can set realistic expectations and timelines",
+          "frequency": "monthly",
+          "importance": 8,
+          "satisfaction": 3,
+          "opportunity_score": 40
+        },
+        {
+          "job_statement": "When reporting to stakeholders, I want automated report generation with key metrics so that I can focus on analysis rather than data collection",
+          "frequency": "weekly",
+          "importance": 7,
+          "satisfaction": 3,
+          "opportunity_score": 28
+        },
+        {
+          "job_statement": "When identifying bottlenecks or issues, I want early warning systems and anomaly detection so that I can address problems before they impact delivery",
+          "frequency": "ongoing",
+          "importance": 8,
+          "satisfaction": 2,
+          "opportunity_score": 48
+        }
+      ],
+      "key_themes": [
+        "Predictive analytics",
+        "Automated reporting",
+        "Performance monitoring",
+        "Data-driven insights"
+      ],
+      "pain_level": "medium",
+      "market_size": "$11.4B",
+      "competitive_intensity": "low-medium"
+    },
+    "zone_4": {
+      "name": "Communication and Collaboration Enhancement",
+      "description": "Jobs related to improving team communication, knowledge sharing, and collaborative work",
+      "jobs": [
+        {
+          "job_statement": "When communicating with team members, I want context-aware conversations that include relevant project information so that discussions are more productive",
+          "frequency": "multiple times daily",
+          "importance": 8,
+          "satisfaction": 5,
+          "opportunity_score": 24
+        },
+        {
+          "job_statement": "When someone joins a project, I want them to quickly understand the context and history so that they can contribute effectively from day one",
+          "frequency": "monthly",
+          "importance": 7,
+          "satisfaction": 3,
+          "opportunity_score": 28
+        },
+        {
+          "job_statement": "When sharing knowledge or documentation, I want it to be easily discoverable and always up-to-date so that the team has access to current information",
+          "frequency": "weekly",
+          "importance": 8,
+          "satisfaction": 4,
+          "opportunity_score": 32
+        },
+        {
+          "job_statement": "When coordinating across time zones, I want asynchronous collaboration tools that maintain productivity so that global teams can work effectively together",
+          "frequency": "daily",
+          "importance": 7,
+          "satisfaction": 4,
+          "opportunity_score": 21
+        }
+      ],
+      "key_themes": [
+        "Context-aware communication",
+        "Knowledge management",
+        "Asynchronous collaboration",
+        "Team onboarding"
+      ],
+      "pain_level": "medium",
+      "market_size": "$9.1B",
+      "competitive_intensity": "high"
+    },
+    "zone_5": {
+      "name": "Security, Compliance, and Governance",
+      "description": "Jobs related to maintaining security, meeting compliance requirements, and ensuring proper governance",
+      "jobs": [
+        {
+          "job_statement": "When working with sensitive data, I want to ensure it's protected and compliant with regulations so that the organization avoids security breaches and penalties",
+          "frequency": "ongoing",
+          "importance": 10,
+          "satisfaction": 6,
+          "opportunity_score": 40
+        },
+        {
+          "job_statement": "When auditing activities, I want complete and accessible audit trails so that compliance requirements can be easily satisfied",
+          "frequency": "quarterly",
+          "importance": 9,
+          "satisfaction": 4,
+          "opportunity_score": 45
+        },
+        {
+          "job_statement": "When managing user access, I want fine-grained control and automated provisioning so that security is maintained without hindering productivity",
+          "frequency": "monthly",
+          "importance": 8,
+          "satisfaction": 5,
+          "opportunity_score": 24
+        },
+        {
+          "job_statement": "When integrating with external systems, I want to maintain security standards and data integrity so that the organization's security posture isn't compromised",
+          "frequency": "project-based",
+          "importance": 9,
+          "satisfaction": 4,
+          "opportunity_score": 45
+        }
+      ],
+      "key_themes": [
+        "Data protection",
+        "Compliance automation",
+        "Access control",
+        "Audit capabilities"
+      ],
+      "pain_level": "high",
+      "market_size": "$12.8B",
+      "competitive_intensity": "medium"
+    }
+  },
+  "zone_analysis": {
+    "total_zones": 5,
+    "highest_opportunity_zone": "zone_1",
+    "largest_market_zone": "zone_1", 
+    "most_underserved_zone": "zone_3",
+    "zone_relationships": [
+      {
+        "zones": ["zone_1", "zone_2"],
+        "relationship": "Mobile workflow optimization depends on tool integration",
+        "synergy_potential": "high"
+      },
+      {
+        "zones": ["zone_1", "zone_3"],
+        "relationship": "Integrated tools enable better data intelligence",
+        "synergy_potential": "medium-high"
+      },
+      {
+        "zones": ["zone_3", "zone_4"],
+        "relationship": "Communication benefits from intelligent insights",
+        "synergy_potential": "medium"
+      },
+      {
+        "zones": ["zone_5", "zone_1"],
+        "relationship": "Tool integration must maintain security standards",
+        "synergy_potential": "critical"
+      }
+    ]
+  },
+  "cluster_summary": {
+    "clustering_method": "thematic_analysis",
+    "total_jobs_analyzed": 20,
+    "average_opportunity_score": 33.4,
+    "key_insights": [
+      "Tool integration and workflow optimization represents the highest opportunity area",
+      "Security and compliance is critical but currently better served than other areas",
+      "Mobile productivity has significant unmet demand with medium competition",
+      "Data intelligence represents an emerging high-value opportunity",
+      "Cross-zone synergies suggest platform approach would be most effective"
+    ],
+    "recommended_priorities": [
+      "Focus on zone_1 (Tool Integration) as primary market entry",
+      "Develop zone_2 (Mobile) capabilities as differentiator", 
+      "Build zone_3 (Data Intelligence) for long-term competitive advantage",
+      "Ensure zone_5 (Security) requirements are met across all solutions"
+    ]
+  }
+}

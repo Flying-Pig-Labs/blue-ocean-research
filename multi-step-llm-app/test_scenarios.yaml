@@ -1,0 +1,367 @@
+# Integration Test Scenarios for Multi-step LLM Application
+# Defines comprehensive test scenarios for each component with validation rules
+
+scenarios:
+  # Research Analyzer Tests
+  research_analyzer_basic:
+    description: "Basic research analysis functionality test"
+    component: "research_analyzer"
+    input_file: "tests/fixtures/sample_research.json"
+    expected_outputs:
+      - "pain_points"
+      - "personas" 
+      - "solutions"
+      - "verticals"
+    timeout: 120
+    validation_rules:
+      min_pain_points: 3
+      min_personas: 2
+      min_solutions: 3
+      content_quality: "high"
+    
+  research_analyzer_large_dataset:
+    description: "Research analysis with large dataset"
+    component: "research_analyzer"
+    input_file: "tests/fixtures/large_research.json"
+    expected_outputs:
+      - "pain_points"
+      - "personas"
+      - "solutions"
+      - "verticals"
+    timeout: 300
+    validation_rules:
+      min_pain_points: 5
+      min_personas: 3
+      min_solutions: 5
+      content_quality: "high"
+    debug_mode: true
+
+  research_analyzer_edge_case:
+    description: "Research analysis with minimal data"
+    component: "research_analyzer"
+    input_data:
+      research_content: "Very limited research data with minimal information."
+    expected_outputs:
+      - "pain_points"
+      - "personas"
+      - "solutions"
+    timeout: 60
+    validation_rules:
+      min_pain_points: 1
+      min_personas: 1
+      min_solutions: 1
+      content_quality: "medium"
+
+  # Jobs Researcher Tests  
+  jobs_researcher_basic:
+    description: "Basic Jobs-to-be-Done research test"
+    component: "jobs_researcher"
+    input_data:
+      analysis_results:
+        pain_points: ["User struggles with complex interface", "High learning curve", "Poor mobile experience"]
+        personas: ["Tech-savvy professional", "Casual user"]
+        solutions: ["Simplified UI", "Better onboarding", "Mobile optimization"]
+    expected_outputs:
+      - "jtbd_table"
+      - "research_summary"
+    timeout: 180
+    validation_rules:
+      min_jtbd_entries: 5
+      research_depth: "comprehensive"
+
+  jobs_researcher_limited_api:
+    description: "Jobs research with limited API access"
+    component: "jobs_researcher"
+    input_data:
+      analysis_results:
+        pain_points: ["Basic pain point"]
+        personas: ["Basic persona"]
+    expected_outputs:
+      - "jtbd_table"
+    timeout: 90
+    validation_rules:
+      min_jtbd_entries: 2
+      research_depth: "basic"
+    debug_mode: true
+
+  # Clustering Tests
+  cluster_jtbd_basic:
+    description: "Basic JTBD clustering functionality"
+    component: "cluster_jtbd"
+    input_file: "tests/fixtures/sample_jtbd.json"
+    expected_outputs:
+      - "clustered_zones"
+      - "cluster_summary"
+    timeout: 90
+    validation_rules:
+      min_clusters: 3
+      cluster_quality: "good"
+
+  cluster_jtbd_large_dataset:
+    description: "JTBD clustering with large dataset"
+    component: "cluster_jtbd"
+    input_file: "tests/fixtures/large_jtbd.json"
+    expected_outputs:
+      - "clustered_zones"
+      - "cluster_summary"
+      - "cluster_analytics"
+    timeout: 180
+    validation_rules:
+      min_clusters: 5
+      max_clusters: 12
+      cluster_quality: "high"
+
+  cluster_jtbd_edge_case:
+    description: "JTBD clustering with minimal data"
+    component: "cluster_jtbd"
+    input_data:
+      jtbd_data:
+        jobs: ["When I am working, I want to be productive"]
+    expected_outputs:
+      - "clustered_zones"
+    timeout: 45
+    validation_rules:
+      min_clusters: 1
+      cluster_quality: "basic"
+    debug_mode: true
+
+  # Value Curve Mapper Tests
+  value_curve_mapper_basic:
+    description: "Basic value curve mapping test"
+    component: "value_curve_mapper"
+    input_file: "tests/fixtures/sample_zones.json"
+    expected_outputs:
+      - "value_curves"
+      - "competitive_analysis"
+    timeout: 150
+    validation_rules:
+      min_value_factors: 4
+      competitive_depth: "good"
+
+  value_curve_mapper_comprehensive:
+    description: "Comprehensive value curve analysis"
+    component: "value_curve_mapper"
+    input_file: "tests/fixtures/comprehensive_zones.json"
+    expected_outputs:
+      - "value_curves"
+      - "competitive_analysis"
+      - "market_positioning"
+      - "opportunity_gaps"
+    timeout: 240
+    validation_rules:
+      min_value_factors: 6
+      competitive_depth: "comprehensive"
+      market_analysis: "detailed"
+
+  # Product Idea Generator Tests
+  product_idea_generator_basic:
+    description: "Basic product idea generation"
+    component: "product_idea_generator"
+    input_file: "tests/fixtures/sample_curves.json"
+    expected_outputs:
+      - "product_ideas"
+      - "viability_analysis"
+    timeout: 180
+    validation_rules:
+      min_ideas: 3
+      viability_depth: "good"
+
+  product_idea_generator_innovative:
+    description: "Innovative product idea generation with ERRC framework"
+    component: "product_idea_generator"
+    input_file: "tests/fixtures/comprehensive_curves.json"
+    expected_outputs:
+      - "product_ideas"
+      - "viability_analysis"
+      - "errc_framework"
+      - "innovation_score"
+    timeout: 300
+    validation_rules:
+      min_ideas: 5
+      innovation_level: "high"
+      errc_completeness: "full"
+
+  product_idea_generator_quick:
+    description: "Quick product idea generation for prototyping"
+    component: "product_idea_generator"
+    input_data:
+      value_curves: ["Basic value proposition"]
+      market_data: "Limited market information"
+    expected_outputs:
+      - "product_ideas"
+    timeout: 60
+    validation_rules:
+      min_ideas: 2
+      speed_priority: true
+    debug_mode: true
+
+  # Idea Consolidator Tests
+  idea_consolidator_basic:
+    description: "Basic idea consolidation and refinement"
+    component: "idea_consolidator"
+    input_file: "tests/fixtures/sample_ideas.json"
+    expected_outputs:
+      - "consolidated_ideas"
+      - "final_recommendations"
+    timeout: 120
+    validation_rules:
+      max_final_ideas: 3
+      recommendation_depth: "comprehensive"
+
+  idea_consolidator_comprehensive:
+    description: "Comprehensive idea consolidation with prioritization"
+    component: "idea_consolidator"
+    input_file: "tests/fixtures/comprehensive_ideas.json"
+    expected_outputs:
+      - "consolidated_ideas"
+      - "final_recommendations"
+      - "prioritization_matrix"
+      - "implementation_roadmap"
+    timeout: 200
+    validation_rules:
+      max_final_ideas: 5
+      prioritization_method: "matrix"
+      roadmap_detail: "high"
+
+  # Main Pipeline Tests
+  main_pipeline_workflow:
+    description: "Complete main pipeline workflow test"
+    component: "main_pipeline"
+    input_data:
+      mode: "test_workflow"
+      steps: "minimal"
+    expected_outputs:
+      - "workflow_steps"
+      - "execution_summary"
+    timeout: 300
+    validation_rules:
+      min_workflow_steps: 3
+      execution_success: true
+
+  main_pipeline_headless:
+    description: "Main pipeline headless mode test"
+    component: "main_pipeline"
+    input_data:
+      mode: "headless"
+      test_mode: true
+    expected_outputs:
+      - "execution_summary"
+    timeout: 180
+    validation_rules:
+      execution_success: true
+      output_completeness: "full"
+    debug_mode: true
+
+# Test Suites - Collections of related scenarios
+test_suites:
+  smoke_tests:
+    description: "Quick smoke tests for all components"
+    scenarios:
+      - "research_analyzer_basic"
+      - "jobs_researcher_basic"
+      - "cluster_jtbd_basic"
+      - "value_curve_mapper_basic"
+      - "product_idea_generator_basic"
+      - "idea_consolidator_basic"
+    timeout: 600
+    parallel_execution: false
+
+  comprehensive_tests:
+    description: "Comprehensive testing of all components"
+    scenarios:
+      - "research_analyzer_large_dataset"
+      - "jobs_researcher_basic"
+      - "cluster_jtbd_large_dataset"
+      - "value_curve_mapper_comprehensive"
+      - "product_idea_generator_innovative"
+      - "idea_consolidator_comprehensive"
+    timeout: 1200
+    parallel_execution: false
+
+  debug_mode_tests:
+    description: "Tests specifically for debug mode validation"
+    scenarios:
+      - "research_analyzer_edge_case"
+      - "jobs_researcher_limited_api"
+      - "cluster_jtbd_edge_case"
+      - "product_idea_generator_quick"
+      - "main_pipeline_headless"
+    timeout: 450
+    parallel_execution: true
+    debug_mode: true
+
+  edge_case_tests:
+    description: "Edge case and error handling tests"
+    scenarios:
+      - "research_analyzer_edge_case"
+      - "cluster_jtbd_edge_case"
+      - "product_idea_generator_quick"
+    timeout: 180
+    parallel_execution: true
+
+  performance_tests:
+    description: "Performance and scalability tests"
+    scenarios:
+      - "research_analyzer_large_dataset"
+      - "cluster_jtbd_large_dataset"
+      - "value_curve_mapper_comprehensive"
+      - "product_idea_generator_innovative"
+    timeout: 900
+    parallel_execution: false
+    performance_monitoring: true
+
+# Global Test Configuration
+global_config:
+  default_timeout: 120
+  max_parallel_tests: 3
+  retry_on_failure: 1
+  log_level: "INFO"
+  
+  # Debug mode settings
+  debug_mode:
+    token_limits:
+      max_per_test: 5000
+      max_per_session: 25000
+    cost_limits:
+      max_per_test: 2.0
+      max_per_session: 10.0
+    model_fallbacks:
+      "claude-3-5-sonnet-20241022": "claude-3-haiku-20240307"
+      "gpt-4": "gpt-3.5-turbo"
+
+  # Validation settings
+  validation:
+    strict_mode: false
+    warning_as_error: false
+    require_all_expected_outputs: true
+    content_validation: true
+    
+  # Performance thresholds
+  performance_thresholds:
+    max_response_time: 30.0  # seconds
+    max_tokens_per_minute: 10000
+    max_cost_per_test: 5.0
+    
+  # Reporting
+  reporting:
+    generate_html_reports: true
+    include_debug_data: true
+    include_performance_metrics: true
+    export_format: ["json", "html"]
+    
+# Environment-specific configurations
+environments:
+  development:
+    debug_mode: true
+    strict_validation: false
+    performance_monitoring: true
+    
+  testing:
+    debug_mode: false
+    strict_validation: true
+    performance_monitoring: true
+    
+  production:
+    debug_mode: false
+    strict_validation: true
+    performance_monitoring: false

@@ -1,0 +1,291 @@
+{
+  "value_curves": {
+    "current_market_leader": {
+      "name": "Microsoft 365",
+      "market_position": "leader",
+      "market_share": "35%",
+      "value_factors": {
+        "tool_integration": 8,
+        "mobile_experience": 6,
+        "collaboration_features": 9,
+        "analytics_reporting": 7,
+        "security_compliance": 9,
+        "ease_of_use": 5,
+        "customization": 6,
+        "performance": 7,
+        "pricing": 5,
+        "innovation": 6
+      },
+      "strengths": [
+        "Comprehensive tool ecosystem",
+        "Strong enterprise security",
+        "Deep Office integration",
+        "Robust collaboration features"
+      ],
+      "weaknesses": [
+        "Complex for small teams",
+        "Expensive at scale",
+        "Poor mobile experience",
+        "Steep learning curve"
+      ]
+    },
+    "challenger_1": {
+      "name": "Google Workspace",
+      "market_position": "challenger",
+      "market_share": "28%",
+      "value_factors": {
+        "tool_integration": 7,
+        "mobile_experience": 8,
+        "collaboration_features": 9,
+        "analytics_reporting": 6,
+        "security_compliance": 7,
+        "ease_of_use": 9,
+        "customization": 4,
+        "performance": 8,
+        "pricing": 7,
+        "innovation": 7
+      },
+      "strengths": [
+        "Excellent collaboration",
+        "Simple and intuitive",
+        "Good mobile experience",
+        "Competitive pricing"
+      ],
+      "weaknesses": [
+        "Limited customization",
+        "Privacy concerns",
+        "Fewer enterprise features",
+        "Less integration depth"
+      ]
+    },
+    "challenger_2": {
+      "name": "Slack + Ecosystem",
+      "market_position": "niche_leader",
+      "market_share": "15%",
+      "value_factors": {
+        "tool_integration": 9,
+        "mobile_experience": 7,
+        "collaboration_features": 8,
+        "analytics_reporting": 5,
+        "security_compliance": 7,
+        "ease_of_use": 8,
+        "customization": 8,
+        "performance": 7,
+        "pricing": 6,
+        "innovation": 8
+      },
+      "strengths": [
+        "Best-in-class integrations",
+        "Excellent communication",
+        "Highly customizable",
+        "Strong developer ecosystem"
+      ],
+      "weaknesses": [
+        "Limited project management",
+        "Message history limits",
+        "Requires multiple tools",
+        "Can become expensive"
+      ]
+    },
+    "emerging_competitor": {
+      "name": "Notion",
+      "market_position": "emerging",
+      "market_share": "8%",
+      "value_factors": {
+        "tool_integration": 5,
+        "mobile_experience": 6,
+        "collaboration_features": 7,
+        "analytics_reporting": 4,
+        "security_compliance": 6,
+        "ease_of_use": 7,
+        "customization": 9,
+        "performance": 6,
+        "pricing": 8,
+        "innovation": 9
+      },
+      "strengths": [
+        "Extremely flexible",
+        "All-in-one approach",
+        "Great for knowledge management",
+        "Affordable pricing"
+      ],
+      "weaknesses": [
+        "Performance issues at scale",
+        "Limited enterprise features",
+        "Steep learning curve",
+        "Basic mobile app"
+      ]
+    },
+    "ideal_solution": {
+      "name": "Optimal Product",
+      "market_position": "theoretical",
+      "market_share": "0%",
+      "value_factors": {
+        "tool_integration": 10,
+        "mobile_experience": 10,
+        "collaboration_features": 10,
+        "analytics_reporting": 10,
+        "security_compliance": 10,
+        "ease_of_use": 10,
+        "customization": 10,
+        "performance": 10,
+        "pricing": 10,
+        "innovation": 10
+      },
+      "description": "Theoretical perfect solution combining all desired attributes"
+    }
+  },
+  "competitive_analysis": {
+    "market_overview": {
+      "total_market_size": "$45.2B",
+      "growth_rate": "12.3%",
+      "key_trends": [
+        "Shift toward integrated platforms",
+        "Mobile-first design requirements",
+        "AI and automation integration",
+        "Enhanced security and compliance focus",
+        "Remote work optimization"
+      ]
+    },
+    "white_space_opportunities": [
+      {
+        "factor": "mobile_experience",
+        "current_best": 8,
+        "market_average": 6.75,
+        "opportunity_size": "Large",
+        "description": "Significant opportunity to deliver superior mobile experience"
+      },
+      {
+        "factor": "analytics_reporting",
+        "current_best": 7,
+        "market_average": 5.5,
+        "opportunity_size": "Medium-Large",
+        "description": "Analytics and insights represent underserved market need"
+      },
+      {
+        "factor": "ease_of_use",
+        "current_best": 9,
+        "market_average": 7.25,
+        "opportunity_size": "Medium",
+        "description": "Simplicity while maintaining power is valued but challenging"
+      },
+      {
+        "factor": "pricing",
+        "current_best": 8,
+        "market_average": 6.5,
+        "opportunity_size": "Medium",
+        "description": "More transparent and scalable pricing models needed"
+      }
+    ],
+    "differentiation_opportunities": [
+      {
+        "strategy": "AI-First Platform",
+        "description": "Build AI and automation into every aspect of the platform",
+        "target_factors": ["analytics_reporting", "ease_of_use", "innovation"],
+        "risk_level": "Medium",
+        "potential_impact": "High"
+      },
+      {
+        "strategy": "Mobile-Native Design",
+        "description": "Design for mobile first, then adapt to desktop",
+        "target_factors": ["mobile_experience", "ease_of_use", "performance"],
+        "risk_level": "Low",
+        "potential_impact": "Medium-High"
+      },
+      {
+        "strategy": "Developer-Centric Integration",
+        "description": "Best-in-class integration platform with developer tools",
+        "target_factors": ["tool_integration", "customization", "innovation"],
+        "risk_level": "Low-Medium",
+        "potential_impact": "Medium"
+      },
+      {
+        "strategy": "Industry-Specific Solutions",
+        "description": "Deep vertical solutions for specific industries",
+        "target_factors": ["customization", "security_compliance", "ease_of_use"],
+        "risk_level": "High",
+        "potential_impact": "High"
+      }
+    ]
+  },
+  "value_curve_insights": {
+    "market_gaps": [
+      {
+        "gap": "Mobile-Analytics Combination",
+        "description": "No current solution excels at both mobile experience and analytics",
+        "opportunity_score": 9,
+        "addressable_market": "$8.2B"
+      },
+      {
+        "gap": "Simple-Yet-Powerful Integration",
+        "description": "Tools are either simple OR highly integrated, rarely both",
+        "opportunity_score": 8,
+        "addressable_market": "$12.1B"
+      },
+      {
+        "gap": "Security-First Collaboration",
+        "description": "Collaboration tools often compromise on security",
+        "opportunity_score": 7,
+        "addressable_market": "$6.8B"
+      }
+    ],
+    "competitive_vulnerabilities": [
+      {
+        "competitor": "Microsoft 365",
+        "vulnerability": "Poor mobile experience and complexity",
+        "attack_vector": "Mobile-first simple alternative",
+        "difficulty": "Medium"
+      },
+      {
+        "competitor": "Google Workspace", 
+        "vulnerability": "Limited customization and privacy concerns",
+        "attack_vector": "Privacy-focused customizable solution",
+        "difficulty": "Medium"
+      },
+      {
+        "competitor": "Slack",
+        "vulnerability": "Requires multiple tools and limited project management",
+        "attack_vector": "All-in-one integrated platform",
+        "difficulty": "Low-Medium"
+      }
+    ],
+    "recommended_positioning": {
+      "primary_strategy": "AI-Powered Mobile-First Integration Platform",
+      "key_differentiators": [
+        "Superior mobile experience with full desktop parity",
+        "AI-driven insights and automation throughout",
+        "Seamless integration without complexity",
+        "Privacy-first security model"
+      ],
+      "target_value_factors": {
+        "mobile_experience": 10,
+        "analytics_reporting": 9,
+        "tool_integration": 9,
+        "ease_of_use": 9,
+        "security_compliance": 9
+      },
+      "acceptable_tradeoffs": {
+        "customization": 7,
+        "pricing": 8
+      }
+    }
+  },
+  "market_dynamics": {
+    "switching_costs": {
+      "Microsoft_365": "High - Deep enterprise integration",
+      "Google_Workspace": "Medium - Data migration complexity",
+      "Slack": "Low-Medium - Communication history",
+      "Notion": "Low - Easy export capabilities"
+    },
+    "network_effects": {
+      "collaboration_tools": "Strong - Value increases with team adoption",
+      "integration_platforms": "Medium - Benefits from ecosystem growth",
+      "analytics_tools": "Weak - Primarily individual value"
+    },
+    "innovation_pace": {
+      "AI_integration": "Rapid - 6-12 month cycles",
+      "mobile_optimization": "Steady - Annual major updates",
+      "security_features": "Reactive - Driven by threats and compliance"
+    }
+  }
+}
