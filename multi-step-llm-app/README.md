@@ -4,7 +4,7 @@ A comprehensive 7-stage Python application suite that transforms raw market rese
 
 ## Pipeline Overview
 
-### Complete Data Flow Visualization
+### Complete Data Flow Visualization (Detailed View)
 
 ```mermaid
 graph TB
@@ -24,17 +24,9 @@ graph TB
     %% Stage 2: Jobs-to-be-Done Research
     AR --> JR[Jobs Researcher<br/>jobs_researcher.py]
     
-    JR --> |EXA Search| JR1[Reddit<br/>Discussions]
-    JR --> |EXA Search| JR2[Product<br/>Reviews]
-    JR --> |EXA Search| JR3[User<br/>Interviews]
-    JR --> |EXA Search| JR4[Industry<br/>News]
-    JR --> |EXA Search| JR5[Tutorials<br/>& Guides]
+    JR --> |Single EXA API Call| EXA[EXA Search<br/>5 Query Types:<br/>• Reddit<br/>• Reviews<br/>• Interviews<br/>• News<br/>• Tutorials]
     
-    JR1 --> JTBD[Claude Synthesis<br/>JTBD Extraction]
-    JR2 --> JTBD
-    JR3 --> JTBD
-    JR4 --> JTBD
-    JR5 --> JTBD
+    EXA --> JTBD[Claude Synthesis<br/>JTBD Extraction]
     
     JTBD --> JO1[jtbd_research.md<br/>JTBD Report]
     JTBD --> JO2[pain_points.txt<br/>Extracted Pain Points]
@@ -42,54 +34,30 @@ graph TB
     %% Stage 3: Clustering Analysis
     JO2 --> CL[JTBD Clusterer<br/>cluster_jtbd.py]
     
-    CL --> |Cohere Embed v3| EMB[Vector<br/>Embeddings]
-    EMB --> |HDBSCAN| CLU[Dynamic<br/>Clustering]
-    CLU --> |GPT-4o| LAB[Cluster<br/>Labeling]
-    LAB --> |GPT-4o| OZ[Opportunity<br/>Zones]
+    CL --> CLUST[Clustering Pipeline<br/>━━━━━━━━━━━━━━━<br/>1. Cohere Embed v3<br/>2. HDBSCAN Clustering<br/>3. GPT-4o Labeling<br/>4. GPT-4o Zones]
     
-    OZ --> OZJ[opportunity_zones.json<br/>Prioritized Zones]
+    CLUST --> OZJ[opportunity_zones.json<br/>Prioritized Zones<br/>with % importance]
     
     %% Stage 4: Value Curve Mapping
     OZJ --> VC[Value Curve Mapper<br/>value_curve_mapper.py]
     
-    VC --> |For Each Zone| VCL{Sequential<br/>Processing}
+    VC --> |For Each Zone| VCZ[Zone Analysis<br/>━━━━━━━━━━━<br/>1. EXA Search<br/>2. Parallel Opus:<br/>  • Industry Norms<br/>  • Engineering Gaps]
     
-    VCL --> |Step 1| EXA[EXA Search<br/>Competitive Data]
-    EXA --> |Step 2| VCP{Parallel<br/>Analysis}
-    
-    VCP --> VC1[Claude Opus<br/>Industry Norms]
-    VCP --> VC2[Claude Opus<br/>Engineering Gaps]
-    
-    VC1 --> VCO[value_curves.json<br/>Strategic Insights]
-    VC2 --> VCO
+    VCZ --> VCO[value_curves.json<br/>Strategic Insights]
     
     %% Stage 5: Product Idea Generation
     VCO --> PG[Product Generator<br/>product_idea_generator.py]
     
-    PG --> |For Each Zone| PGL{Sequential<br/>Processing}
+    PG --> |For Each Zone| PGZ[Zone Processing<br/>━━━━━━━━━━━<br/>1. OpenAI o1: ERRC<br/>2. Opus: 10 Ideas<br/>3. Opus: Viability<br/>4. Filter by Zone %]
     
-    PGL --> |Step 1| ERRC[OpenAI o1<br/>ERRC Grid]
-    ERRC --> |Step 2| IDEAS[Claude Opus<br/>10 Ideas]
-    IDEAS --> |Step 3| VIAB[Claude Opus<br/>Viability Scores]
-    VIAB --> |Step 4| FILT[Percentage<br/>Filter]
-    
-    FILT --> PGO[product_ideas.json<br/>Filtered Ideas]
+    PGZ --> PGO[product_ideas.json<br/>Filtered Ideas<br/>(Zone % of 10)]
     
     %% Stage 6: Final Consolidation
     PGO --> IC[Idea Consolidator<br/>idea_consolidator.py]
     
-    IC --> |Enrichment| IC1[ERRC<br/>Foundation]
-    IC --> |Enrichment| IC2[Market<br/>Justification]
-    IC --> |Enrichment| IC3[Implementation<br/>Roadmap]
-    IC --> |Enrichment| IC4[Risk<br/>Assessment]
-    IC --> |Enrichment| IC5[Growth<br/>Potential]
+    IC --> ICE[Enrichment Process<br/>━━━━━━━━━━━━<br/>• ERRC Foundation<br/>• Market Justification<br/>• Implementation Plan<br/>• Risk Assessment<br/>• Growth Potential]
     
-    IC1 --> FIN[final_innovation_portfolio.json<br/>Complete Portfolio]
-    IC2 --> FIN
-    IC3 --> FIN
-    IC4 --> FIN
-    IC5 --> FIN
-    
+    ICE --> FIN[final_innovation_portfolio.json<br/>Complete Portfolio]
     FIN --> REP[Portfolio Summary<br/>Markdown Report]
     
     %% Styling
@@ -97,11 +65,34 @@ graph TB
     classDef process fill:#fff3e0,stroke:#e65100,stroke-width:2px
     classDef ai fill:#f3e5f5,stroke:#4a148c,stroke-width:2px
     classDef output fill:#e8f5e9,stroke:#1b5e20,stroke-width:2px
+    classDef grouped fill:#fce4ec,stroke:#880e4f,stroke-width:2px
     
     class S3,AR,JO1,JO2,OZJ,VCO,PGO,FIN,REP storage
     class RA,JR,CL,VC,PG,IC process
-    class RA1,RA2,RA3,RA4,JTBD,EMB,CLU,LAB,OZ,EXA,VC1,VC2,ERRC,IDEAS,VIAB ai
+    class RA1,RA2,RA3,RA4,JTBD,EXA ai
+    class CLUST,VCZ,PGZ,ICE grouped
     class FIN,REP output
+```
+
+### Simplified Pipeline Overview
+
+For a high-level view of the pipeline flow:
+
+```mermaid
+graph LR
+    S3[S3 Document] --> A[1. Research<br/>Analysis]
+    A --> B[2. JTBD<br/>Research]
+    B --> C[3. Clustering<br/>& Zones]
+    C --> D[4. Value<br/>Curves]
+    D --> E[5. Product<br/>Ideas]
+    E --> F[6. Final<br/>Portfolio]
+    
+    style A fill:#e3f2fd
+    style B fill:#f3e5f5
+    style C fill:#fff3e0
+    style D fill:#e8f5e9
+    style E fill:#fce4ec
+    style F fill:#fff9c4
 ```
 
 ### Pipeline Narrative
