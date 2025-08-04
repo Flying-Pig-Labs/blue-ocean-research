@@ -6,12 +6,9 @@ Demo of the Sophisticated Scoring System
 Demonstrates the capabilities of Issue #5 implementation without requiring API keys.
 """
 
-import json
-from datetime import datetime
 from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table
-from rich.markdown import Markdown
 
 from src.scoring import (
     IdeaScore, BreakthroughDetector, SmartFilterer, 

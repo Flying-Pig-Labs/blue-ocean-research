@@ -33,11 +33,11 @@ from .final_selector import FinalSelector
 from .selection_reporter import SelectionReporter
 
 __all__ = [
-    'IdeaScore',
-    'BreakthroughDetector', 
-    'SmartFilterer',
-    'CrossZoneOptimizer',
-    'ConfidenceScorer',
-    'FinalSelector',
-    'SelectionReporter'
+    "IdeaScore",
+    "BreakthroughDetector",
+    "SmartFilterer",
+    "CrossZoneOptimizer",
+    "ConfidenceScorer",
+    "FinalSelector",
+    "SelectionReporter",
 ]

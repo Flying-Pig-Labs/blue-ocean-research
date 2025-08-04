@@ -12,19 +12,18 @@ from .report_generator import ReportGenerator, ReportConfig
 
 __all__ = [
     # Main classes
-    'IntegrationTestRunner',
-    'ComponentValidator', 
-    'PerformanceMonitor',
-    'ReportGenerator',
-    
+    "IntegrationTestRunner",
+    "ComponentValidator",
+    "PerformanceMonitor",
+    "ReportGenerator",
     # Data classes
-    'TestResult',
-    'ComponentInfo',
-    'ValidationReport',
-    'ValidationError',
-    'APICallMetrics',
-    'SessionMetrics',
-    'ReportConfig'
+    "TestResult",
+    "ComponentInfo",
+    "ValidationReport",
+    "ValidationError",
+    "APICallMetrics",
+    "SessionMetrics",
+    "ReportConfig",
 ]
 
-__version__ = '1.0.0'
+__version__ = "1.0.0"

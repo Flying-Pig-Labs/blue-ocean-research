@@ -25,139 +25,162 @@ load_dotenv()
 # Initialize Rich console
 console = Console()
 
+
 class JobsResearcher:
     """Research Jobs-to-be-Done using EXA search API"""
-    
+
     def __init__(self):
         """Initialize EXA and Anthropic clients"""
         # EXA setup
         self.exa_api_key = os.getenv("EXA_API_KEY")
         if not self.exa_api_key:
-            console.print("[red]Error: EXA_API_KEY not found in environment variables![/red]")
+            console.print(
+                "[red]Error: EXA_API_KEY not found in environment variables![/red]"
+            )
             sys.exit(1)
-        
+
         try:
             self.exa = Exa(self.exa_api_key)
         except Exception as e:
             console.print(f"[red]Error initializing EXA client: {e}[/red]")
             sys.exit(1)
-        
+
         # Anthropic setup (for summarization)
         self.anthropic_api_key = os.getenv("ANTHROPIC_API_KEY")
         if self.anthropic_api_key:
             try:
-                self.anthropic_client = anthropic.Anthropic(api_key=self.anthropic_api_key)
+                self.anthropic_client = anthropic.Anthropic(
+                    api_key=self.anthropic_api_key
+                )
                 self.model = "claude-3-5-sonnet-20241022"
             except Exception as e:
-                console.print(f"[yellow]Warning: Anthropic client initialization failed: {e}[/yellow]")
+                console.print(
+                    f"[yellow]Warning: Anthropic client initialization failed: {e}[/yellow]"
+                )
                 self.anthropic_client = None
         else:
             self.anthropic_client = None
-    
+
     def load_analysis_results(self, filepath: str) -> str:
         """Load the analysis results from previous step"""
         try:
-            with open(filepath, 'r') as f:
+            with open(filepath, "r") as f:
                 content = f.read()
             console.print(f"[green]✅ Loaded analysis results from {filepath}[/green]")
             return content
         except FileNotFoundError:
             console.print(f"[red]Error: Analysis file not found: {filepath}[/red]")
             sys.exit(1)
-    
+
     def extract_key_elements(self, analysis: str) -> Dict[str, List[str]]:
         """Extract key elements from the analysis for search queries"""
         elements = {
             "verticals": [],
             "personas": [],
             "pain_points": [],
-            "solution_types": []
+            "solution_types": [],
         }
-        
+
         # Simple extraction based on section headers
         sections = {
             "Industry Verticals": "verticals",
             "User Personas": "personas",
             "Pain Points": "pain_points",
-            "Solution Types": "solution_types"
+            "Solution Types": "solution_types",
         }
-        
+
         current_section = None
-        lines = analysis.split('\n')
-        
+        lines = analysis.split("\n")
+
         for line in lines:
             # Check for section headers
             for header, key in sections.items():
-                if header in line and line.startswith('#'):
+                if header in line and line.startswith("#"):
                     current_section = key
                     break
-            
+
             # Extract bullet points or key phrases
-            if current_section and (line.strip().startswith('-') or line.strip().startswith('•')):
-                item = line.strip().lstrip('-•').strip()
+            if current_section and (
+                line.strip().startswith("-") or line.strip().startswith("•")
+            ):
+                item = line.strip().lstrip("-•").strip()
                 if len(item) > 5:  # Filter out very short items
                     elements[current_section].append(item[:100])  # Limit length
-        
+
         return elements
-    
-    def construct_search_queries(self, elements: Dict[str, List[str]]) -> List[Dict[str, str]]:
+
+    def construct_search_queries(
+        self, elements: Dict[str, List[str]]
+    ) -> List[Dict[str, str]]:
         """Construct targeted search queries for different source types"""
         queries = []
-        
+
         # Get first few items from each category
-        verticals = elements['verticals'][:3]
-        personas = elements['personas'][:3]
-        pain_points = elements['pain_points'][:3]
-        
+        verticals = elements["verticals"][:3]
+        personas = elements["personas"][:3]
+        pain_points = elements["pain_points"][:3]
+
         # Reddit queries for authentic user discussions
         if verticals and personas:
-            queries.append({
-                "query": f"site:reddit.com ({' OR '.join(verticals[:2])}) frustration problem daily workflow",
-                "type": "reddit",
-                "focus": "user_frustrations"
-            })
-        
+            queries.append(
+                {
+                    "query": f"site:reddit.com ({' OR '.join(verticals[:2])}) frustration problem daily workflow",
+                    "type": "reddit",
+                    "focus": "user_frustrations",
+                }
+            )
+
         if personas and pain_points:
-            queries.append({
-                "query": f"site:reddit.com \"{personas[0]}\" \"{pain_points[0]}\" advice help",
-                "type": "reddit",
-                "focus": "pain_point_discussions"
-            })
-        
+            queries.append(
+                {
+                    "query": f'site:reddit.com "{personas[0]}" "{pain_points[0]}" advice help',
+                    "type": "reddit",
+                    "focus": "pain_point_discussions",
+                }
+            )
+
         # Product review queries
         if verticals:
-            queries.append({
-                "query": f"product review comparison {verticals[0]} software tools pros cons",
-                "type": "reviews",
-                "focus": "product_comparisons"
-            })
-        
+            queries.append(
+                {
+                    "query": f"product review comparison {verticals[0]} software tools pros cons",
+                    "type": "reviews",
+                    "focus": "product_comparisons",
+                }
+            )
+
         # Interview and case study queries
         if personas:
-            queries.append({
-                "query": f"interview case study \"{personas[0]}\" challenges workflow process",
-                "type": "interviews",
-                "focus": "user_interviews"
-            })
-        
+            queries.append(
+                {
+                    "query": f'interview case study "{personas[0]}" challenges workflow process',
+                    "type": "interviews",
+                    "focus": "user_interviews",
+                }
+            )
+
         # News and industry analysis
         if verticals and pain_points:
-            queries.append({
-                "query": f"{verticals[0]} industry challenges {pain_points[0]} trends 2024",
-                "type": "news",
-                "focus": "industry_analysis"
-            })
-        
+            queries.append(
+                {
+                    "query": f"{verticals[0]} industry challenges {pain_points[0]} trends 2024",
+                    "type": "news",
+                    "focus": "industry_analysis",
+                }
+            )
+
         # Blog posts and tutorials showing workarounds
         if pain_points:
-            queries.append({
-                "query": f"how to solve {pain_points[0]} tutorial guide workaround",
-                "type": "tutorials",
-                "focus": "solution_attempts"
-            })
-        
+            queries.append(
+                {
+                    "query": f"how to solve {pain_points[0]} tutorial guide workaround",
+                    "type": "tutorials",
+                    "focus": "solution_attempts",
+                }
+            )
+
         return queries
-    
+
     def search_with_exa(self, queries: List[Dict[str, str]]) -> Dict[str, List[Dict]]:
         """Execute searches using EXA API"""
         results = {
@@ -165,155 +188,173 @@ class JobsResearcher:
             "reviews": [],
             "interviews": [],
             "news": [],
-            "tutorials": []
+            "tutorials": [],
         }
-        
-        console.print("\n[bold cyan]Executing EXA searches for customer context...[/bold cyan]")
-        
+
+        console.print(
+            "\n[bold cyan]Executing EXA searches for customer context...[/bold cyan]"
+        )
+
         with Progress(
             SpinnerColumn(),
             TextColumn("[progress.description]{task.description}"),
             transient=False,
         ) as progress:
-            
             task = progress.add_task("[cyan]Searching...", total=len(queries))
-            
+
             for query_info in queries:
                 query = query_info["query"]
                 query_type = query_info["type"]
-                
+
                 progress.update(task, description=f"Searching {query_type}...")
-                
+
                 try:
                     # Execute search with EXA
                     search_results = self.exa.search_and_contents(
-                        query,
-                        num_results=5,
-                        text=True,
-                        highlights=True,
-                        summary=True
+                        query, num_results=5, text=True, highlights=True, summary=True
                     )
-                    
+
                     # Process results
                     for result in search_results.results:
                         processed_result = {
                             "url": result.url,
                             "title": result.title,
-                            "snippet": result.text[:500] if hasattr(result, 'text') else "",
-                            "highlights": result.highlights if hasattr(result, 'highlights') else [],
+                            "snippet": result.text[:500]
+                            if hasattr(result, "text")
+                            else "",
+                            "highlights": result.highlights
+                            if hasattr(result, "highlights")
+                            else [],
                             "focus": query_info["focus"],
-                            "published_date": result.published_date if hasattr(result, 'published_date') else None
+                            "published_date": result.published_date
+                            if hasattr(result, "published_date")
+                            else None,
                         }
                         results[query_type].append(processed_result)
-                    
+
                     progress.update(task, advance=1)
-                    
+
                 except Exception as e:
-                    console.print(f"[yellow]Warning: Search failed for {query_type}: {e}[/yellow]")
+                    console.print(
+                        f"[yellow]Warning: Search failed for {query_type}: {e}[/yellow]"
+                    )
                     progress.update(task, advance=1)
-        
+
         # Summary of results
         total_results = sum(len(v) for v in results.values())
-        console.print(f"\n[green]✅ Found {total_results} total results across {len(results)} categories[/green]")
-        
+        console.print(
+            f"\n[green]✅ Found {total_results} total results across {len(results)} categories[/green]"
+        )
+
         return results
-    
-    def extract_jobs_to_be_done(self, search_results: Dict[str, List[Dict]], 
-                                analysis_context: str) -> List[Dict[str, str]]:
+
+    def extract_jobs_to_be_done(
+        self, search_results: Dict[str, List[Dict]], analysis_context: str
+    ) -> List[Dict[str, str]]:
         """Extract Jobs-to-be-Done from search results"""
         jobs = []
-        
+
         # Process each category of results
         for category, results in search_results.items():
             for result in results:
                 # Extract potential JTBD from each result
-                if result.get('snippet'):
+                if result.get("snippet"):
                     # Look for patterns indicating jobs/tasks
-                    snippet = result['snippet'].lower()
-                    
+                    snippet = result["snippet"].lower()
+
                     # Common JTBD patterns
                     patterns = [
-                        "i need to", "i want to", "trying to", "help me",
-                        "how to", "looking for", "struggling with", 
-                        "can't figure out", "wish i could", "if only"
+                        "i need to",
+                        "i want to",
+                        "trying to",
+                        "help me",
+                        "how to",
+                        "looking for",
+                        "struggling with",
+                        "can't figure out",
+                        "wish i could",
+                        "if only",
                     ]
-                    
+
                     for pattern in patterns:
                         if pattern in snippet:
                             # Extract the context around the pattern
                             start = snippet.find(pattern)
                             end = min(start + 200, len(snippet))
                             context = snippet[start:end]
-                            
+
                             job = {
                                 "source": category,
-                                "url": result['url'],
-                                "title": result['title'],
+                                "url": result["url"],
+                                "title": result["title"],
                                 "job_context": context,
-                                "focus": result.get('focus', ''),
-                                "pattern": pattern
+                                "focus": result.get("focus", ""),
+                                "pattern": pattern,
                             }
                             jobs.append(job)
                             break
-        
+
         return jobs
-    
-    def generate_jtbd_report(self, jobs: List[Dict[str, str]], 
-                            search_results: Dict[str, List[Dict]],
-                            elements: Dict[str, List[str]]) -> str:
+
+    def generate_jtbd_report(
+        self,
+        jobs: List[Dict[str, str]],
+        search_results: Dict[str, List[Dict]],
+        elements: Dict[str, List[str]],
+    ) -> str:
         """Generate a comprehensive Jobs-to-be-Done report"""
         report = "# Jobs-to-be-Done Research Report\n\n"
         report += f"Generated on: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n"
-        
+
         # Executive Summary
         report += "## Executive Summary\n\n"
         report += f"This report synthesizes real-world customer context from {sum(len(v) for v in search_results.values())} "
         report += f"sources including Reddit discussions, product reviews, interviews, and industry news. "
         report += f"We identified {len(jobs)} potential jobs-to-be-done across the analyzed verticals and personas.\n\n"
-        
+
         # Key Findings by Source Type
         report += "## Key Findings by Source\n\n"
-        
+
         for category, results in search_results.items():
             if results:
                 report += f"### {category.title()}\n\n"
                 report += f"*{len(results)} sources analyzed*\n\n"
-                
+
                 # Summarize top findings
                 for i, result in enumerate(results[:3]):
-                    report += f"**{i+1}. [{result['title']}]({result['url']})**\n"
-                    if result.get('highlights'):
+                    report += f"**{i + 1}. [{result['title']}]({result['url']})**\n"
+                    if result.get("highlights"):
                         report += f"   - Key insights: {', '.join(result['highlights'][:2])}\n"
                     report += f"   - Focus: {result.get('focus', 'general').replace('_', ' ').title()}\n\n"
-        
+
         # Jobs-to-be-Done Table
         report += "## Jobs-to-be-Done Analysis\n\n"
-        
+
         if self.anthropic_client and jobs:
             # Use Claude to synthesize and structure the jobs
             report += self._synthesize_jtbd_with_claude(jobs, elements)
         else:
             # Fallback to structured extraction
             report += self._structure_jtbd_table(jobs, elements)
-        
+
         # Detailed Findings
         report += "\n## Detailed Customer Context\n\n"
-        
+
         # Group jobs by focus area
         jobs_by_focus = {}
         for job in jobs:
-            focus = job.get('focus', 'other')
+            focus = job.get("focus", "other")
             if focus not in jobs_by_focus:
                 jobs_by_focus[focus] = []
             jobs_by_focus[focus].append(job)
-        
+
         for focus, focus_jobs in jobs_by_focus.items():
             report += f"### {focus.replace('_', ' ').title()}\n\n"
             for job in focus_jobs[:5]:  # Top 5 per category
-                report += f"- **Pattern**: \"{job['pattern']}\"\n"
+                report += f'- **Pattern**: "{job["pattern"]}"\n'
                 report += f"  - Context: {job['job_context']}\n"
                 report += f"  - Source: [{job['source']}]({job['url']})\n\n"
-        
+
         # Recommendations
         report += "## Recommendations\n\n"
         report += "Based on the Jobs-to-be-Done analysis:\n\n"
@@ -321,25 +362,28 @@ class JobsResearcher:
         report += "2. **Quick Wins**: Address simple workflow improvements that appear across multiple sources\n"
         report += "3. **Strategic Opportunities**: Consider the deeper systemic issues revealed in interviews and case studies\n"
         report += "4. **Validation Next Steps**: Conduct targeted user interviews to validate these findings\n\n"
-        
+
         return report
-    
-    def _synthesize_jtbd_with_claude(self, jobs: List[Dict[str, str]], 
-                                    elements: Dict[str, List[str]]) -> str:
+
+    def _synthesize_jtbd_with_claude(
+        self, jobs: List[Dict[str, str]], elements: Dict[str, List[str]]
+    ) -> str:
         """Use Claude to synthesize jobs into a structured table"""
         # Prepare context for Claude
         context = "Based on the following real-world customer insights, create a Jobs-to-be-Done table:\n\n"
-        
+
         # Add analysis context
-        context += "Target Verticals: " + ", ".join(elements['verticals'][:3]) + "\n"
-        context += "Key Personas: " + ", ".join(elements['personas'][:3]) + "\n"
-        context += "Main Pain Points: " + ", ".join(elements['pain_points'][:3]) + "\n\n"
-        
+        context += "Target Verticals: " + ", ".join(elements["verticals"][:3]) + "\n"
+        context += "Key Personas: " + ", ".join(elements["personas"][:3]) + "\n"
+        context += (
+            "Main Pain Points: " + ", ".join(elements["pain_points"][:3]) + "\n\n"
+        )
+
         # Add job contexts
         context += "Customer Voices:\n"
         for job in jobs[:20]:  # Limit to prevent token overflow
             context += f"- {job['job_context']}\n"
-        
+
         prompt = """Create a Jobs-to-be-Done table with these columns:
         1. Job Statement (When I... I want to... So I can...)
         2. Frequency (Daily/Weekly/Monthly)
@@ -348,84 +392,97 @@ class JobsResearcher:
         5. Opportunity Score (1-10)
         
         Format as a markdown table. Focus on the most impactful and frequently mentioned jobs."""
-        
+
         try:
             message = self.anthropic_client.messages.create(
                 model=self.model,
                 max_tokens=2000,
                 temperature=0.7,
                 system="You are an expert at Jobs-to-be-Done framework analysis.",
-                messages=[
-                    {"role": "user", "content": context + "\n\n" + prompt}
-                ]
+                messages=[{"role": "user", "content": context + "\n\n" + prompt}],
             )
-            
+
             return message.content[0].text + "\n"
-        
+
         except Exception as e:
             console.print(f"[yellow]Warning: Claude synthesis failed: {e}[/yellow]")
             return self._structure_jtbd_table(jobs, elements)
-    
-    def _structure_jtbd_table(self, jobs: List[Dict[str, str]], 
-                             elements: Dict[str, List[str]]) -> str:
+
+    def _structure_jtbd_table(
+        self, jobs: List[Dict[str, str]], elements: Dict[str, List[str]]
+    ) -> str:
         """Fallback method to structure JTBD table without Claude"""
         table = "| Job Statement | Source Type | Frequency | Pain Indicator |\n"
         table += "|--------------|-------------|-----------|----------------|\n"
-        
+
         # Process unique job patterns
         seen_patterns = set()
-        
+
         for job in jobs[:15]:  # Top 15 jobs
             pattern_key = f"{job['pattern']}_{job['focus']}"
             if pattern_key not in seen_patterns:
                 seen_patterns.add(pattern_key)
-                
+
                 # Extract job statement
-                context = job['job_context']
+                context = job["job_context"]
                 if len(context) > 100:
                     context = context[:97] + "..."
-                
+
                 # Determine frequency based on keywords
                 frequency = "Occasional"
-                if any(word in context.lower() for word in ['daily', 'every day', 'always']):
+                if any(
+                    word in context.lower() for word in ["daily", "every day", "always"]
+                ):
                     frequency = "Daily"
-                elif any(word in context.lower() for word in ['weekly', 'often']):
+                elif any(word in context.lower() for word in ["weekly", "often"]):
                     frequency = "Weekly"
-                
+
                 # Add to table
                 table += f"| {context} | {job['source'].title()} | {frequency} | {job['pattern']} |\n"
-        
+
         return table + "\n"
-    
-    def extract_pain_points(self, jobs: List[Dict[str, str]], search_results: Dict[str, List[Dict]]) -> List[str]:
+
+    def extract_pain_points(
+        self, jobs: List[Dict[str, str]], search_results: Dict[str, List[Dict]]
+    ) -> List[str]:
         """Extract pain points for clustering analysis"""
         pain_points = []
-        
+
         # Extract from job contexts
         for job in jobs:
-            context = job.get('job_context', '')
+            context = job.get("job_context", "")
             # Clean up and add if meaningful
             if len(context) > 20:
                 pain_points.append(context.strip())
-        
+
         # Extract from search result snippets
         for category, results in search_results.items():
             for result in results:
-                snippet = result.get('snippet', '')
+                snippet = result.get("snippet", "")
                 # Look for pain point indicators in snippets
-                indicators = ['frustrated', 'difficult', 'can\'t', 'unable', 'problem', 
-                             'issue', 'struggle', 'hate', 'annoying', 'wish']
-                
+                indicators = [
+                    "frustrated",
+                    "difficult",
+                    "can't",
+                    "unable",
+                    "problem",
+                    "issue",
+                    "struggle",
+                    "hate",
+                    "annoying",
+                    "wish",
+                ]
+
                 for indicator in indicators:
                     if indicator in snippet.lower():
                         # Extract sentence containing the indicator
-                        sentences = snippet.split('.')
+                        sentences = snippet.split(".")
                         for sentence in sentences:
                             if indicator in sentence.lower() and len(sentence) > 20:
                                 pain_points.append(sentence.strip())
                                 break
                         break
-        
+
         # Deduplicate while preserving order
         seen = set()
         unique_pain_points = []
@@ -433,82 +490,98 @@ class JobsResearcher:
             if point not in seen:
                 seen.add(point)
                 unique_pain_points.append(point)
-        
+
         return unique_pain_points
-    
-    def save_pain_points(self, pain_points: List[str], output_file: str = "pain_points.txt"):
+
+    def save_pain_points(
+        self, pain_points: List[str], output_file: str = "pain_points.txt"
+    ):
         """Save pain points to text file for clustering"""
-        with open(output_file, 'w') as f:
+        with open(output_file, "w") as f:
             for point in pain_points:
                 f.write(f"{point}\n")
-        console.print(f"[green]✅ Extracted {len(pain_points)} pain points to {output_file}[/green]")
-    
-    def run(self, analysis_file: str = "analysis_results.md", 
-            output_file: str = "jtbd_research.md"):
+        console.print(
+            f"[green]✅ Extracted {len(pain_points)} pain points to {output_file}[/green]"
+        )
+
+    def run(
+        self,
+        analysis_file: str = "analysis_results.md",
+        output_file: str = "jtbd_research.md",
+    ):
         """Main execution flow"""
-        console.print(Panel.fit(
-            "[bold green]Jobs-to-be-Done Research with EXA[/bold green]\n"
-            "Searching for real-world customer context",
-            border_style="green"
-        ))
-        
+        console.print(
+            Panel.fit(
+                "[bold green]Jobs-to-be-Done Research with EXA[/bold green]\n"
+                "Searching for real-world customer context",
+                border_style="green",
+            )
+        )
+
         # Step 1: Load analysis results
         analysis_content = self.load_analysis_results(analysis_file)
-        
+
         # Step 2: Extract key elements
         elements = self.extract_key_elements(analysis_content)
         console.print("\n[cyan]Extracted elements for search:[/cyan]")
-        
+
         table = Table(title="Search Elements")
         table.add_column("Category", style="cyan")
         table.add_column("Count", style="magenta")
         table.add_column("Examples", style="white")
-        
+
         for category, items in elements.items():
             examples = ", ".join(items[:2]) + ("..." if len(items) > 2 else "")
-            table.add_row(category.replace('_', ' ').title(), str(len(items)), examples)
-        
+            table.add_row(category.replace("_", " ").title(), str(len(items)), examples)
+
         console.print(table)
-        
+
         # Step 3: Construct search queries
         queries = self.construct_search_queries(elements)
         console.print(f"\n[green]✅ Constructed {len(queries)} search queries[/green]")
-        
+
         # Step 4: Execute searches
         search_results = self.search_with_exa(queries)
-        
+
         # Step 5: Extract Jobs-to-be-Done
         jobs = self.extract_jobs_to_be_done(search_results, analysis_content)
-        console.print(f"\n[green]✅ Extracted {len(jobs)} potential jobs-to-be-done[/green]")
-        
+        console.print(
+            f"\n[green]✅ Extracted {len(jobs)} potential jobs-to-be-done[/green]"
+        )
+
         # Step 6: Generate report
         report = self.generate_jtbd_report(jobs, search_results, elements)
-        
+
         # Step 7: Save report
-        with open(output_file, 'w') as f:
+        with open(output_file, "w") as f:
             f.write(report)
-        console.print(f"\n[green]✅ JTBD research report saved to {output_file}[/green]")
-        
+        console.print(
+            f"\n[green]✅ JTBD research report saved to {output_file}[/green]"
+        )
+
         # Step 8: Extract and save pain points for clustering
         pain_points = self.extract_pain_points(jobs, search_results)
-        pain_points_file = output_file.replace('.md', '_pain_points.txt')
+        pain_points_file = output_file.replace(".md", "_pain_points.txt")
         self.save_pain_points(pain_points, pain_points_file)
-        
+
         # Display summary
-        console.print(Panel(
-            f"• Sources searched: {sum(len(v) for v in search_results.values())}\n"
-            f"• Jobs identified: {len(jobs)}\n"
-            f"• Categories covered: {len([k for k, v in search_results.items() if v])}\n"
-            f"• Report size: {len(report.split())} words\n"
-            f"• Pain points extracted: {len(pain_points)}",
-            title="Research Summary",
-            border_style="blue"
-        ))
-        
+        console.print(
+            Panel(
+                f"• Sources searched: {sum(len(v) for v in search_results.values())}\n"
+                f"• Jobs identified: {len(jobs)}\n"
+                f"• Categories covered: {len([k for k, v in search_results.items() if v])}\n"
+                f"• Report size: {len(report.split())} words\n"
+                f"• Pain points extracted: {len(pain_points)}",
+                title="Research Summary",
+                border_style="blue",
+            )
+        )
+
         console.print(f"\n[cyan]💡 Next step: Run clustering analysis[/cyan]")
         console.print(f"python cluster_jtbd.py {pain_points_file}")
-        
+
         return report
+
 
 def main():
     """Main entry point"""
@@ -525,20 +598,28 @@ Examples:
   
   # Test EXA connection
   python jobs_researcher.py --test
-        """
+        """,
     )
-    
-    parser.add_argument("--input", type=str, default="analysis_results.md",
-                       help="Input analysis file (default: analysis_results.md)")
-    parser.add_argument("--output", type=str, default="jtbd_research.md",
-                       help="Output JTBD report file (default: jtbd_research.md)")
+
+    parser.add_argument(
+        "--input",
+        type=str,
+        default="analysis_results.md",
+        help="Input analysis file (default: analysis_results.md)",
+    )
+    parser.add_argument(
+        "--output",
+        type=str,
+        default="jtbd_research.md",
+        help="Output JTBD report file (default: jtbd_research.md)",
+    )
     parser.add_argument("--test", action="store_true", help="Test EXA connection")
-    
+
     args = parser.parse_args()
-    
+
     # Initialize researcher
     researcher = JobsResearcher()
-    
+
     if args.test:
         # Test mode
         console.print("[cyan]Testing EXA connection...[/cyan]")
@@ -550,9 +631,10 @@ Examples:
         except Exception as e:
             console.print(f"[red]❌ EXA test failed: {e}[/red]")
         return
-    
+
     # Run JTBD research
     researcher.run(args.input, args.output)
+
 
 if __name__ == "__main__":
     main()
