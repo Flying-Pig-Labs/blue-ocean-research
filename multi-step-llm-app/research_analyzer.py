@@ -1,7 +1,44 @@
 #!/usr/bin/env python3
 """
-Research Analysis Application with S3 Integration and Parallel LLM Calls
-Pulls research from S3 and performs parallel analysis using Claude Sonnet and Opus
+Research Analysis Application with S3 Integration and Parallel LLM Calls.
+
+This module serves as the first stage in a 7-stage product innovation pipeline.
+It pulls research data from AWS S3 (or local files) and performs parallel analysis
+using Claude AI models (Sonnet and Opus) to extract key insights.
+
+Key Features:
+- AWS S3 integration for pulling research documents
+- Parallel execution of 4 analysis tasks using ThreadPoolExecutor
+- Debug-aware processing with token/cost tracking
+- Rich terminal UI with progress tracking
+- Comprehensive logging and error handling
+
+Analysis Tasks:
+1. Industry Verticals - Identifies distinct market segments (Sonnet)
+2. User Personas - Extracts customer/user profiles (Sonnet)
+3. Pain Points - Discovers key problems and challenges (Opus)
+4. Solution Types - Maps existing and potential solutions (Opus)
+
+Usage:
+    # Pull from S3 (using .env configuration)
+    python research_analyzer.py
+
+    # Use local file
+    python research_analyzer.py --local research.json
+
+    # Test mode
+    python research_analyzer.py --test
+
+Environment Variables Required:
+    - ANTHROPIC_API_KEY: Claude AI API key
+    - AWS_ACCESS_KEY_ID: AWS access key (optional for S3)
+    - AWS_SECRET_ACCESS_KEY: AWS secret key (optional for S3)
+    - AWS_REGION: AWS region (default: us-east-1)
+    - S3_BUCKET_NAME: S3 bucket name
+    - S3_FILE_KEY: S3 object key path
+
+Output:
+    Creates 'analysis_results.md' containing structured analysis from all 4 tasks.
 """
 
 import os
@@ -41,7 +78,27 @@ console = Console()
 
 @dataclass
 class AnalysisTask:
-    """Represents a single analysis task"""
+    """
+    Represents a single analysis task for parallel LLM processing.
+
+    This dataclass encapsulates all parameters needed to execute an LLM analysis task,
+    including the prompt, model selection, and generation parameters.
+
+    Attributes:
+        name (str): Human-readable name for the analysis task (e.g., "Pain Points")
+        prompt (str): The analysis prompt to send to the LLM
+        model (str): Model identifier - either "sonnet" or "opus"
+        system_prompt (str): System prompt defining the AI's role and behavior
+        max_tokens (int): Maximum tokens to generate in response (default: 2000)
+        temperature (float): Temperature for response generation (default: 0.7)
+
+    Example:
+        task = AnalysisTask(
+            name="Industry Analysis",
+            prompt="Identify key industry verticals...",
+            model="sonnet"
+        )
+    """
 
     name: str
     prompt: str
@@ -54,10 +111,47 @@ class AnalysisTask:
 
 
 class ResearchAnalyzer(DebugAwareComponent):
-    """Main application for parallel research analysis"""
+    """
+    Main application class for parallel research analysis.
+
+    This class coordinates the entire research analysis pipeline, managing AWS S3
+    integration, Anthropic API interactions, parallel task execution, and result
+    compilation. It extends DebugAwareComponent for debug mode support.
+
+    The analyzer performs four parallel analyses on research documents:
+    1. Industry Verticals identification
+    2. User Personas extraction
+    3. Pain Points discovery
+    4. Solution Types mapping
+
+    Attributes:
+        logger: Pipeline logger instance for comprehensive logging
+        client: Anthropic API client
+        model_sonnet: Claude Sonnet model identifier (debug-aware)
+        model_opus: Claude Opus model identifier (debug-aware)
+        s3_client: AWS S3 client (optional, for S3 integration)
+        bucket_name: S3 bucket name from environment
+        file_key: S3 object key from environment
+
+    Example:
+        analyzer = ResearchAnalyzer()
+        analyzer.run("research.json", is_s3=False)
+    """
 
     def __init__(self, logger=None):
-        """Initialize AWS S3 and Anthropic clients"""
+        """
+        Initialize AWS S3 and Anthropic clients.
+
+        Sets up all necessary clients and configurations for the research analyzer,
+        including Anthropic API client, AWS S3 client (if credentials available),
+        and debug-aware model selection.
+
+        Args:
+            logger: Optional logger instance. If not provided, creates a new one.
+
+        Raises:
+            SystemExit: If ANTHROPIC_API_KEY is not found in environment variables
+        """
         # Initialize debug-aware component
         super().__init__(ComponentType.RESEARCH_ANALYZER, logger)
 
@@ -168,7 +262,23 @@ class ResearchAnalyzer(DebugAwareComponent):
     def pull_from_s3(
         self, bucket: Optional[str] = None, key: Optional[str] = None
     ) -> Dict:
-        """Pull JSON file from S3"""
+        """
+        Pull JSON file from AWS S3.
+
+        Downloads a JSON file from the specified S3 bucket and key, with comprehensive
+        error handling and logging. Uses environment variables as defaults if bucket
+        or key are not provided.
+
+        Args:
+            bucket: S3 bucket name. If None, uses S3_BUCKET_NAME from environment.
+            key: S3 object key. If None, uses S3_FILE_KEY from environment.
+
+        Returns:
+            Dict: Parsed JSON data from the S3 object
+
+        Raises:
+            SystemExit: If S3 client not initialized, ClientError, or JSON parsing error
+        """
         bucket = bucket or self.bucket_name
         key = key or self.file_key
 
@@ -229,7 +339,21 @@ class ResearchAnalyzer(DebugAwareComponent):
                 sys.exit(1)
 
     def load_local_file(self, filepath: str) -> Dict:
-        """Load JSON file from local filesystem"""
+        """
+        Load JSON file from local filesystem.
+
+        Reads and parses a JSON file from the local filesystem with proper error
+        handling and logging of file size and processing metrics.
+
+        Args:
+            filepath: Path to the local JSON file
+
+        Returns:
+            Dict: Parsed JSON data from the file
+
+        Raises:
+            SystemExit: If file not found or JSON parsing error occurs
+        """
         with self.logger.log_operation(
             ComponentType.RESEARCH_ANALYZER,
             "file_load",
@@ -276,7 +400,22 @@ class ResearchAnalyzer(DebugAwareComponent):
                 sys.exit(1)
 
     def extract_content(self, data: Dict) -> str:
-        """Extract content attribute from JSON data"""
+        """
+        Extract content attribute from JSON data.
+
+        Intelligently searches for the 'content' field in the JSON structure,
+        handling various nested structures. First checks common locations,
+        then performs recursive search if needed.
+
+        Args:
+            data: JSON data dictionary to extract content from
+
+        Returns:
+            str: The extracted content string
+
+        Raises:
+            SystemExit: If 'content' field cannot be found in the JSON structure
+        """
         if "content" in data:
             return data["content"]
         elif "research" in data and "content" in data["research"]:
@@ -300,7 +439,20 @@ class ResearchAnalyzer(DebugAwareComponent):
                 sys.exit(1)
 
     def _find_content_recursive(self, obj, depth=0, max_depth=5):
-        """Recursively search for content attribute"""
+        """
+        Recursively search for content attribute in nested structures.
+
+        Helper method that performs depth-limited recursive search through
+        dictionaries and lists to find a 'content' field.
+
+        Args:
+            obj: Object to search (dict, list, or other)
+            depth: Current recursion depth (default: 0)
+            max_depth: Maximum recursion depth to prevent infinite loops (default: 5)
+
+        Returns:
+            str or None: Content string if found, None otherwise
+        """
         if depth > max_depth:
             return None
 
@@ -320,7 +472,18 @@ class ResearchAnalyzer(DebugAwareComponent):
         return None
 
     def create_analysis_tasks(self) -> List[AnalysisTask]:
-        """Create the four parallel analysis tasks"""
+        """
+        Create the four parallel analysis tasks.
+
+        Defines the four core analysis tasks that will be executed in parallel:
+        1. Industry Verticals - Uses Sonnet to identify market segments
+        2. User Personas - Uses Sonnet to extract customer profiles
+        3. Pain Points - Uses Opus for deep analysis of problems
+        4. Solution Types - Uses Opus to map solution approaches
+
+        Returns:
+            List[AnalysisTask]: List of four configured analysis tasks
+        """
         return [
             AnalysisTask(
                 name="Industry Verticals",
@@ -367,7 +530,24 @@ class ResearchAnalyzer(DebugAwareComponent):
     def analyze_with_llm(
         self, task: AnalysisTask, research_content: str
     ) -> Tuple[str, str]:
-        """Execute a single analysis task with debug-aware processing"""
+        """
+        Execute a single analysis task with debug-aware processing.
+
+        Performs an LLM analysis using either Claude Sonnet or Opus, with full
+        debug mode support including content truncation, token tracking, and
+        cost monitoring. Handles rate limiting and errors gracefully.
+
+        Args:
+            task: AnalysisTask object defining the analysis parameters
+            research_content: The research document content to analyze
+
+        Returns:
+            Tuple[str, str]: (task_name, analysis_result)
+
+        Raises:
+            anthropic.RateLimitError: Re-raised for retry logic (except in debug mode)
+            Exception: Re-raised for other errors after logging
+        """
         # Select the appropriate model (already debug-aware from initialization)
         model = self.model_sonnet if task.model == "sonnet" else self.model_opus
         model_display = "Sonnet" if task.model == "sonnet" else "Opus"
@@ -466,7 +646,19 @@ class ResearchAnalyzer(DebugAwareComponent):
                 raise
 
     def run_parallel_analysis(self, research_content: str) -> Dict[str, str]:
-        """Run all analysis tasks in parallel"""
+        """
+        Run all analysis tasks in parallel.
+
+        Executes four analysis tasks concurrently using ThreadPoolExecutor,
+        with real-time progress tracking and comprehensive logging. Provides
+        visual feedback through Rich console UI.
+
+        Args:
+            research_content: The research document content to analyze
+
+        Returns:
+            Dict[str, str]: Mapping of task names to their analysis results
+        """
         with self.logger.log_operation(
             ComponentType.RESEARCH_ANALYZER,
             "parallel_analysis",
@@ -555,7 +747,18 @@ class ResearchAnalyzer(DebugAwareComponent):
             return results
 
     def combine_results(self, results: Dict[str, str]) -> str:
-        """Combine all analysis results into a single document"""
+        """
+        Combine all analysis results into a single document.
+
+        Merges the four analysis results into a well-formatted markdown document
+        with clear sections, timestamps, and visual separators.
+
+        Args:
+            results: Dictionary mapping task names to analysis results
+
+        Returns:
+            str: Combined markdown document with all analysis results
+        """
         combined = f"# Research Analysis Results\n\n"
         combined += f"Generated on: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n"
         combined += "---\n\n"
@@ -571,7 +774,15 @@ class ResearchAnalyzer(DebugAwareComponent):
     def save_results(
         self, combined_results: str, output_file: str = "analysis_results.md"
     ):
-        """Save combined results to file"""
+        """
+        Save combined results to file.
+
+        Writes the combined analysis results to a markdown file with user feedback.
+
+        Args:
+            combined_results: The combined analysis document to save
+            output_file: Output filename (default: "analysis_results.md")
+        """
         with open(output_file, "w") as f:
             f.write(combined_results)
         console.print(f"\n[green]✅ Results saved to {output_file}[/green]")
@@ -584,7 +795,26 @@ class ResearchAnalyzer(DebugAwareComponent):
         key: Optional[str] = None,
         output_file: str = "analysis_results.md",
     ):
-        """Main execution flow"""
+        """
+        Main execution flow for research analysis.
+
+        Orchestrates the complete analysis pipeline:
+        1. Load data from S3 or local file
+        2. Extract research content
+        3. Run parallel analysis tasks
+        4. Combine and save results
+        5. Display summary statistics
+
+        Args:
+            source: File path (for local) or unused (for S3)
+            is_s3: Whether to load from S3 (True) or local file (False)
+            bucket: Optional S3 bucket override
+            key: Optional S3 key override
+            output_file: Output filename for results
+
+        Returns:
+            str: The combined analysis results
+        """
         with self.logger.log_operation(
             ComponentType.RESEARCH_ANALYZER, "research_analysis_pipeline"
         ) as op:
@@ -720,7 +950,29 @@ class ResearchAnalyzer(DebugAwareComponent):
 
 
 def main():
-    """Main entry point"""
+    """
+    Main entry point for the research analyzer application.
+
+    Handles command-line argument parsing, initializes debug and logging systems,
+    creates the ResearchAnalyzer instance, and executes the analysis pipeline.
+
+    Command-line Arguments:
+        --local: Path to local JSON file (alternative to S3)
+        --bucket: Override S3 bucket name from environment
+        --key: Override S3 object key from environment
+        --output: Output filename (default: analysis_results.md)
+        --test: Run connection tests only
+        --config: Configuration file path
+        --session-id: Custom session ID for logging
+
+    Environment Setup:
+        Requires ANTHROPIC_API_KEY and optionally AWS credentials in environment
+        or .env file.
+
+    Exit Codes:
+        0: Success
+        1: Configuration error or analysis failure
+    """
     parser = argparse.ArgumentParser(
         description="Research Analysis with S3 Integration and Parallel LLM Processing",
         formatter_class=argparse.RawDescriptionHelpFormatter,
