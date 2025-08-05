@@ -20,7 +20,7 @@ logger = logging.getLogger(__name__)
 class GitHubIntegration:
     """Handles GitHub repository creation and management."""
 
-    def __init__(self, github_token: Optional[str] = None):
+    def __init__(self, github_token: Optional[str] = None, organization: str = "ocean-shark-tank"):
         """Initialize GitHub integration with authentication."""
         self.token = github_token or os.getenv("GITHUB_TOKEN")
         if not self.token:
@@ -30,30 +30,55 @@ class GitHubIntegration:
 
         self.github = Github(self.token)
         self.user = self.github.get_user()
-        logger.info(f"Authenticated as GitHub user: {self.user.login}")
+        self.organization_name = organization
+        
+        try:
+            self.organization = self.github.get_organization(organization)
+            logger.info(f"Authenticated as GitHub user: {self.user.login}, targeting organization: {organization}")
+        except Exception as e:
+            logger.warning(f"Could not access organization '{organization}': {e}")
+            logger.info(f"Falling back to user account: {self.user.login}")
+            self.organization = None
 
     def create_repository(
         self, repo_name: str, description: str, private: bool = False
     ) -> Any:
         """Create a new GitHub repository."""
         try:
-            repo = self.user.create_repo(
-                name=repo_name,
-                description=description,
-                private=private,
-                has_issues=True,
-                has_wiki=False,
-                has_downloads=False,
-                auto_init=False,
-            )
-            logger.info(f"Created repository: {repo.full_name}")
+            # Use organization if available, otherwise use user account
+            if self.organization:
+                repo = self.organization.create_repo(
+                    name=repo_name,
+                    description=description,
+                    private=private,
+                    has_issues=True,
+                    has_wiki=False,
+                    has_downloads=False,
+                    auto_init=False,
+                )
+                logger.info(f"Created repository in organization: {repo.full_name}")
+            else:
+                repo = self.user.create_repo(
+                    name=repo_name,
+                    description=description,
+                    private=private,
+                    has_issues=True,
+                    has_wiki=False,
+                    has_downloads=False,
+                    auto_init=False,
+                )
+                logger.info(f"Created repository in user account: {repo.full_name}")
             return repo
         except GithubException as e:
             if e.status == 422 and "already exists" in str(e):
                 logger.warning(
                     f"Repository {repo_name} already exists, using existing repo"
                 )
-                return self.user.get_repo(repo_name)
+                # Try to get existing repo from organization or user
+                if self.organization:
+                    return self.organization.get_repo(repo_name)
+                else:
+                    return self.user.get_repo(repo_name)
             else:
                 raise
 
@@ -576,11 +601,12 @@ def create_github_output(
     github_token: Optional[str] = None,
     create_issues: bool = True,
     private: bool = False,
+    organization: str = "ocean-shark-tank",
 ) -> Dict[str, Any]:
     """Main function to create GitHub output from analysis results."""
 
     try:
-        github_integration = GitHubIntegration(github_token)
+        github_integration = GitHubIntegration(github_token, organization)
 
         results = github_integration.create_github_project(
             repo_name=repo_name,

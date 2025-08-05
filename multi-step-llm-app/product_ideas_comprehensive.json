@@ -1,0 +1,103 @@
+{
+  "zone_results": [
+    {
+      "zone": {
+        "name": "Problem Clarity Solutions",
+        "importance_percentage": 50
+      },
+      "filtered_ideas": [
+        {
+          "name": "ClarityAI",
+          "description": "AI-powered problem identification assistant that helps users articulate their real challenges",
+          "zone": "Problem Clarity Solutions",
+          "value_proposition": "Transform vague problems into clear, actionable insights using guided AI conversations",
+          "viability_score": 8.5,
+          "innovation_score": 9.0,
+          "target_market": "Business professionals and consultants",
+          "key_features": [
+            "AI-guided problem exploration",
+            "Root cause analysis tools",
+            "Visual problem mapping",
+            "Solution recommendation engine"
+          ]
+        },
+        {
+          "name": "ProblemScope",
+          "description": "Collaborative platform for teams to define and scope problems effectively",
+          "zone": "Problem Clarity Solutions",
+          "value_proposition": "Reduce project failures by 50% through better problem definition",
+          "viability_score": 7.5,
+          "innovation_score": 7.0,
+          "target_market": "Project managers and team leaders",
+          "key_features": [
+            "Team collaboration tools",
+            "Problem template library",
+            "Stakeholder alignment features",
+            "Success metrics definition"
+          ]
+        }
+      ]
+    },
+    {
+      "zone": {
+        "name": "Real Estate Security Enhancements",
+        "importance_percentage": 30
+      },
+      "filtered_ideas": [
+        {
+          "name": "SecureWire",
+          "description": "Blockchain-based wire transfer protection for real estate transactions",
+          "zone": "Real Estate Security Enhancements",
+          "value_proposition": "Eliminate wire fraud in real estate with military-grade security",
+          "viability_score": 9.0,
+          "innovation_score": 8.5,
+          "target_market": "Real estate professionals and buyers",
+          "key_features": [
+            "End-to-end encryption",
+            "Multi-factor authentication",
+            "Blockchain verification",
+            "Real-time fraud detection"
+          ]
+        },
+        {
+          "name": "TitleGuard Pro",
+          "description": "Comprehensive title protection and legal verification platform",
+          "zone": "Real Estate Security Enhancements",
+          "value_proposition": "Protect buyers and lenders with AI-powered title analysis",
+          "viability_score": 8.0,
+          "innovation_score": 7.5,
+          "target_market": "Title companies and real estate attorneys",
+          "key_features": [
+            "AI document analysis",
+            "Automated lien detection",
+            "Historical ownership tracking",
+            "Risk scoring engine"
+          ]
+        }
+      ]
+    },
+    {
+      "zone": {
+        "name": "Growth Strategy Optimization for Real Estate",
+        "importance_percentage": 20
+      },
+      "filtered_ideas": [
+        {
+          "name": "GrowthCompass",
+          "description": "Strategic planning platform for real estate professionals",
+          "zone": "Growth Strategy Optimization for Real Estate",
+          "value_proposition": "Data-driven growth strategies that increase revenue by 30%",
+          "viability_score": 7.0,
+          "innovation_score": 6.5,
+          "target_market": "Real estate brokers and agencies",
+          "key_features": [
+            "Market analytics dashboard",
+            "Competitor analysis tools",
+            "Growth opportunity identification",
+            "Performance tracking"
+          ]
+        }
+      ]
+    }
+  ]
+}

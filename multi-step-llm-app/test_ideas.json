@@ -1,0 +1,1373 @@
+{
+  "metadata": {
+    "timestamp": "2025-08-04T15:01:07.003265",
+    "zones_processed": 1,
+    "total_ideas": 10,
+    "filtered_ideas": 5
+  },
+  "results": [
+    {
+      "zone": {
+        "name": "Test Integration Platform",
+        "description": "Simple integration solution for testing",
+        "importance_percentage": 50,
+        "potential_impact": "Medium",
+        "implementation_complexity": "Low"
+      },
+      "errc_grid": "Here's a comprehensive ERRC Grid tailored for disrupting the market of integration platforms, specifically focusing on opportunities in creating a simple integration solution for testing:\n\n| **Quadrant** | **Specific Factors/Features/Attributes** | **Rationale** | **Expected Impact on Value Curve** |\n|--------------|-----------------------------------------|--------------|-------------------------------------|\n| **ELIMINATE** | - Complex Enterprise Features | These features often lead to over-engineering and complexity, which are unnecessary for simple use cases and drive up costs. | Simplification of the product offering, reducing cost and complexity for users. |\n| | - Lengthy Onboarding Processes | Lengthy onboarding can deter users and lengthen time-to-value, which goes against the need for quick testing and integration. | Improved user experience and faster deployment cycles. |\n\n| **REDUCE** | - Pricing Tiers | Industry pricing is often convoluted with numerous tiers offering negligible incremental value for simple cases. | More transparent and user-friendly pricing model, making the tool more accessible. |\n| | - Customer Support Complexity | Overly complex support systems with excessive options and slow response times overshadow quick troubleshooting needs. | Streamlined support process increases customer satisfaction and reduces resource strain. |\n\n| **RAISE** | - User Experience & Interface Simplicity | A focus on an intuitive UI/UX will vastly improve the ease of use compared to existing platforms with cluttered designs. | Enhances adoption rates and user retention by lowering the learning curve. |\n| | - Integration Speed & Reliability | Increasing the speed of integration and ensuring high reliability meets the critical needs of testing environments. | Increased efficiency in testing cycles, leading to higher product value for users. |\n\n| **CREATE** | - Plug-and-Play Modules for Testing Scenarios | Developing ready-made modules specifically for testing can address the gap in current offerings tailored for this use case. | Establishes a unique selling proposition that differentiates the product in the market. |\n| | - Real-time Integration Diagnostics | An innovative feature providing real-time diagnostics and feedback loops during integration testing processes. | Adds significant value by allowing immediate issue resolution and enhancing integration reliability. |\n\nThis ERRC grid is structured to focus on simplicity, accessibility, and enhancing core functionalities that align directly with the user needs in testing environments, helping to disrupt a market cluttered with overly complex solutions.",
+      "all_ideas": [
+        {
+          "name": "",
+          "value_proposition": "",
+          "features": [],
+          "target_segment": "",
+          "differentiation": "",
+          "innovation_score": 8.0,
+          "viability_score": 5.0,
+          "viability_details": {
+            "technical_feasibility": 5,
+            "market_readiness": 5,
+            "resource_requirements": 5,
+            "time_to_market": 5,
+            "competitive_moat": 5
+          },
+          "zone_name": "Test Integration Platform",
+          "scoring": {
+            "idea_score": {
+              "viability_score": 5.0,
+              "innovation_score": 8.0,
+              "breakthrough_score": 8.0,
+              "confidence_score": 5.71,
+              "composite_score": 6.61,
+              "raw_scores": {
+                "original_viability": 5.0,
+                "original_innovation": 8.0,
+                "calculated_breakthrough": 8.0,
+                "calculated_confidence": 5.71
+              },
+              "viability_breakdown": {
+                "technical_feasibility": 5.0,
+                "market_readiness": 5.0,
+                "resource_requirements": 5.0,
+                "time_to_market": 5.0,
+                "competitive_moat": 5.0
+              },
+              "innovation_breakdown": {
+                "novelty": 8.0,
+                "uniqueness": 8.0,
+                "disruption_potential": 8.0,
+                "technology_advancement": 8.0
+              },
+              "metadata": {
+                "idea_name": "",
+                "zone_name": "Test Integration Platform",
+                "scoring_timestamp": "2025-08-04T15:01:06.682388"
+              }
+            },
+            "breakthrough_analysis": {
+              "is_breakthrough": true,
+              "is_moonshot": true,
+              "is_game_changer": true,
+              "breakthrough_score": 9.0,
+              "moonshot_indicators": [],
+              "scalability_score": 0.0,
+              "versatility_score": 0.0,
+              "risk_factors": [
+                "Technical feasibility concerns",
+                "Market readiness uncertainty",
+                "Limited competitive protection",
+                "Assessment uncertainty"
+              ],
+              "opportunity_factors": [
+                "High innovation potential"
+              ],
+              "industry_disruption_potential": {
+                "healthcare": 5.3999999999999995,
+                "finance": 5.3999999999999995,
+                "education": 5.3999999999999995,
+                "retail": 5.3999999999999995,
+                "manufacturing": 5.3999999999999995,
+                "transportation": 5.3999999999999995,
+                "energy": 5.3999999999999995,
+                "entertainment": 5.3999999999999995,
+                "agriculture": 5.3999999999999995,
+                "real_estate": 5.3999999999999995,
+                "logistics": 5.3999999999999995,
+                "telecommunications": 5.3999999999999995,
+                "government": 5.3999999999999995,
+                "construction": 5.3999999999999995,
+                "insurance": 5.3999999999999995
+              }
+            },
+            "composite_score": 6.61,
+            "is_excellence": false,
+            "is_moonshot": true,
+            "is_breakthrough": true,
+            "risk_level": "High Risk"
+          },
+          "preservation_reason": "Moonshot potential; Breakthrough innovation"
+        },
+        {
+          "name": "",
+          "value_proposition": "",
+          "features": [],
+          "target_segment": "",
+          "differentiation": "",
+          "innovation_score": 7.0,
+          "viability_score": 5.0,
+          "viability_details": {
+            "technical_feasibility": 5,
+            "market_readiness": 5,
+            "resource_requirements": 5,
+            "time_to_market": 5,
+            "competitive_moat": 5
+          },
+          "zone_name": "Test Integration Platform",
+          "scoring": {
+            "idea_score": {
+              "viability_score": 5.0,
+              "innovation_score": 7.0,
+              "breakthrough_score": 7.0,
+              "confidence_score": 5.71,
+              "composite_score": 6.11,
+              "raw_scores": {
+                "original_viability": 5.0,
+                "original_innovation": 7.0,
+                "calculated_breakthrough": 7.0,
+                "calculated_confidence": 5.71
+              },
+              "viability_breakdown": {
+                "technical_feasibility": 5.0,
+                "market_readiness": 5.0,
+                "resource_requirements": 5.0,
+                "time_to_market": 5.0,
+                "competitive_moat": 5.0
+              },
+              "innovation_breakdown": {
+                "novelty": 7.0,
+                "uniqueness": 7.0,
+                "disruption_potential": 7.0,
+                "technology_advancement": 7.0
+              },
+              "metadata": {
+                "idea_name": "",
+                "zone_name": "Test Integration Platform",
+                "scoring_timestamp": "2025-08-04T15:01:06.682830"
+              }
+            },
+            "breakthrough_analysis": {
+              "is_breakthrough": false,
+              "is_moonshot": false,
+              "is_game_changer": false,
+              "breakthrough_score": 7.0,
+              "moonshot_indicators": [],
+              "scalability_score": 0.0,
+              "versatility_score": 0.0,
+              "risk_factors": [
+                "Technical feasibility concerns",
+                "Market readiness uncertainty",
+                "Limited competitive protection",
+                "Assessment uncertainty"
+              ],
+              "opportunity_factors": [],
+              "industry_disruption_potential": {
+                "healthcare": 4.2,
+                "finance": 4.2,
+                "education": 4.2,
+                "retail": 4.2,
+                "manufacturing": 4.2,
+                "transportation": 4.2,
+                "energy": 4.2,
+                "entertainment": 4.2,
+                "agriculture": 4.2,
+                "real_estate": 4.2,
+                "logistics": 4.2,
+                "telecommunications": 4.2,
+                "government": 4.2,
+                "construction": 4.2,
+                "insurance": 4.2
+              }
+            },
+            "composite_score": 6.11,
+            "is_excellence": false,
+            "is_moonshot": false,
+            "is_breakthrough": false,
+            "risk_level": "High Risk"
+          }
+        },
+        {
+          "name": "",
+          "value_proposition": "",
+          "features": [],
+          "target_segment": "",
+          "differentiation": "",
+          "innovation_score": 9.0,
+          "viability_score": 5.0,
+          "viability_details": {
+            "technical_feasibility": 5,
+            "market_readiness": 5,
+            "resource_requirements": 5,
+            "time_to_market": 5,
+            "competitive_moat": 5
+          },
+          "zone_name": "Test Integration Platform",
+          "scoring": {
+            "idea_score": {
+              "viability_score": 5.0,
+              "innovation_score": 9.0,
+              "breakthrough_score": 9.0,
+              "confidence_score": 5.71,
+              "composite_score": 7.11,
+              "raw_scores": {
+                "original_viability": 5.0,
+                "original_innovation": 9.0,
+                "calculated_breakthrough": 9.0,
+                "calculated_confidence": 5.71
+              },
+              "viability_breakdown": {
+                "technical_feasibility": 5.0,
+                "market_readiness": 5.0,
+                "resource_requirements": 5.0,
+                "time_to_market": 5.0,
+                "competitive_moat": 5.0
+              },
+              "innovation_breakdown": {
+                "novelty": 9.0,
+                "uniqueness": 9.0,
+                "disruption_potential": 9.0,
+                "technology_advancement": 9.0
+              },
+              "metadata": {
+                "idea_name": "",
+                "zone_name": "Test Integration Platform",
+                "scoring_timestamp": "2025-08-04T15:01:06.683218"
+              }
+            },
+            "breakthrough_analysis": {
+              "is_breakthrough": true,
+              "is_moonshot": true,
+              "is_game_changer": true,
+              "breakthrough_score": 10.0,
+              "moonshot_indicators": [],
+              "scalability_score": 0.0,
+              "versatility_score": 0.0,
+              "risk_factors": [
+                "Technical feasibility concerns",
+                "Market readiness uncertainty",
+                "Limited competitive protection",
+                "Assessment uncertainty"
+              ],
+              "opportunity_factors": [
+                "High innovation potential"
+              ],
+              "industry_disruption_potential": {
+                "healthcare": 6.0,
+                "finance": 6.0,
+                "education": 6.0,
+                "retail": 6.0,
+                "manufacturing": 6.0,
+                "transportation": 6.0,
+                "energy": 6.0,
+                "entertainment": 6.0,
+                "agriculture": 6.0,
+                "real_estate": 6.0,
+                "logistics": 6.0,
+                "telecommunications": 6.0,
+                "government": 6.0,
+                "construction": 6.0,
+                "insurance": 6.0
+              }
+            },
+            "composite_score": 7.11,
+            "is_excellence": false,
+            "is_moonshot": true,
+            "is_breakthrough": true,
+            "risk_level": "High Risk"
+          },
+          "preservation_reason": "Moonshot potential; Breakthrough innovation; Exceptional innovation (9.0)"
+        },
+        {
+          "name": "",
+          "value_proposition": "",
+          "features": [],
+          "target_segment": "",
+          "differentiation": "",
+          "innovation_score": 8.0,
+          "viability_score": 5.0,
+          "viability_details": {
+            "technical_feasibility": 5,
+            "market_readiness": 5,
+            "resource_requirements": 5,
+            "time_to_market": 5,
+            "competitive_moat": 5
+          },
+          "zone_name": "Test Integration Platform",
+          "scoring": {
+            "idea_score": {
+              "viability_score": 5.0,
+              "innovation_score": 8.0,
+              "breakthrough_score": 8.0,
+              "confidence_score": 5.71,
+              "composite_score": 6.61,
+              "raw_scores": {
+                "original_viability": 5.0,
+                "original_innovation": 8.0,
+                "calculated_breakthrough": 8.0,
+                "calculated_confidence": 5.71
+              },
+              "viability_breakdown": {
+                "technical_feasibility": 5.0,
+                "market_readiness": 5.0,
+                "resource_requirements": 5.0,
+                "time_to_market": 5.0,
+                "competitive_moat": 5.0
+              },
+              "innovation_breakdown": {
+                "novelty": 8.0,
+                "uniqueness": 8.0,
+                "disruption_potential": 8.0,
+                "technology_advancement": 8.0
+              },
+              "metadata": {
+                "idea_name": "",
+                "zone_name": "Test Integration Platform",
+                "scoring_timestamp": "2025-08-04T15:01:06.683918"
+              }
+            },
+            "breakthrough_analysis": {
+              "is_breakthrough": true,
+              "is_moonshot": true,
+              "is_game_changer": true,
+              "breakthrough_score": 9.0,
+              "moonshot_indicators": [],
+              "scalability_score": 0.0,
+              "versatility_score": 0.0,
+              "risk_factors": [
+                "Technical feasibility concerns",
+                "Market readiness uncertainty",
+                "Limited competitive protection",
+                "Assessment uncertainty"
+              ],
+              "opportunity_factors": [
+                "High innovation potential"
+              ],
+              "industry_disruption_potential": {
+                "healthcare": 5.3999999999999995,
+                "finance": 5.3999999999999995,
+                "education": 5.3999999999999995,
+                "retail": 5.3999999999999995,
+                "manufacturing": 5.3999999999999995,
+                "transportation": 5.3999999999999995,
+                "energy": 5.3999999999999995,
+                "entertainment": 5.3999999999999995,
+                "agriculture": 5.3999999999999995,
+                "real_estate": 5.3999999999999995,
+                "logistics": 5.3999999999999995,
+                "telecommunications": 5.3999999999999995,
+                "government": 5.3999999999999995,
+                "construction": 5.3999999999999995,
+                "insurance": 5.3999999999999995
+              }
+            },
+            "composite_score": 6.61,
+            "is_excellence": false,
+            "is_moonshot": true,
+            "is_breakthrough": true,
+            "risk_level": "High Risk"
+          },
+          "preservation_reason": "Moonshot potential; Breakthrough innovation"
+        },
+        {
+          "name": "",
+          "value_proposition": "",
+          "features": [],
+          "target_segment": "",
+          "differentiation": "",
+          "innovation_score": 6.0,
+          "viability_score": 5.0,
+          "viability_details": {
+            "technical_feasibility": 5,
+            "market_readiness": 5,
+            "resource_requirements": 5,
+            "time_to_market": 5,
+            "competitive_moat": 5
+          },
+          "zone_name": "Test Integration Platform",
+          "scoring": {
+            "idea_score": {
+              "viability_score": 5.0,
+              "innovation_score": 6.0,
+              "breakthrough_score": 6.0,
+              "confidence_score": 5.71,
+              "composite_score": 5.61,
+              "raw_scores": {
+                "original_viability": 5.0,
+                "original_innovation": 6.0,
+                "calculated_breakthrough": 6.0,
+                "calculated_confidence": 5.71
+              },
+              "viability_breakdown": {
+                "technical_feasibility": 5.0,
+                "market_readiness": 5.0,
+                "resource_requirements": 5.0,
+                "time_to_market": 5.0,
+                "competitive_moat": 5.0
+              },
+              "innovation_breakdown": {
+                "novelty": 6.0,
+                "uniqueness": 6.0,
+                "disruption_potential": 6.0,
+                "technology_advancement": 6.0
+              },
+              "metadata": {
+                "idea_name": "",
+                "zone_name": "Test Integration Platform",
+                "scoring_timestamp": "2025-08-04T15:01:06.684376"
+              }
+            },
+            "breakthrough_analysis": {
+              "is_breakthrough": false,
+              "is_moonshot": false,
+              "is_game_changer": false,
+              "breakthrough_score": 6.0,
+              "moonshot_indicators": [],
+              "scalability_score": 0.0,
+              "versatility_score": 0.0,
+              "risk_factors": [
+                "Technical feasibility concerns",
+                "Market readiness uncertainty",
+                "Limited competitive protection",
+                "Assessment uncertainty"
+              ],
+              "opportunity_factors": [],
+              "industry_disruption_potential": {
+                "healthcare": 3.5999999999999996,
+                "finance": 3.5999999999999996,
+                "education": 3.5999999999999996,
+                "retail": 3.5999999999999996,
+                "manufacturing": 3.5999999999999996,
+                "transportation": 3.5999999999999996,
+                "energy": 3.5999999999999996,
+                "entertainment": 3.5999999999999996,
+                "agriculture": 3.5999999999999996,
+                "real_estate": 3.5999999999999996,
+                "logistics": 3.5999999999999996,
+                "telecommunications": 3.5999999999999996,
+                "government": 3.5999999999999996,
+                "construction": 3.5999999999999996,
+                "insurance": 3.5999999999999996
+              }
+            },
+            "composite_score": 5.61,
+            "is_excellence": false,
+            "is_moonshot": false,
+            "is_breakthrough": false,
+            "risk_level": "High Risk"
+          }
+        },
+        {
+          "name": "",
+          "value_proposition": "",
+          "features": [],
+          "target_segment": "",
+          "differentiation": "",
+          "innovation_score": 7.0,
+          "viability_score": 5.0,
+          "viability_details": {
+            "technical_feasibility": 5,
+            "market_readiness": 5,
+            "resource_requirements": 5,
+            "time_to_market": 5,
+            "competitive_moat": 5
+          },
+          "zone_name": "Test Integration Platform",
+          "scoring": {
+            "idea_score": {
+              "viability_score": 5.0,
+              "innovation_score": 7.0,
+              "breakthrough_score": 7.0,
+              "confidence_score": 5.71,
+              "composite_score": 6.11,
+              "raw_scores": {
+                "original_viability": 5.0,
+                "original_innovation": 7.0,
+                "calculated_breakthrough": 7.0,
+                "calculated_confidence": 5.71
+              },
+              "viability_breakdown": {
+                "technical_feasibility": 5.0,
+                "market_readiness": 5.0,
+                "resource_requirements": 5.0,
+                "time_to_market": 5.0,
+                "competitive_moat": 5.0
+              },
+              "innovation_breakdown": {
+                "novelty": 7.0,
+                "uniqueness": 7.0,
+                "disruption_potential": 7.0,
+                "technology_advancement": 7.0
+              },
+              "metadata": {
+                "idea_name": "",
+                "zone_name": "Test Integration Platform",
+                "scoring_timestamp": "2025-08-04T15:01:06.684977"
+              }
+            },
+            "breakthrough_analysis": {
+              "is_breakthrough": false,
+              "is_moonshot": false,
+              "is_game_changer": false,
+              "breakthrough_score": 7.0,
+              "moonshot_indicators": [],
+              "scalability_score": 0.0,
+              "versatility_score": 0.0,
+              "risk_factors": [
+                "Technical feasibility concerns",
+                "Market readiness uncertainty",
+                "Limited competitive protection",
+                "Assessment uncertainty"
+              ],
+              "opportunity_factors": [],
+              "industry_disruption_potential": {
+                "healthcare": 4.2,
+                "finance": 4.2,
+                "education": 4.2,
+                "retail": 4.2,
+                "manufacturing": 4.2,
+                "transportation": 4.2,
+                "energy": 4.2,
+                "entertainment": 4.2,
+                "agriculture": 4.2,
+                "real_estate": 4.2,
+                "logistics": 4.2,
+                "telecommunications": 4.2,
+                "government": 4.2,
+                "construction": 4.2,
+                "insurance": 4.2
+              }
+            },
+            "composite_score": 6.11,
+            "is_excellence": false,
+            "is_moonshot": false,
+            "is_breakthrough": false,
+            "risk_level": "High Risk"
+          }
+        },
+        {
+          "name": "",
+          "value_proposition": "",
+          "features": [],
+          "target_segment": "",
+          "differentiation": "",
+          "innovation_score": 8.0,
+          "viability_score": 5.0,
+          "viability_details": {
+            "technical_feasibility": 5,
+            "market_readiness": 5,
+            "resource_requirements": 5,
+            "time_to_market": 5,
+            "competitive_moat": 5
+          },
+          "zone_name": "Test Integration Platform",
+          "scoring": {
+            "idea_score": {
+              "viability_score": 5.0,
+              "innovation_score": 8.0,
+              "breakthrough_score": 8.0,
+              "confidence_score": 5.71,
+              "composite_score": 6.61,
+              "raw_scores": {
+                "original_viability": 5.0,
+                "original_innovation": 8.0,
+                "calculated_breakthrough": 8.0,
+                "calculated_confidence": 5.71
+              },
+              "viability_breakdown": {
+                "technical_feasibility": 5.0,
+                "market_readiness": 5.0,
+                "resource_requirements": 5.0,
+                "time_to_market": 5.0,
+                "competitive_moat": 5.0
+              },
+              "innovation_breakdown": {
+                "novelty": 8.0,
+                "uniqueness": 8.0,
+                "disruption_potential": 8.0,
+                "technology_advancement": 8.0
+              },
+              "metadata": {
+                "idea_name": "",
+                "zone_name": "Test Integration Platform",
+                "scoring_timestamp": "2025-08-04T15:01:06.685476"
+              }
+            },
+            "breakthrough_analysis": {
+              "is_breakthrough": true,
+              "is_moonshot": true,
+              "is_game_changer": true,
+              "breakthrough_score": 9.0,
+              "moonshot_indicators": [],
+              "scalability_score": 0.0,
+              "versatility_score": 0.0,
+              "risk_factors": [
+                "Technical feasibility concerns",
+                "Market readiness uncertainty",
+                "Limited competitive protection",
+                "Assessment uncertainty"
+              ],
+              "opportunity_factors": [
+                "High innovation potential"
+              ],
+              "industry_disruption_potential": {
+                "healthcare": 5.3999999999999995,
+                "finance": 5.3999999999999995,
+                "education": 5.3999999999999995,
+                "retail": 5.3999999999999995,
+                "manufacturing": 5.3999999999999995,
+                "transportation": 5.3999999999999995,
+                "energy": 5.3999999999999995,
+                "entertainment": 5.3999999999999995,
+                "agriculture": 5.3999999999999995,
+                "real_estate": 5.3999999999999995,
+                "logistics": 5.3999999999999995,
+                "telecommunications": 5.3999999999999995,
+                "government": 5.3999999999999995,
+                "construction": 5.3999999999999995,
+                "insurance": 5.3999999999999995
+              }
+            },
+            "composite_score": 6.61,
+            "is_excellence": false,
+            "is_moonshot": true,
+            "is_breakthrough": true,
+            "risk_level": "High Risk"
+          },
+          "preservation_reason": "Moonshot potential; Breakthrough innovation"
+        },
+        {
+          "name": "",
+          "value_proposition": "",
+          "features": [],
+          "target_segment": "",
+          "differentiation": "",
+          "innovation_score": 7.0,
+          "viability_score": 5.0,
+          "viability_details": {
+            "technical_feasibility": 5,
+            "market_readiness": 5,
+            "resource_requirements": 5,
+            "time_to_market": 5,
+            "competitive_moat": 5
+          },
+          "zone_name": "Test Integration Platform",
+          "scoring": {
+            "idea_score": {
+              "viability_score": 5.0,
+              "innovation_score": 7.0,
+              "breakthrough_score": 7.0,
+              "confidence_score": 5.71,
+              "composite_score": 6.11,
+              "raw_scores": {
+                "original_viability": 5.0,
+                "original_innovation": 7.0,
+                "calculated_breakthrough": 7.0,
+                "calculated_confidence": 5.71
+              },
+              "viability_breakdown": {
+                "technical_feasibility": 5.0,
+                "market_readiness": 5.0,
+                "resource_requirements": 5.0,
+                "time_to_market": 5.0,
+                "competitive_moat": 5.0
+              },
+              "innovation_breakdown": {
+                "novelty": 7.0,
+                "uniqueness": 7.0,
+                "disruption_potential": 7.0,
+                "technology_advancement": 7.0
+              },
+              "metadata": {
+                "idea_name": "",
+                "zone_name": "Test Integration Platform",
+                "scoring_timestamp": "2025-08-04T15:01:06.685894"
+              }
+            },
+            "breakthrough_analysis": {
+              "is_breakthrough": false,
+              "is_moonshot": false,
+              "is_game_changer": false,
+              "breakthrough_score": 7.0,
+              "moonshot_indicators": [],
+              "scalability_score": 0.0,
+              "versatility_score": 0.0,
+              "risk_factors": [
+                "Technical feasibility concerns",
+                "Market readiness uncertainty",
+                "Limited competitive protection",
+                "Assessment uncertainty"
+              ],
+              "opportunity_factors": [],
+              "industry_disruption_potential": {
+                "healthcare": 4.2,
+                "finance": 4.2,
+                "education": 4.2,
+                "retail": 4.2,
+                "manufacturing": 4.2,
+                "transportation": 4.2,
+                "energy": 4.2,
+                "entertainment": 4.2,
+                "agriculture": 4.2,
+                "real_estate": 4.2,
+                "logistics": 4.2,
+                "telecommunications": 4.2,
+                "government": 4.2,
+                "construction": 4.2,
+                "insurance": 4.2
+              }
+            },
+            "composite_score": 6.11,
+            "is_excellence": false,
+            "is_moonshot": false,
+            "is_breakthrough": false,
+            "risk_level": "High Risk"
+          }
+        },
+        {
+          "name": "",
+          "value_proposition": "",
+          "features": [],
+          "target_segment": "",
+          "differentiation": "",
+          "innovation_score": 9.0,
+          "viability_score": 5.0,
+          "viability_details": {
+            "technical_feasibility": 5,
+            "market_readiness": 5,
+            "resource_requirements": 5,
+            "time_to_market": 5,
+            "competitive_moat": 5
+          },
+          "zone_name": "Test Integration Platform",
+          "scoring": {
+            "idea_score": {
+              "viability_score": 5.0,
+              "innovation_score": 9.0,
+              "breakthrough_score": 9.0,
+              "confidence_score": 5.71,
+              "composite_score": 7.11,
+              "raw_scores": {
+                "original_viability": 5.0,
+                "original_innovation": 9.0,
+                "calculated_breakthrough": 9.0,
+                "calculated_confidence": 5.71
+              },
+              "viability_breakdown": {
+                "technical_feasibility": 5.0,
+                "market_readiness": 5.0,
+                "resource_requirements": 5.0,
+                "time_to_market": 5.0,
+                "competitive_moat": 5.0
+              },
+              "innovation_breakdown": {
+                "novelty": 9.0,
+                "uniqueness": 9.0,
+                "disruption_potential": 9.0,
+                "technology_advancement": 9.0
+              },
+              "metadata": {
+                "idea_name": "",
+                "zone_name": "Test Integration Platform",
+                "scoring_timestamp": "2025-08-04T15:01:06.686315"
+              }
+            },
+            "breakthrough_analysis": {
+              "is_breakthrough": true,
+              "is_moonshot": true,
+              "is_game_changer": true,
+              "breakthrough_score": 10.0,
+              "moonshot_indicators": [],
+              "scalability_score": 0.0,
+              "versatility_score": 0.0,
+              "risk_factors": [
+                "Technical feasibility concerns",
+                "Market readiness uncertainty",
+                "Limited competitive protection",
+                "Assessment uncertainty"
+              ],
+              "opportunity_factors": [
+                "High innovation potential"
+              ],
+              "industry_disruption_potential": {
+                "healthcare": 6.0,
+                "finance": 6.0,
+                "education": 6.0,
+                "retail": 6.0,
+                "manufacturing": 6.0,
+                "transportation": 6.0,
+                "energy": 6.0,
+                "entertainment": 6.0,
+                "agriculture": 6.0,
+                "real_estate": 6.0,
+                "logistics": 6.0,
+                "telecommunications": 6.0,
+                "government": 6.0,
+                "construction": 6.0,
+                "insurance": 6.0
+              }
+            },
+            "composite_score": 7.11,
+            "is_excellence": false,
+            "is_moonshot": true,
+            "is_breakthrough": true,
+            "risk_level": "High Risk"
+          },
+          "preservation_reason": "Moonshot potential; Breakthrough innovation; Exceptional innovation (9.0)"
+        },
+        {
+          "name": "",
+          "value_proposition": "",
+          "features": [],
+          "target_segment": "",
+          "differentiation": "",
+          "innovation_score": 8.0,
+          "viability_score": 5.0,
+          "viability_details": {
+            "technical_feasibility": 5,
+            "market_readiness": 5,
+            "resource_requirements": 5,
+            "time_to_market": 5,
+            "competitive_moat": 5
+          },
+          "zone_name": "Test Integration Platform",
+          "scoring": {
+            "idea_score": {
+              "viability_score": 5.0,
+              "innovation_score": 8.0,
+              "breakthrough_score": 8.0,
+              "confidence_score": 5.71,
+              "composite_score": 6.61,
+              "raw_scores": {
+                "original_viability": 5.0,
+                "original_innovation": 8.0,
+                "calculated_breakthrough": 8.0,
+                "calculated_confidence": 5.71
+              },
+              "viability_breakdown": {
+                "technical_feasibility": 5.0,
+                "market_readiness": 5.0,
+                "resource_requirements": 5.0,
+                "time_to_market": 5.0,
+                "competitive_moat": 5.0
+              },
+              "innovation_breakdown": {
+                "novelty": 8.0,
+                "uniqueness": 8.0,
+                "disruption_potential": 8.0,
+                "technology_advancement": 8.0
+              },
+              "metadata": {
+                "idea_name": "",
+                "zone_name": "Test Integration Platform",
+                "scoring_timestamp": "2025-08-04T15:01:06.686674"
+              }
+            },
+            "breakthrough_analysis": {
+              "is_breakthrough": true,
+              "is_moonshot": true,
+              "is_game_changer": true,
+              "breakthrough_score": 9.0,
+              "moonshot_indicators": [],
+              "scalability_score": 0.0,
+              "versatility_score": 0.0,
+              "risk_factors": [
+                "Technical feasibility concerns",
+                "Market readiness uncertainty",
+                "Limited competitive protection",
+                "Assessment uncertainty"
+              ],
+              "opportunity_factors": [
+                "High innovation potential"
+              ],
+              "industry_disruption_potential": {
+                "healthcare": 5.3999999999999995,
+                "finance": 5.3999999999999995,
+                "education": 5.3999999999999995,
+                "retail": 5.3999999999999995,
+                "manufacturing": 5.3999999999999995,
+                "transportation": 5.3999999999999995,
+                "energy": 5.3999999999999995,
+                "entertainment": 5.3999999999999995,
+                "agriculture": 5.3999999999999995,
+                "real_estate": 5.3999999999999995,
+                "logistics": 5.3999999999999995,
+                "telecommunications": 5.3999999999999995,
+                "government": 5.3999999999999995,
+                "construction": 5.3999999999999995,
+                "insurance": 5.3999999999999995
+              }
+            },
+            "composite_score": 6.61,
+            "is_excellence": false,
+            "is_moonshot": true,
+            "is_breakthrough": true,
+            "risk_level": "High Risk"
+          },
+          "preservation_reason": "Moonshot potential; Breakthrough innovation"
+        }
+      ],
+      "filtered_ideas": [
+        {
+          "name": "",
+          "value_proposition": "",
+          "features": [],
+          "target_segment": "",
+          "differentiation": "",
+          "innovation_score": 8.0,
+          "viability_score": 5.0,
+          "viability_details": {
+            "technical_feasibility": 5,
+            "market_readiness": 5,
+            "resource_requirements": 5,
+            "time_to_market": 5,
+            "competitive_moat": 5
+          },
+          "zone_name": "Test Integration Platform",
+          "scoring": {
+            "idea_score": {
+              "viability_score": 5.0,
+              "innovation_score": 8.0,
+              "breakthrough_score": 8.0,
+              "confidence_score": 5.71,
+              "composite_score": 6.61,
+              "raw_scores": {
+                "original_viability": 5.0,
+                "original_innovation": 8.0,
+                "calculated_breakthrough": 8.0,
+                "calculated_confidence": 5.71
+              },
+              "viability_breakdown": {
+                "technical_feasibility": 5.0,
+                "market_readiness": 5.0,
+                "resource_requirements": 5.0,
+                "time_to_market": 5.0,
+                "competitive_moat": 5.0
+              },
+              "innovation_breakdown": {
+                "novelty": 8.0,
+                "uniqueness": 8.0,
+                "disruption_potential": 8.0,
+                "technology_advancement": 8.0
+              },
+              "metadata": {
+                "idea_name": "",
+                "zone_name": "Test Integration Platform",
+                "scoring_timestamp": "2025-08-04T15:01:06.682388"
+              }
+            },
+            "breakthrough_analysis": {
+              "is_breakthrough": true,
+              "is_moonshot": true,
+              "is_game_changer": true,
+              "breakthrough_score": 9.0,
+              "moonshot_indicators": [],
+              "scalability_score": 0.0,
+              "versatility_score": 0.0,
+              "risk_factors": [
+                "Technical feasibility concerns",
+                "Market readiness uncertainty",
+                "Limited competitive protection",
+                "Assessment uncertainty"
+              ],
+              "opportunity_factors": [
+                "High innovation potential"
+              ],
+              "industry_disruption_potential": {
+                "healthcare": 5.3999999999999995,
+                "finance": 5.3999999999999995,
+                "education": 5.3999999999999995,
+                "retail": 5.3999999999999995,
+                "manufacturing": 5.3999999999999995,
+                "transportation": 5.3999999999999995,
+                "energy": 5.3999999999999995,
+                "entertainment": 5.3999999999999995,
+                "agriculture": 5.3999999999999995,
+                "real_estate": 5.3999999999999995,
+                "logistics": 5.3999999999999995,
+                "telecommunications": 5.3999999999999995,
+                "government": 5.3999999999999995,
+                "construction": 5.3999999999999995,
+                "insurance": 5.3999999999999995
+              }
+            },
+            "composite_score": 6.61,
+            "is_excellence": false,
+            "is_moonshot": true,
+            "is_breakthrough": true,
+            "risk_level": "High Risk"
+          },
+          "preservation_reason": "Moonshot potential; Breakthrough innovation"
+        },
+        {
+          "name": "",
+          "value_proposition": "",
+          "features": [],
+          "target_segment": "",
+          "differentiation": "",
+          "innovation_score": 7.0,
+          "viability_score": 5.0,
+          "viability_details": {
+            "technical_feasibility": 5,
+            "market_readiness": 5,
+            "resource_requirements": 5,
+            "time_to_market": 5,
+            "competitive_moat": 5
+          },
+          "zone_name": "Test Integration Platform",
+          "scoring": {
+            "idea_score": {
+              "viability_score": 5.0,
+              "innovation_score": 7.0,
+              "breakthrough_score": 7.0,
+              "confidence_score": 5.71,
+              "composite_score": 6.11,
+              "raw_scores": {
+                "original_viability": 5.0,
+                "original_innovation": 7.0,
+                "calculated_breakthrough": 7.0,
+                "calculated_confidence": 5.71
+              },
+              "viability_breakdown": {
+                "technical_feasibility": 5.0,
+                "market_readiness": 5.0,
+                "resource_requirements": 5.0,
+                "time_to_market": 5.0,
+                "competitive_moat": 5.0
+              },
+              "innovation_breakdown": {
+                "novelty": 7.0,
+                "uniqueness": 7.0,
+                "disruption_potential": 7.0,
+                "technology_advancement": 7.0
+              },
+              "metadata": {
+                "idea_name": "",
+                "zone_name": "Test Integration Platform",
+                "scoring_timestamp": "2025-08-04T15:01:06.682830"
+              }
+            },
+            "breakthrough_analysis": {
+              "is_breakthrough": false,
+              "is_moonshot": false,
+              "is_game_changer": false,
+              "breakthrough_score": 7.0,
+              "moonshot_indicators": [],
+              "scalability_score": 0.0,
+              "versatility_score": 0.0,
+              "risk_factors": [
+                "Technical feasibility concerns",
+                "Market readiness uncertainty",
+                "Limited competitive protection",
+                "Assessment uncertainty"
+              ],
+              "opportunity_factors": [],
+              "industry_disruption_potential": {
+                "healthcare": 4.2,
+                "finance": 4.2,
+                "education": 4.2,
+                "retail": 4.2,
+                "manufacturing": 4.2,
+                "transportation": 4.2,
+                "energy": 4.2,
+                "entertainment": 4.2,
+                "agriculture": 4.2,
+                "real_estate": 4.2,
+                "logistics": 4.2,
+                "telecommunications": 4.2,
+                "government": 4.2,
+                "construction": 4.2,
+                "insurance": 4.2
+              }
+            },
+            "composite_score": 6.11,
+            "is_excellence": false,
+            "is_moonshot": false,
+            "is_breakthrough": false,
+            "risk_level": "High Risk"
+          }
+        },
+        {
+          "name": "",
+          "value_proposition": "",
+          "features": [],
+          "target_segment": "",
+          "differentiation": "",
+          "innovation_score": 9.0,
+          "viability_score": 5.0,
+          "viability_details": {
+            "technical_feasibility": 5,
+            "market_readiness": 5,
+            "resource_requirements": 5,
+            "time_to_market": 5,
+            "competitive_moat": 5
+          },
+          "zone_name": "Test Integration Platform",
+          "scoring": {
+            "idea_score": {
+              "viability_score": 5.0,
+              "innovation_score": 9.0,
+              "breakthrough_score": 9.0,
+              "confidence_score": 5.71,
+              "composite_score": 7.11,
+              "raw_scores": {
+                "original_viability": 5.0,
+                "original_innovation": 9.0,
+                "calculated_breakthrough": 9.0,
+                "calculated_confidence": 5.71
+              },
+              "viability_breakdown": {
+                "technical_feasibility": 5.0,
+                "market_readiness": 5.0,
+                "resource_requirements": 5.0,
+                "time_to_market": 5.0,
+                "competitive_moat": 5.0
+              },
+              "innovation_breakdown": {
+                "novelty": 9.0,
+                "uniqueness": 9.0,
+                "disruption_potential": 9.0,
+                "technology_advancement": 9.0
+              },
+              "metadata": {
+                "idea_name": "",
+                "zone_name": "Test Integration Platform",
+                "scoring_timestamp": "2025-08-04T15:01:06.683218"
+              }
+            },
+            "breakthrough_analysis": {
+              "is_breakthrough": true,
+              "is_moonshot": true,
+              "is_game_changer": true,
+              "breakthrough_score": 10.0,
+              "moonshot_indicators": [],
+              "scalability_score": 0.0,
+              "versatility_score": 0.0,
+              "risk_factors": [
+                "Technical feasibility concerns",
+                "Market readiness uncertainty",
+                "Limited competitive protection",
+                "Assessment uncertainty"
+              ],
+              "opportunity_factors": [
+                "High innovation potential"
+              ],
+              "industry_disruption_potential": {
+                "healthcare": 6.0,
+                "finance": 6.0,
+                "education": 6.0,
+                "retail": 6.0,
+                "manufacturing": 6.0,
+                "transportation": 6.0,
+                "energy": 6.0,
+                "entertainment": 6.0,
+                "agriculture": 6.0,
+                "real_estate": 6.0,
+                "logistics": 6.0,
+                "telecommunications": 6.0,
+                "government": 6.0,
+                "construction": 6.0,
+                "insurance": 6.0
+              }
+            },
+            "composite_score": 7.11,
+            "is_excellence": false,
+            "is_moonshot": true,
+            "is_breakthrough": true,
+            "risk_level": "High Risk"
+          },
+          "preservation_reason": "Moonshot potential; Breakthrough innovation; Exceptional innovation (9.0)"
+        },
+        {
+          "name": "",
+          "value_proposition": "",
+          "features": [],
+          "target_segment": "",
+          "differentiation": "",
+          "innovation_score": 8.0,
+          "viability_score": 5.0,
+          "viability_details": {
+            "technical_feasibility": 5,
+            "market_readiness": 5,
+            "resource_requirements": 5,
+            "time_to_market": 5,
+            "competitive_moat": 5
+          },
+          "zone_name": "Test Integration Platform",
+          "scoring": {
+            "idea_score": {
+              "viability_score": 5.0,
+              "innovation_score": 8.0,
+              "breakthrough_score": 8.0,
+              "confidence_score": 5.71,
+              "composite_score": 6.61,
+              "raw_scores": {
+                "original_viability": 5.0,
+                "original_innovation": 8.0,
+                "calculated_breakthrough": 8.0,
+                "calculated_confidence": 5.71
+              },
+              "viability_breakdown": {
+                "technical_feasibility": 5.0,
+                "market_readiness": 5.0,
+                "resource_requirements": 5.0,
+                "time_to_market": 5.0,
+                "competitive_moat": 5.0
+              },
+              "innovation_breakdown": {
+                "novelty": 8.0,
+                "uniqueness": 8.0,
+                "disruption_potential": 8.0,
+                "technology_advancement": 8.0
+              },
+              "metadata": {
+                "idea_name": "",
+                "zone_name": "Test Integration Platform",
+                "scoring_timestamp": "2025-08-04T15:01:06.683918"
+              }
+            },
+            "breakthrough_analysis": {
+              "is_breakthrough": true,
+              "is_moonshot": true,
+              "is_game_changer": true,
+              "breakthrough_score": 9.0,
+              "moonshot_indicators": [],
+              "scalability_score": 0.0,
+              "versatility_score": 0.0,
+              "risk_factors": [
+                "Technical feasibility concerns",
+                "Market readiness uncertainty",
+                "Limited competitive protection",
+                "Assessment uncertainty"
+              ],
+              "opportunity_factors": [
+                "High innovation potential"
+              ],
+              "industry_disruption_potential": {
+                "healthcare": 5.3999999999999995,
+                "finance": 5.3999999999999995,
+                "education": 5.3999999999999995,
+                "retail": 5.3999999999999995,
+                "manufacturing": 5.3999999999999995,
+                "transportation": 5.3999999999999995,
+                "energy": 5.3999999999999995,
+                "entertainment": 5.3999999999999995,
+                "agriculture": 5.3999999999999995,
+                "real_estate": 5.3999999999999995,
+                "logistics": 5.3999999999999995,
+                "telecommunications": 5.3999999999999995,
+                "government": 5.3999999999999995,
+                "construction": 5.3999999999999995,
+                "insurance": 5.3999999999999995
+              }
+            },
+            "composite_score": 6.61,
+            "is_excellence": false,
+            "is_moonshot": true,
+            "is_breakthrough": true,
+            "risk_level": "High Risk"
+          },
+          "preservation_reason": "Moonshot potential; Breakthrough innovation"
+        },
+        {
+          "name": "",
+          "value_proposition": "",
+          "features": [],
+          "target_segment": "",
+          "differentiation": "",
+          "innovation_score": 6.0,
+          "viability_score": 5.0,
+          "viability_details": {
+            "technical_feasibility": 5,
+            "market_readiness": 5,
+            "resource_requirements": 5,
+            "time_to_market": 5,
+            "competitive_moat": 5
+          },
+          "zone_name": "Test Integration Platform",
+          "scoring": {
+            "idea_score": {
+              "viability_score": 5.0,
+              "innovation_score": 6.0,
+              "breakthrough_score": 6.0,
+              "confidence_score": 5.71,
+              "composite_score": 5.61,
+              "raw_scores": {
+                "original_viability": 5.0,
+                "original_innovation": 6.0,
+                "calculated_breakthrough": 6.0,
+                "calculated_confidence": 5.71
+              },
+              "viability_breakdown": {
+                "technical_feasibility": 5.0,
+                "market_readiness": 5.0,
+                "resource_requirements": 5.0,
+                "time_to_market": 5.0,
+                "competitive_moat": 5.0
+              },
+              "innovation_breakdown": {
+                "novelty": 6.0,
+                "uniqueness": 6.0,
+                "disruption_potential": 6.0,
+                "technology_advancement": 6.0
+              },
+              "metadata": {
+                "idea_name": "",
+                "zone_name": "Test Integration Platform",
+                "scoring_timestamp": "2025-08-04T15:01:06.684376"
+              }
+            },
+            "breakthrough_analysis": {
+              "is_breakthrough": false,
+              "is_moonshot": false,
+              "is_game_changer": false,
+              "breakthrough_score": 6.0,
+              "moonshot_indicators": [],
+              "scalability_score": 0.0,
+              "versatility_score": 0.0,
+              "risk_factors": [
+                "Technical feasibility concerns",
+                "Market readiness uncertainty",
+                "Limited competitive protection",
+                "Assessment uncertainty"
+              ],
+              "opportunity_factors": [],
+              "industry_disruption_potential": {
+                "healthcare": 3.5999999999999996,
+                "finance": 3.5999999999999996,
+                "education": 3.5999999999999996,
+                "retail": 3.5999999999999996,
+                "manufacturing": 3.5999999999999996,
+                "transportation": 3.5999999999999996,
+                "energy": 3.5999999999999996,
+                "entertainment": 3.5999999999999996,
+                "agriculture": 3.5999999999999996,
+                "real_estate": 3.5999999999999996,
+                "logistics": 3.5999999999999996,
+                "telecommunications": 3.5999999999999996,
+                "government": 3.5999999999999996,
+                "construction": 3.5999999999999996,
+                "insurance": 3.5999999999999996
+              }
+            },
+            "composite_score": 5.61,
+            "is_excellence": false,
+            "is_moonshot": false,
+            "is_breakthrough": false,
+            "risk_level": "High Risk"
+          }
+        }
+      ],
+      "ideas_kept": 5,
+      "ideas_total": 10
+    }
+  ]
+}

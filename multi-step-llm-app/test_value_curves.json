@@ -1,0 +1,27 @@
+{
+  "metadata": {
+    "timestamp": "2025-08-04T15:00:00",
+    "zones_analyzed": 1
+  },
+  "analyses": [
+    {
+      "zone": {
+        "name": "Test Integration Platform",
+        "description": "Simple integration solution for testing",
+        "importance_percentage": 50,
+        "potential_impact": "Medium",
+        "implementation_complexity": "Low"
+      },
+      "industry_norms": "Current solutions focus on complex enterprise features",
+      "engineering_spectrum": "Most tools are over-engineered for simple use cases",
+      "competitive_data": {
+        "search_results": [
+          {
+            "title": "Simple Integration Tool",
+            "highlights": ["Easy to use", "Affordable pricing"]
+          }
+        ]
+      }
+    }
+  ]
+}

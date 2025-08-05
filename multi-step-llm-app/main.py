@@ -27,8 +27,22 @@ from src.utils.debug_logger import initialize_debug_logger, close_debug_logger
 from src.utils.debug_dashboard import get_debug_dashboard
 from src.utils.debug_aware_component import DebugAwareComponent
 
+# Import AWS secrets manager
+try:
+    from src.utils.secrets_manager import load_aws_secrets, get_api_key
+    AWS_SECRETS_AVAILABLE = True
+except ImportError:
+    AWS_SECRETS_AVAILABLE = False
+
 # Load environment variables
 load_dotenv()
+
+# Try to load AWS secrets if available
+if AWS_SECRETS_AVAILABLE and not os.getenv("ANTHROPIC_API_KEY"):
+    try:
+        load_aws_secrets(profile="mvp")
+    except Exception as e:
+        print(f"Note: Could not load AWS secrets: {e}")
 
 # Initialize Rich console for better output
 console = Console()
@@ -82,10 +96,13 @@ class MultiStepLLMApp(DebugAwareComponent):
                 ComponentType.MAIN_PIPELINE,
             )
             console.print(
-                "[red]Error: ANTHROPIC_API_KEY not found in environment variables![/red]"
+                "[red]Error: ANTHROPIC_API_KEY not found![/red]"
             )
             console.print(
-                "Please create a .env file with your API key or set it as an environment variable."
+                "Please either:\n"
+                "1. Set AWS_PROFILE=mvp to load from AWS Secrets Manager\n"
+                "2. Create a .env file with your API key\n"
+                "3. Set it as an environment variable"
             )
             sys.exit(1)
 

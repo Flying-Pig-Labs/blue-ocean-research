@@ -1,0 +1,58 @@
+{
+  "jtbd_data": {
+    "jobs_list": [
+      {
+        "job_id": "JOB-001",
+        "job_statement": "When I'm managing a real estate transaction, I want to coordinate multiple service providers seamlessly, so I can close my deal efficiently and with less stress",
+        "frequency": "Monthly",
+        "current_solutions": "Manual coordination, phone calls, emails, basic project management tools",
+        "pain_level": "High",
+        "importance": 8,
+        "satisfaction": 4,
+        "opportunity_score": 9
+      },
+      {
+        "job_id": "JOB-002",
+        "job_statement": "When I'm making real estate decisions, I want to access advanced technology platforms, so I can have better insights and control over the process",
+        "frequency": "Weekly",
+        "current_solutions": "Industry-standard tools, basic property websites, spreadsheets",
+        "pain_level": "Medium",
+        "importance": 8,
+        "satisfaction": 4,
+        "opportunity_score": 8
+      },
+      {
+        "job_id": "JOB-003",
+        "job_statement": "When I'm tracking my real estate journey, I want to have clear visibility of all steps and requirements, so I can feel confident about my progress",
+        "frequency": "Weekly",
+        "current_solutions": "Paper checklists, fragmented digital tools, agent updates",
+        "pain_level": "High",
+        "importance": 8,
+        "satisfaction": 4,
+        "opportunity_score": 8
+      },
+      {
+        "job_id": "JOB-004",
+        "job_statement": "When I'm managing my family's housing needs, I want to make informed decisions within my budget, so I can balance quality and cost",
+        "frequency": "Monthly",
+        "current_solutions": "Traditional agent services, online research, word-of-mouth",
+        "pain_level": "Medium",
+        "importance": 8,
+        "satisfaction": 4,
+        "opportunity_score": 7
+      },
+      {
+        "job_id": "JOB-005",
+        "job_statement": "When I'm working with service providers, I want to understand fee structures clearly, so I can make cost-effective choices",
+        "frequency": "Monthly",
+        "current_solutions": "Standard commission structures, basic fee breakdowns",
+        "pain_level": "Medium",
+        "importance": 8,
+        "satisfaction": 4,
+        "opportunity_score": 6
+      }
+    ],
+    "research_summary": "Identified 5 jobs-to-be-done through comprehensive research",
+    "methodology": "Customer interviews, pain point analysis, and opportunity scoring"
+  }
+}

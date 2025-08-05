@@ -57,6 +57,13 @@ from rich.markdown import Markdown
 # Load environment variables
 load_dotenv()
 
+# Import and load AWS secrets if available
+try:
+    from src.utils.secrets_manager import load_aws_secrets
+    load_aws_secrets(profile="mvp")
+except ImportError:
+    pass  # Allow running without AWS secrets if keys are already in env
+
 # Initialize Rich console
 console = Console()
 
