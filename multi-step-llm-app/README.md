@@ -322,6 +322,223 @@ Required API keys:
 - `COHERE_API_KEY` - For embeddings
 - `GITHUB_TOKEN` - For GitHub repository creation (optional)
 
+## 🚀 Configuration System
+
+This project implements a **Configuration as Code** architecture where all LLM models, prompts, and pipeline settings are declared in a single YAML file (`llm_config.yaml`). This provides unprecedented flexibility for tuning the entire system without touching code.
+
+### 🎯 Core Principles
+
+- **Single Source of Truth**: All configuration in `llm_config.yaml`
+- **Environment-Aware**: Different models for dev/staging/prod
+- **Step-Level Configuration**: Input/output files, timeouts per step
+- **Dynamic Example Injection**: Conditional examples based on prompt length
+- **Override System**: Easy A/B testing via benchmarking system
+
+### 📋 Configuration Structure
+
+```yaml
+# Environment-specific overrides
+environment:
+  default: "prod"
+  overrides:
+    dev:
+      default_anthropic_model: "claude-3-5-haiku-20241022"  # Cheaper
+      include_examples: false  # Save tokens
+      max_tokens_multiplier: 0.5  # Reduce costs
+    prod:
+      default_anthropic_model: "claude-3-5-sonnet-20241022"  # Quality
+      include_examples: true  # Full examples
+      max_tokens_multiplier: 1.0  # Full token usage
+
+# All LLM model configurations and prompts
+models:
+  research_analysis:
+    verticals:
+      provider: anthropic
+      model: claude-3-5-sonnet-20241022
+      temperature: 0.7
+      max_tokens: 2000
+      include_example: true  # Show examples for this task
+      prompt: |
+        Research Document:
+        
+        {research_content}
+        
+        Within this research document, what distinct industry verticals...
+        {example}  # Dynamically injected if include_example=true
+      example: |
+        ## Example Output Format:
+        
+        **1. Healthcare Technology**
+        - Electronic Health Records systems...
+
+# Pipeline step configuration
+pipeline:
+  steps:
+    research_analyzer:
+      script: "research_analyzer.py"
+      input_file: "${INPUT_FILE:-tests/fixtures/sample_research.json}"
+      output_file: "analysis_results.md"
+      timeout_seconds: 180
+      required_env_vars: ["ANTHROPIC_API_KEY"]
+```
+
+### 🌍 Environment-Aware Configuration
+
+The system automatically detects your environment and applies appropriate settings:
+
+#### Environment Detection (in order of precedence):
+1. **Explicit**: `PIPELINE_ENV=dev|staging|prod`
+2. **Debug Mode**: `DEBUG=true` → dev environment
+3. **GitHub Actions**: `GITHUB_ACTIONS=true` → staging environment  
+4. **AWS Lambda**: `AWS_LAMBDA_FUNCTION_NAME` set → prod environment
+5. **Default**: prod environment
+
+#### Example Usage:
+```bash
+# Use development settings (cheaper models)
+PIPELINE_ENV=dev python research_analyzer.py
+
+# Use production settings (expensive models)  
+PIPELINE_ENV=prod python research_analyzer.py
+
+# Auto-detect environment
+DEBUG=true python research_analyzer.py  # Uses dev settings
+```
+
+### 🎨 Dynamic Example Injection
+
+Examples are conditionally included based on:
+- Global environment setting (`include_examples: false` in dev)
+- Per-task setting (`include_example: false` for longer prompts)
+- Token efficiency (skip examples for cost optimization)
+
+```python
+# In your code - examples are automatically injected
+from config_loader import ConfigLoader
+config = ConfigLoader()
+
+prompt = config.format_prompt(
+    'research_analysis', 
+    'verticals',
+    research_content=data
+)
+# Prompt includes example if appropriate for environment/task
+```
+
+### 🔧 Step-Level Pipeline Configuration
+
+Each script has declarative configuration:
+
+```yaml
+pipeline:
+  steps:
+    research_analyzer:
+      input_file: "tests/fixtures/sample_research.json"
+      output_file: "analysis_results.md"
+      timeout_seconds: 180
+      required_env_vars: ["ANTHROPIC_API_KEY"]
+    
+    jobs_researcher:
+      input_file: "analysis_results.md"  # Chain from previous step
+      output_files: 
+        - "jtbd_research.md"
+        - "jtbd_research_pain_points.txt"
+      timeout_seconds: 300
+      required_env_vars: ["EXA_API_KEY", "ANTHROPIC_API_KEY"]
+```
+
+#### Access step configuration:
+```python
+config = ConfigLoader()
+input_file = config.get_step_input_file("research_analyzer")
+outputs = config.get_step_output_files("jobs_researcher")  
+timeout = config.get_step_timeout("value_curve_mapper")
+```
+
+### 🧪 Benchmarking System
+
+Test different model/prompt combinations without modifying production config:
+
+```bash
+# List available benchmark steps
+python benchmark_runner.py --list-steps
+
+# Test research_analyzer variations
+python benchmark_runner.py research_analyzer --dry-run
+python benchmark_runner.py research_analyzer
+```
+
+#### Benchmark Configuration (`test/benchmarks/research_analyzer/config.yml`):
+```yaml
+options:
+  option1_sonnet_default:
+    name: "Claude Sonnet (Production)"
+    overrides:
+      research_analysis:
+        verticals:
+          model: claude-3-5-sonnet-20241022
+          temperature: 0.7
+          
+  option2_haiku_cost:
+    name: "Cost Optimized"
+    overrides:
+      research_analysis:
+        verticals:
+          model: claude-3-5-haiku-20241022
+          max_tokens: 1500
+          
+  option3_custom_prompt:
+    name: "Custom Focused Prompt"
+    overrides:
+      research_analysis:
+        verticals:
+          model: claude-3-5-sonnet-20241022
+          prompt: |
+            {research_content}
+            
+            Extract industry verticals. Be concise.{example}
+```
+
+### 🔍 How It Works
+
+1. **ConfigLoader** reads `llm_config.yaml` at startup
+2. **Environment detection** applies appropriate overrides
+3. **Scripts import ConfigLoader** and get model settings/prompts
+4. **Dynamic formatting** injects variables and examples  
+5. **Benchmarking** creates temporary overrides for A/B testing
+
+#### Example in your code:
+```python
+from config_loader import ConfigLoader
+
+config = ConfigLoader()  # Auto-detects environment
+
+# Get model settings with environment overrides applied
+model_config = config.get_model_settings('research_analysis', 'verticals')
+# Returns: {'provider': 'anthropic', 'model': 'claude-3-5-haiku-20241022'} in dev
+
+# Get formatted prompt with dynamic example injection
+prompt = config.format_prompt(
+    'research_analysis', 
+    'verticals',
+    research_content="Market research data here..."
+)
+# Includes example only if appropriate for environment/task
+```
+
+### 💡 Benefits
+
+- **🎯 Centralized Control**: All configuration in one place
+- **💰 Cost Optimization**: Cheaper models in dev, expensive in prod
+- **🧪 Easy Testing**: Benchmark different configurations safely
+- **🚀 Rapid Iteration**: Change prompts without code changes  
+- **📊 A/B Testing**: Compare model/prompt combinations systematically
+- **🌍 Environment Awareness**: Automatic settings per environment
+- **📝 Documentation**: Self-documenting configuration with examples
+
+This "Configuration as Code Evolution" transforms the pipeline from hardcoded settings to a fully declarative, data-driven architecture that's easy to maintain, test, and optimize.
+
 ## Usage
 
 ### General Workflow Application
