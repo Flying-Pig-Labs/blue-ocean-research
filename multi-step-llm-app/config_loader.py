@@ -15,6 +15,8 @@ class ConfigLoader:
         """Initialize the config loader with the YAML file."""
         self.config_path = config_path
         self.config = self._load_config()
+        self.environment = self._detect_environment()
+        self._apply_environment_overrides()
     
     def _load_config(self) -> Dict[str, Any]:
         """Load the YAML configuration file."""
@@ -23,6 +25,61 @@ class ConfigLoader:
         
         with open(self.config_path, 'r') as f:
             return yaml.safe_load(f)
+    
+    def _detect_environment(self) -> str:
+        """Detect current environment from env vars or config."""
+        # Check explicit environment variable first
+        env = os.getenv('PIPELINE_ENV', '').lower()
+        if env in ['dev', 'staging', 'prod']:
+            return env
+            
+        # Auto-detect based on other environment variables
+        if os.getenv('DEBUG', '').lower() in ['true', '1']:
+            return 'dev'
+        elif os.getenv('GITHUB_ACTIONS', '').lower() == 'true':
+            return 'staging'  # Assume CI/CD is staging
+        elif os.getenv('AWS_LAMBDA_FUNCTION_NAME'):  # Running in Lambda
+            return 'prod'
+            
+        # Default from config
+        return self.config.get('environment', {}).get('default', 'prod')
+    
+    def _apply_environment_overrides(self):
+        """Apply environment-specific configuration overrides."""
+        env_config = self.config.get('environment', {}).get('overrides', {}).get(self.environment, {})
+        
+        if not env_config:
+            return
+            
+        # Apply model overrides to all configurations
+        for stage_name, stage_config in self.config.get('models', {}).items():
+            if isinstance(stage_config, dict):
+                for task_name, task_config in stage_config.items():
+                    if isinstance(task_config, dict) and 'provider' in task_config:
+                        self._apply_model_overrides(task_config, env_config)
+            # Handle single-level configs (like jtbd_synthesis)
+            elif 'provider' in stage_config:
+                self._apply_model_overrides(stage_config, env_config)
+    
+    def _apply_model_overrides(self, task_config: Dict[str, Any], env_config: Dict[str, Any]):
+        """Apply environment overrides to a specific task configuration."""
+        provider = task_config.get('provider', '')
+        
+        # Override model based on provider
+        if provider == 'anthropic' and 'default_anthropic_model' in env_config:
+            task_config['model'] = env_config['default_anthropic_model']
+        elif provider == 'openai' and 'default_openai_model' in env_config:
+            task_config['model'] = env_config['default_openai_model']
+            
+        # Override max_tokens with multiplier
+        if 'max_tokens_multiplier' in env_config and 'max_tokens' in task_config:
+            original_tokens = task_config.get('original_max_tokens', task_config['max_tokens'])
+            task_config['original_max_tokens'] = original_tokens  # Store original
+            task_config['max_tokens'] = int(original_tokens * env_config['max_tokens_multiplier'])
+            
+        # Override include_example flag globally
+        if 'include_examples' in env_config:
+            task_config['include_example'] = env_config['include_examples']
     
     def get_model_config(self, stage: str, task: str) -> Dict[str, Any]:
         """
@@ -104,6 +161,47 @@ class ConfigLoader:
         """Get the example text for a stage/task."""
         config = self.get_model_config(stage, task) if task else self.config['models'][stage]
         return config.get('example', '') if config.get('include_example', True) else ''
+    
+    def get_environment(self) -> str:
+        """Get the current environment."""
+        return self.environment
+    
+    def get_step_config(self, step_name: str) -> Dict[str, Any]:
+        """Get configuration for a specific pipeline step."""
+        steps = self.config.get('pipeline', {}).get('steps', {})
+        if step_name not in steps:
+            raise ValueError(f"Step configuration not found: {step_name}")
+        return steps[step_name]
+    
+    def get_all_steps(self) -> Dict[str, Dict[str, Any]]:
+        """Get all pipeline step configurations."""
+        return self.config.get('pipeline', {}).get('steps', {})
+    
+    def get_step_input_file(self, step_name: str) -> str:
+        """Get input file for a step."""
+        step_config = self.get_step_config(step_name)
+        return step_config.get('input_file', '')
+    
+    def get_step_output_files(self, step_name: str) -> list:
+        """Get output files for a step."""
+        step_config = self.get_step_config(step_name)
+        # Handle both single output_file and multiple output_files
+        if 'output_files' in step_config:
+            return step_config['output_files']
+        elif 'output_file' in step_config:
+            return [step_config['output_file']]
+        else:
+            return []
+    
+    def get_step_timeout(self, step_name: str) -> int:
+        """Get timeout in seconds for a step."""
+        step_config = self.get_step_config(step_name)
+        return step_config.get('timeout_seconds', 300)  # Default 5 minutes
+    
+    def get_step_required_env_vars(self, step_name: str) -> list:
+        """Get required environment variables for a step."""
+        step_config = self.get_step_config(step_name)
+        return step_config.get('required_env_vars', [])
     
     def format_prompt(self, stage: str, task: Optional[str] = None, **kwargs) -> str:
         """

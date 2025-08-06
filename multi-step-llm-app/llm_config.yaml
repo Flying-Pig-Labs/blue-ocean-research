@@ -1,6 +1,35 @@
 # LLM Configuration for Multi-Step Pipeline
 # All API calls, prompts, and model settings in one place
 
+# Environment Configuration
+environment:
+  # Auto-detect environment or set explicitly via PIPELINE_ENV
+  # Values: dev, staging, prod
+  default: "prod"
+  
+  # Environment-specific model overrides
+  overrides:
+    dev:
+      # Fast, cheap models for development
+      default_anthropic_model: "claude-3-5-haiku-20241022"
+      default_openai_model: "gpt-4o-mini"
+      include_examples: false  # Skip examples in dev to save tokens
+      max_tokens_multiplier: 0.5  # Reduce token usage
+    
+    staging:
+      # Production models with reduced limits for testing
+      default_anthropic_model: "claude-3-5-sonnet-20241022" 
+      default_openai_model: "gpt-4o"
+      include_examples: true
+      max_tokens_multiplier: 0.8
+    
+    prod:
+      # Full production models and settings
+      default_anthropic_model: "claude-3-5-sonnet-20241022"
+      default_openai_model: "gpt-4o"
+      include_examples: true
+      max_tokens_multiplier: 1.0
+
 models:
   # Stage 1: Research Analysis - Parallel Decomposition
   research_analysis:
@@ -512,51 +541,110 @@ search:
 
 # Pipeline Configuration
 pipeline:
-  # Input/Output mapping for each stage
+  # Step-level configuration for each Python script
+  steps:
+    research_analyzer:
+      script: "research_analyzer.py"
+      description: "Stage 1: Research Analysis with Parallel LLM calls"
+      input_file: "${INPUT_FILE:-tests/fixtures/sample_research.json}"
+      output_file: "analysis_results.md"
+      timeout_seconds: 180
+      required_env_vars: ["ANTHROPIC_API_KEY"]
+      optional_flags: ["--local", "--test", "--output"]
+      
+    jobs_researcher:
+      script: "jobs_researcher.py" 
+      description: "Stage 2: JTBD Research using EXA API"
+      input_file: "analysis_results.md"
+      output_files:
+        - "jtbd_research.md"
+        - "jtbd_research_pain_points.txt"
+      timeout_seconds: 300
+      required_env_vars: ["EXA_API_KEY"]
+      optional_env_vars: ["ANTHROPIC_API_KEY"]
+      optional_flags: ["--input", "--test"]
+      
+    cluster_jtbd:
+      script: "cluster_jtbd.py"
+      description: "Stage 3: JTBD Clustering with Cohere + GPT-4o"
+      input_file: "jtbd_research_pain_points.txt"
+      output_files:
+        - "jtbd_clusters.json"
+        - "opportunity_zones.json"  # Copy of jtbd_clusters for next stage
+      timeout_seconds: 240
+      required_env_vars: ["COHERE_API_KEY", "OPENAI_API_KEY"]
+      optional_flags: ["--output", "--test"]
+      
+    value_curve_mapper:
+      script: "value_curve_mapper.py"
+      description: "Stage 4: Value Curve Mapping with EXA + Claude"
+      input_file: "opportunity_zones.json"
+      output_files:
+        - "value_curves.json"
+        - "value_curves_report.md"
+      timeout_seconds: 600  # Longer for multiple EXA searches
+      required_env_vars: ["EXA_API_KEY", "ANTHROPIC_API_KEY"]
+      optional_flags: ["--output", "--test"]
+      
+    product_idea_generator:
+      script: "product_idea_generator.py"
+      description: "Stage 5: Product Idea Generation with o1 + Claude"
+      input_file: "value_curves.json"
+      output_files:
+        - "product_ideas.json"
+        - "product_ideas_report.md"
+      timeout_seconds: 900  # Longest stage with o1 model
+      required_env_vars: ["OPENAI_API_KEY", "ANTHROPIC_API_KEY"]
+      optional_flags: ["--input", "--github", "--repo-name", "--github-private"]
+      
+    idea_consolidator:
+      script: "idea_consolidator.py"
+      description: "Stage 6: Idea Consolidation and Portfolio Analysis"
+      input_file: "product_ideas.json"
+      output_files:
+        - "final_innovation_portfolio.json"
+        - "final_innovation_portfolio_summary.md"
+      timeout_seconds: 180
+      required_env_vars: ["ANTHROPIC_API_KEY"]
+      optional_flags: ["--input", "--output"]
+      
+    github_integration:
+      script: "github_integration.py"
+      description: "Stage 7: GitHub Repository Creation"
+      input_files:  # Multiple inputs for comprehensive README
+        - "analysis_results.md"
+        - "jtbd_research.md"
+        - "jtbd_clusters.json"
+        - "value_curves.json"
+        - "product_ideas.json"
+        - "final_innovation_portfolio.json"
+      output: "GitHub repository in ocean-studio-repos organization"
+      timeout_seconds: 120
+      required_env_vars: ["GITHUB_TOKEN", "ANTHROPIC_API_KEY"]
+      optional_flags: ["--repo-name", "--private"]
+
+  # Legacy stage mapping (for backward compatibility)
   stages:
     stage1_research_analysis:
       input: "${INPUT_FILE:-tests/fixtures/sample_research.json}"
-      outputs:
-        - analysis_results.md
-    
+      outputs: ["analysis_results.md"]
     stage2_jtbd_research:
-      input: analysis_results.md
-      outputs:
-        - jtbd_research.md
-        - jtbd_research_pain_points.txt
-    
+      input: "analysis_results.md"
+      outputs: ["jtbd_research.md", "jtbd_research_pain_points.txt"]
     stage3_clustering:
-      input: jtbd_research_pain_points.txt
-      outputs:
-        - jtbd_clusters.json
-        - opportunity_zones.json  # Copied from jtbd_clusters
-    
+      input: "jtbd_research_pain_points.txt"
+      outputs: ["jtbd_clusters.json", "opportunity_zones.json"]
     stage4_value_curve:
-      input: opportunity_zones.json
-      outputs:
-        - value_curves.json
-        - value_curves_report.md
-    
+      input: "opportunity_zones.json"
+      outputs: ["value_curves.json", "value_curves_report.md"]
     stage5_product_ideas:
-      input: value_curves.json
-      outputs:
-        - product_ideas.json
-        - product_ideas_report.md
-    
+      input: "value_curves.json"
+      outputs: ["product_ideas.json", "product_ideas_report.md"]
     stage6_consolidation:
-      input: product_ideas.json
-      outputs:
-        - final_innovation_portfolio.json
-        - final_innovation_portfolio_summary.md
-    
+      input: "product_ideas.json"
+      outputs: ["final_innovation_portfolio.json", "final_innovation_portfolio_summary.md"]
     stage7_github:
-      inputs:  # Multiple inputs for comprehensive README
-        - analysis_results.md
-        - jtbd_research.md
-        - jtbd_clusters.json
-        - value_curves.json
-        - product_ideas.json
-        - final_innovation_portfolio.json
+      inputs: ["analysis_results.md", "jtbd_research.md", "jtbd_clusters.json", "value_curves.json", "product_ideas.json", "final_innovation_portfolio.json"]
       output: "GitHub repository in ocean-studio-repos"
 
 # Optimal Settings (what works best)
