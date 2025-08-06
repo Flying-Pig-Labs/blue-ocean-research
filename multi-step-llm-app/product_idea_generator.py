@@ -912,6 +912,26 @@ Output in a structured format that can be parsed."""
                 
                 enhanced_github = EnhancedGitHubIntegration(github_token, organization)
                 
+                # Generate creative repo name if not provided or if default
+                if not github_repo_name or github_repo_name.startswith("innovation-portfolio-"):
+                    # Build research context for creative naming
+                    research_context = {
+                        "market_domain": zones_data.get("clustered_zones", {}).get("zone_1", {}).get("name", "innovation"),
+                        "key_themes": [],
+                        "top_ideas": ideas_data.get("product_ideas", [])[:3],
+                        "industry": research_analysis.get("industry", ""),
+                        "innovation_focus": research_analysis.get("focus", "")
+                    }
+                    
+                    # Extract key themes from zones
+                    for zone in zones_data.get("clustered_zones", {}).values():
+                        research_context["key_themes"].extend(zone.get("key_themes", [])[:2])
+                    
+                    # Generate creative name
+                    console.print("[cyan]🎨 Generating creative repository name based on research...[/cyan]")
+                    github_repo_name = enhanced_github.generate_creative_repo_name(research_context)
+                    console.print(f"[green]✨ Generated unique name: {github_repo_name}[/green]")
+                
                 # Create repository
                 repo = enhanced_github.create_repository(
                     repo_name=github_repo_name,

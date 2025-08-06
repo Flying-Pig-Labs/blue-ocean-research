@@ -8,10 +8,12 @@ and issue creation based on the analysis results from the multi-step LLM app.
 
 import os
 import logging
-from typing import Dict, Optional, Any
+from typing import Dict, Optional, Any, List
 from datetime import datetime
 from github import Github, GithubException
 import time
+import random
+import openai
 
 
 logger = logging.getLogger(__name__)
@@ -39,6 +41,120 @@ class GitHubIntegration:
             logger.warning(f"Could not access organization '{organization}': {e}")
             logger.info(f"Falling back to user account: {self.user.login}")
             self.organization = None
+        
+        # Initialize OpenAI for creative name generation (using GPT-3.5-turbo for cost efficiency)
+        self.openai_api_key = os.getenv("OPENAI_API_KEY")
+        if self.openai_api_key:
+            self.openai_client = openai.OpenAI(api_key=self.openai_api_key)
+
+    def check_repo_exists(self, repo_name: str) -> bool:
+        """Check if a repository with the given name already exists."""
+        try:
+            if self.organization:
+                self.organization.get_repo(repo_name)
+            else:
+                self.user.get_repo(repo_name)
+            return True
+        except:
+            return False
+
+    def generate_creative_repo_name(
+        self, 
+        research_context: Dict[str, Any], 
+        max_attempts: int = 5
+    ) -> str:
+        """
+        Generate a creative, unique repository name based on the research content.
+        
+        Args:
+            research_context: Dictionary containing research data (market, ideas, themes, etc.)
+            max_attempts: Maximum number of attempts to generate a unique name
+            
+        Returns:
+            A unique, creative repository name
+        """
+        if not self.openai_api_key:
+            # Fallback to timestamp-based name if no OpenAI key
+            timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
+            return f"innovation-portfolio-{timestamp}"
+        
+        # Extract key themes from research
+        market_domain = research_context.get("market_domain", "innovation")
+        key_themes = research_context.get("key_themes", [])
+        top_ideas = research_context.get("top_ideas", [])
+        industry = research_context.get("industry", "")
+        innovation_focus = research_context.get("innovation_focus", "")
+        
+        # Build context for the LLM
+        context_summary = f"""
+        Market Domain: {market_domain}
+        Industry: {industry}
+        Key Themes: {', '.join(key_themes[:3]) if key_themes else 'innovation, technology, solutions'}
+        Innovation Focus: {innovation_focus}
+        Top Product Ideas: {', '.join([idea.get('name', '') for idea in top_ideas[:3]]) if top_ideas else 'various innovations'}
+        """
+        
+        for attempt in range(max_attempts):
+            try:
+                # Use GPT-3.5-turbo for cost efficiency
+                prompt = f"""Generate a creative, unique GitHub repository name based on this research:
+
+{context_summary}
+
+Requirements:
+- Must be URL-safe (lowercase, hyphens allowed, no spaces or special characters)
+- Should be creative and memorable
+- Should reflect the research domain and innovation themes
+- Must be between 3-40 characters
+- Should feel like a project codename or product name
+- Avoid generic terms like "project", "repo", "repository"
+- Make it unique by being specific to the research themes
+
+Current timestamp for uniqueness: {datetime.now().strftime('%Y%m%d-%H%M')}
+Attempt number: {attempt + 1}
+
+Generate ONLY the repository name, nothing else. Be creative and make it unique!
+
+Examples of good names:
+- quantum-leap-fintech
+- neural-commerce-hub
+- echo-health-insights
+- prism-analytics-engine
+- stellar-ux-forge
+
+Repository name:"""
+
+                response = self.openai_client.chat.completions.create(
+                    model="gpt-3.5-turbo",
+                    messages=[
+                        {"role": "system", "content": "You are a creative naming specialist. Generate unique, memorable project names."},
+                        {"role": "user", "content": prompt}
+                    ],
+                    temperature=0.9,  # Higher temperature for more creativity
+                    max_tokens=50
+                )
+                
+                repo_name = response.choices[0].message.content.strip().lower()
+                
+                # Clean up the name (ensure URL-safe)
+                repo_name = ''.join(c if c.isalnum() or c == '-' else '-' for c in repo_name)
+                repo_name = repo_name.strip('-')[:40]  # Max 40 chars
+                
+                # Check if repo exists
+                if not self.check_repo_exists(repo_name):
+                    logger.info(f"Generated unique repository name: {repo_name}")
+                    return repo_name
+                else:
+                    logger.info(f"Repository name {repo_name} already exists, trying again...")
+                    
+            except Exception as e:
+                logger.warning(f"Error generating creative name: {e}")
+                
+        # Final fallback with guaranteed uniqueness
+        timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
+        fallback_name = f"{market_domain[:20]}-innovation-{timestamp}".lower()
+        fallback_name = ''.join(c if c.isalnum() or c == '-' else '-' for c in fallback_name)
+        return fallback_name.strip('-')
 
     def create_repository(
         self, repo_name: str, description: str, private: bool = False

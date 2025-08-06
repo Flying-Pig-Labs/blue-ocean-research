@@ -11,32 +11,18 @@ from datetime import datetime
 from github import Github, GithubException
 import time
 import re
+from github_integration import GitHubIntegration
 
 logger = logging.getLogger(__name__)
 
 
-class FixedGitHubIntegration:
+class FixedGitHubIntegration(GitHubIntegration):
     """Fixed GitHub integration that properly loads pipeline data."""
 
-    def __init__(self, github_token: Optional[str] = None, organization: str = "ocean-shark-tank"):
+    def __init__(self, github_token: Optional[str] = None, organization: str = "ocean-studio-repos"):
         """Initialize GitHub integration with authentication."""
-        self.token = github_token or os.getenv("GITHUB_TOKEN")
-        if not self.token:
-            raise ValueError(
-                "GitHub token is required. Set GITHUB_TOKEN environment variable."
-            )
-
-        self.github = Github(self.token)
-        self.user = self.github.get_user()
-        self.organization_name = organization
-        
-        try:
-            self.organization = self.github.get_organization(organization)
-            logger.info(f"Authenticated as GitHub user: {self.user.login}, targeting organization: {organization}")
-        except Exception as e:
-            logger.warning(f"Could not access organization '{organization}': {e}")
-            logger.info(f"Falling back to user account: {self.user.login}")
-            self.organization = None
+        # Call parent constructor which handles all initialization including creative naming
+        super().__init__(github_token, organization)
 
     def load_pipeline_data(self) -> Dict[str, Any]:
         """Load and parse all pipeline output files."""
