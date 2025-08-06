@@ -1,0 +1,167 @@
+# Benchmark Configuration for Research Analyzer (Stage 1)
+# This allows testing different model + prompt combinations in isolation
+
+benchmark_name: "Research Analyzer Model + Prompt Comparison"
+description: "Test different model/prompt combos for Stage 1 parallel decomposition"
+
+# Mock input file for consistent testing
+mock_input: "mock_research.json"
+
+# Different model + prompt variations to test
+options:
+  option1_sonnet_default:
+    name: "Claude Sonnet (Current Production)"
+    description: "Current production config with default prompts"
+    overrides:
+      research_analysis:
+        verticals:
+          provider: anthropic
+          model: claude-3-5-sonnet-20241022
+          temperature: 0.7
+          max_tokens: 2000
+          include_example: true
+        personas:
+          provider: anthropic
+          model: claude-3-5-sonnet-20241022
+          temperature: 0.7
+          max_tokens: 2000
+          include_example: true
+        pain_points:
+          provider: anthropic
+          model: claude-3-5-sonnet-20241022
+          temperature: 0.8
+          max_tokens: 3000
+          include_example: false
+        solution_types:
+          provider: anthropic
+          model: claude-3-5-sonnet-20241022
+          temperature: 0.8
+          max_tokens: 3000
+          include_example: true
+
+  option2_haiku_cost:
+    name: "Claude Haiku (Cost Optimized)"
+    description: "Cheaper model with reduced token limits"
+    overrides:
+      research_analysis:
+        verticals:
+          provider: anthropic
+          model: claude-3-5-haiku-20241022
+          temperature: 0.7
+          max_tokens: 1500
+          include_example: false
+        personas:
+          provider: anthropic
+          model: claude-3-5-haiku-20241022
+          temperature: 0.7
+          max_tokens: 1500
+          include_example: false
+        pain_points:
+          provider: anthropic
+          model: claude-3-5-haiku-20241022
+          temperature: 0.8
+          max_tokens: 2000
+          include_example: false
+        solution_types:
+          provider: anthropic
+          model: claude-3-5-haiku-20241022
+          temperature: 0.8
+          max_tokens: 1500
+          include_example: false
+
+  option3_sonnet_focused:
+    name: "Claude Sonnet (Focused Prompts)"
+    description: "Same model but with more focused, concise prompts"
+    overrides:
+      research_analysis:
+        verticals:
+          provider: anthropic
+          model: claude-3-5-sonnet-20241022
+          temperature: 0.6
+          max_tokens: 1500
+          include_example: false
+          prompt: |
+            Research Document:
+            
+            {research_content}
+            
+            Identify the distinct industry verticals in this research. Focus on:
+            1. Primary market segments
+            2. Key differentiating characteristics
+            3. Growth potential
+            
+            Be concise but comprehensive.{example}
+        pain_points:
+          provider: anthropic
+          model: claude-3-5-sonnet-20241022
+          temperature: 0.7
+          max_tokens: 2000
+          include_example: false
+          prompt: |
+            Research Document:
+            
+            {research_content}
+            
+            Extract key pain points. Categorize by:
+            - Severity (High/Medium/Low)
+            - Frequency (Daily/Weekly/Monthly)
+            - Current workarounds
+            
+            Focus on actionable insights.{example}
+
+  option4_gpt4o_alternative:
+    name: "GPT-4o Cross-Provider Test"
+    description: "OpenAI alternative with modified prompts"
+    overrides:
+      research_analysis:
+        verticals:
+          provider: openai
+          model: gpt-4o
+          temperature: 0.7
+          max_tokens: 2000
+          include_example: true
+        personas:
+          provider: openai
+          model: gpt-4o
+          temperature: 0.7
+          max_tokens: 2000
+          include_example: true
+          prompt: |
+            Research Document:
+            
+            {research_content}
+            
+            Analyze user personas/customer segments. For each persona:
+            - Demographics & characteristics
+            - Primary needs & goals
+            - Current behaviors
+            - Key pain points
+            
+            Make personas actionable for product development.{example}
+
+# Evaluation criteria to manually assess
+evaluation:
+  criteria:
+    - "Quality of identified verticals (comprehensiveness, accuracy)"
+    - "Persona specificity and actionability"
+    - "Pain point categorization and severity assessment"
+    - "Solution type creativity and feasibility"
+    - "Overall coherence and business relevance"
+    - "Cost efficiency (tokens used vs quality)"
+    - "Processing speed and reliability"
+  
+  metrics:
+    - name: "Token Usage"
+      description: "Total tokens consumed across all 4 parallel calls"
+    - name: "Processing Time"
+      description: "Total time to complete all 4 LLM calls"
+    - name: "Output Quality Score"
+      description: "Manual 1-10 rating of output usefulness"
+    - name: "Cost Estimate"
+      description: "Estimated cost based on model pricing"
+
+# Output files will be generated as:
+# results/option1_sonnet.txt
+# results/option2_haiku.txt  
+# results/option3_opus.txt
+# results/option4_gpt4o.txt
