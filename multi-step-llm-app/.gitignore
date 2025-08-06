@@ -47,3 +47,7 @@ memory/
 # Test files
 demo_*.py
 test_*.py
+
+# Archive and temporary directories
+archive/
+temp/
