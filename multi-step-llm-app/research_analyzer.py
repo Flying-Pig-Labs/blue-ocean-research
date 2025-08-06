@@ -69,6 +69,9 @@ from src.utils.debug_config import initialize_debug_config, is_debug_mode
 from src.utils.debug_logger import initialize_debug_logger, close_debug_logger
 from src.utils.debug_aware_component import DebugAwareComponent
 
+# Import config loader for LLM configurations
+from config_loader import ConfigLoader
+
 # Load environment variables
 load_dotenv()
 
@@ -161,6 +164,9 @@ class ResearchAnalyzer(DebugAwareComponent):
             # Initialize a new logger for this component
             config = Config()
             self.logger = initialize_logger(config)
+        
+        # Load LLM configuration from YAML
+        self.config_loader = ConfigLoader()
 
         self.logger.info(
             "Initializing Research Analyzer", ComponentType.RESEARCH_ANALYZER
@@ -183,9 +189,13 @@ class ResearchAnalyzer(DebugAwareComponent):
         try:
             self.client = anthropic.Anthropic(api_key=self.api_key)
 
-            # Production models
-            self.production_model_sonnet = "claude-3-5-sonnet-20241022"
-            self.production_model_opus = "claude-3-opus-20240229"
+            # Get models from config
+            verticals_config = self.config_loader.get_model_settings('research_analysis', 'verticals')
+            pain_points_config = self.config_loader.get_model_settings('research_analysis', 'pain_points')
+            
+            # Production models from config
+            self.production_model_sonnet = verticals_config.get('model', 'claude-3-5-sonnet-20241022')
+            self.production_model_opus = pain_points_config.get('model', 'claude-3-5-haiku-20241022')
 
             # Get debug-aware models
             self.model_sonnet = self.get_debug_model(
@@ -484,46 +494,46 @@ class ResearchAnalyzer(DebugAwareComponent):
         Returns:
             List[AnalysisTask]: List of four configured analysis tasks
         """
+        # Get prompts from config
+        verticals_prompt = self.config_loader.get_prompt('research_analysis', 'verticals')
+        personas_prompt = self.config_loader.get_prompt('research_analysis', 'personas')
+        pain_points_prompt = self.config_loader.get_prompt('research_analysis', 'pain_points')
+        solution_types_prompt = self.config_loader.get_prompt('research_analysis', 'solution_types')
+        
+        # Get model settings from config
+        verticals_settings = self.config_loader.get_model_settings('research_analysis', 'verticals')
+        personas_settings = self.config_loader.get_model_settings('research_analysis', 'personas')
+        pain_points_settings = self.config_loader.get_model_settings('research_analysis', 'pain_points')
+        solution_types_settings = self.config_loader.get_model_settings('research_analysis', 'solution_types')
+        
         return [
             AnalysisTask(
                 name="Industry Verticals",
-                prompt=(
-                    "Given this research document, which industry verticals or domains do you see "
-                    "emerging as distinct from the others with regard to dynamic factors and other "
-                    "differentiating characteristics you believe are worthy of setting them as unique verticals? "
-                    "Please provide a structured analysis with clear categories and reasoning."
-                ),
+                prompt=verticals_prompt,  # Will be formatted with research_content later
                 model="sonnet",
+                max_tokens=verticals_settings.get('max_tokens', 2000),
+                temperature=verticals_settings.get('temperature', 0.7),
             ),
             AnalysisTask(
                 name="User Personas",
-                prompt=(
-                    "Given this research document, what are some of the customer or user personas "
-                    "that you can identify? These should reflect the types of people who would want "
-                    "help with your product or who need assistance in this space. "
-                    "Please describe each persona with demographics, needs, goals, and pain points."
-                ),
+                prompt=personas_prompt,  # Will be formatted with research_content later
                 model="sonnet",
+                max_tokens=personas_settings.get('max_tokens', 2000),
+                temperature=personas_settings.get('temperature', 0.7),
             ),
             AnalysisTask(
                 name="Pain Points",
-                prompt=(
-                    "Within this research document, what are the key pain points that you observe "
-                    "or can infer based on the research presented? Please categorize these pain points "
-                    "by severity, frequency, and impact on users. Include both explicit and implicit "
-                    "pain points you can deduce from the research."
-                ),
+                prompt=pain_points_prompt,  # Will be formatted with research_content later
                 model="opus",
+                max_tokens=pain_points_settings.get('max_tokens', 3000),
+                temperature=pain_points_settings.get('temperature', 0.8),
             ),
             AnalysisTask(
                 name="Solution Types",
-                prompt=(
-                    "What are the solution types that you see described or that can be inferred "
-                    "from this research? Please categorize these solutions by approach, technology, "
-                    "implementation complexity, and potential effectiveness. Include both existing "
-                    "and potential solutions that could address the identified needs."
-                ),
+                prompt=solution_types_prompt,  # Will be formatted with research_content later
                 model="opus",
+                max_tokens=solution_types_settings.get('max_tokens', 3000),
+                temperature=solution_types_settings.get('temperature', 0.8),
             ),
         ]
 
@@ -560,8 +570,22 @@ class ResearchAnalyzer(DebugAwareComponent):
             # Add debug prompt suffix
             task.system_prompt += self.create_debug_prompt_suffix()
 
-        # Prepare the prompt with research content
-        full_prompt = f"Research Document:\n\n{research_content}\n\n{task.prompt}"
+        # Format the prompt with research content using config loader
+        task_key = task.name.lower().replace(' ', '_')
+        if task_key == 'industry_verticals':
+            task_key = 'verticals'
+        elif task_key == 'user_personas':
+            task_key = 'personas'
+        elif task_key == 'pain_points':
+            task_key = 'pain_points'
+        elif task_key == 'solution_types':
+            task_key = 'solution_types'
+        
+        full_prompt = self.config_loader.format_prompt(
+            'research_analysis', 
+            task_key,
+            research_content=research_content
+        )
 
         # Check token limits before proceeding
         estimated_tokens = (

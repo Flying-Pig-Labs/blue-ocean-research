@@ -717,7 +717,7 @@ def create_github_output(
     github_token: Optional[str] = None,
     create_issues: bool = True,
     private: bool = False,
-    organization: str = "ocean-shark-tank",
+    organization: str = "ocean-studio-repos",
 ) -> Dict[str, Any]:
     """Main function to create GitHub output from analysis results."""
 

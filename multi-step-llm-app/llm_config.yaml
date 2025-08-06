@@ -1,0 +1,347 @@
+# LLM Configuration for Multi-Step Pipeline
+# All API calls, prompts, and model settings in one place
+
+models:
+  # Stage 1: Research Analysis - Parallel Decomposition
+  research_analysis:
+    verticals:
+      provider: anthropic
+      model: claude-3-5-sonnet-20241022
+      temperature: 0.7
+      max_tokens: 2000
+      prompt: |
+        Research Document:
+        
+        {research_content}
+        
+        Within this research document, what distinct industry verticals can you identify?
+        
+        Please analyze and identify:
+        1. Primary industry verticals and market segments
+        2. Sub-verticals or niche markets
+        3. Key characteristics that differentiate each vertical
+        4. Market dynamics and growth factors for each
+        
+        Focus on being comprehensive but distinct - avoid overlapping categorizations.
+    
+    personas:
+      provider: anthropic
+      model: claude-3-5-sonnet-20241022
+      temperature: 0.7
+      max_tokens: 2000
+      prompt: |
+        Research Document:
+        
+        {research_content}
+        
+        Looking at this research document, what user personas or customer segments can you identify?
+        
+        For each persona, include:
+        1. Demographics and characteristics
+        2. Primary needs and motivations
+        3. Current behaviors and preferences
+        4. Key goals they're trying to achieve
+        5. Pain points and frustrations
+        
+        Be specific about what makes each persona unique and actionable for product development.
+    
+    pain_points:
+      provider: anthropic
+      model: claude-3-5-haiku-20241022  # Using Opus
+      temperature: 0.8
+      max_tokens: 3000
+      prompt: |
+        Research Document:
+        
+        {research_content}
+        
+        Within this research document, what are the key pain points that you observe or can infer based on the research presented?
+        
+        Please categorize these pain points by:
+        1. Severity (High/Medium/Low impact on users)
+        2. Frequency (How often users encounter this issue)
+        3. Current solutions (What users do today to address this)
+        4. Unmet needs (What's still not solved)
+        
+        Include both explicit pain points mentioned directly and implicit pain points you can deduce from the research.
+    
+    solution_types:
+      provider: anthropic
+      model: claude-3-5-haiku-20241022  # Using Opus
+      temperature: 0.8
+      max_tokens: 3000
+      prompt: |
+        Research Document:
+        
+        {research_content}
+        
+        Based on this research document, what potential solution types or approaches could address the identified needs?
+        
+        Consider:
+        1. Technology-based solutions (platforms, apps, tools)
+        2. Service-based solutions (consulting, managed services)
+        3. Process improvements (workflows, methodologies)
+        4. Hybrid approaches (combining multiple solution types)
+        
+        For each solution type, briefly explain:
+        - What problem it addresses
+        - How it would work
+        - Why it's viable based on the research
+
+  # Stage 2: JTBD Research
+  jtbd_synthesis:
+    provider: anthropic
+    model: claude-3-5-sonnet-20241022
+    temperature: 0.7
+    max_tokens: 2000
+    system_prompt: "You are an expert at Jobs-to-be-Done framework analysis."
+    prompt: |
+      {search_results_context}
+      
+      Create a Jobs-to-be-Done table with these columns:
+      1. Job Statement (When I... I want to... So I can...)
+      2. Frequency (Daily/Weekly/Monthly)
+      3. Current Solutions
+      4. Pain Level (High/Medium/Low)
+      5. Opportunity Score (1-10)
+      
+      Format as a markdown table. Focus on the most impactful and frequently mentioned jobs.
+
+  # Stage 3: Clustering
+  clustering:
+    embeddings:
+      provider: cohere
+      model: embed-english-v3.0
+      input_type: search_document
+      # No prompt - uses embeddings directly
+    
+    naming:
+      provider: openai
+      model: gpt-4o
+      temperature: 0.5
+      max_tokens: 1500
+      prompt: |
+        Based on these pain points:
+        {cluster_items}
+        
+        Analyze these items and provide:
+        
+        1. **Zone Name**: A concise, strategic name for this opportunity zone (2-4 words)
+        2. **Core Theme**: The central problem or need (1-2 sentences)
+        3. **User Impact**: How this affects users (2-3 sentences)
+        4. **Market Opportunity**: Size and growth potential (1-2 sentences)
+        5. **Solution Direction**: High-level approach to address this (2-3 sentences)
+        6. **Key Differentiators**: What would make a solution stand out (2-3 bullet points)
+        7. **Estimated Opportunity Score**: Rate 1-10 based on impact and feasibility
+
+  # Stage 4: Value Curve Mapping
+  value_curve:
+    analysis:
+      provider: anthropic
+      model: claude-3-5-haiku-20241022  # Using Opus
+      temperature: 0.5
+      max_tokens: 3000
+      prompt: |
+        Opportunity Zone: {zone_name}
+        Theme: {zone_theme}
+        
+        Based on market research for "{search_query}", analyze the competitive landscape:
+        
+        {search_results}
+        
+        Create a value curve analysis with:
+        1. **Key Factors** (8-10 factors that matter in this space)
+        2. **Current State** (How existing solutions perform on each factor, 1-10 scale)
+        3. **Opportunity Gaps** (Where current solutions fall short)
+        4. **Innovation Potential** (Where we could dramatically improve)
+        5. **Strategic Canvas** (Visual representation of the value curve)
+    
+    synthesis:
+      provider: anthropic
+      model: claude-3-5-sonnet-20241022
+      temperature: 0.6
+      max_tokens: 3000
+      prompt: |
+        {all_value_curves}
+        
+        Synthesize these value curves into strategic insights:
+        1. Common patterns across all zones
+        2. Biggest opportunity gaps
+        3. Areas for radical innovation
+        4. Quick wins vs long-term plays
+        5. Risk factors to consider
+
+  # Stage 5: Product Idea Generation
+  product_ideas:
+    generation:
+      provider: openai
+      model: o1-preview-2024-09-12
+      temperature: 1.0  # o1 doesn't use temperature
+      max_completion_tokens: 30000
+      prompt: |
+        Based on these value curves and opportunity zones:
+        {value_curves_json}
+        
+        Generate 8-12 innovative product ideas that:
+        1. Address the biggest opportunity gaps
+        2. Leverage emerging technologies (AI, blockchain, IoT, etc.)
+        3. Have clear differentiation from existing solutions
+        4. Are technically feasible within 12-24 months
+        5. Have strong market potential
+        
+        For each idea provide:
+        - Product name and tagline
+        - Core value proposition
+        - Key features (5-7)
+        - Target customer segment
+        - Business model
+        - Go-to-market strategy
+        - Estimated development effort
+        - Revenue potential
+    
+    enrichment:
+      provider: anthropic
+      model: claude-3-5-haiku-20241022  # Using Opus
+      temperature: 0.8
+      max_tokens: 3000
+      prompt: |
+        Product Idea: {product_name}
+        Description: {product_description}
+        
+        Enrich this product idea with:
+        1. **Detailed User Journey**: Step-by-step experience
+        2. **Technical Architecture**: High-level system design
+        3. **Competitive Moat**: What makes this defensible
+        4. **Risk Mitigation**: Key risks and how to address them
+        5. **Success Metrics**: KPIs to track progress
+        6. **Partnership Opportunities**: Potential strategic partners
+        7. **Expansion Roadmap**: Future feature possibilities
+
+  # Stage 6: Idea Consolidation
+  consolidation:
+    analysis:
+      provider: anthropic
+      model: claude-3-5-sonnet-20241022
+      temperature: 0.5
+      max_tokens: 4000
+      prompt: |
+        Product Ideas Portfolio:
+        {all_product_ideas}
+        
+        Consolidate and prioritize this portfolio:
+        
+        1. **Synergy Analysis**: Which ideas could be combined or share infrastructure
+        2. **Priority Matrix**: Map ideas on effort vs impact grid
+        3. **Resource Allocation**: Optimal team/budget distribution
+        4. **Phase Planning**: Implementation sequence and dependencies
+        5. **Portfolio Risk**: Balance of safe bets vs moonshots
+        6. **Cross-Pollination**: Features that could enhance multiple products
+        7. **Market Timing**: Which ideas to launch when and why
+
+  # Stage 7: GitHub Naming
+  github_naming:
+    provider: anthropic
+    model: claude-3-5-sonnet-20241022
+    temperature: 0.9
+    max_tokens: 100
+    prompt: |
+      Based on this innovation portfolio:
+      {portfolio_summary}
+      
+      Create a creative, memorable GitHub repository name that:
+      - Captures the essence of the innovation theme
+      - Is 2-4 words, hyphenated
+      - Sounds professional yet intriguing
+      - Avoids generic terms like "innovation" or "solutions"
+      - Could work as a product/company name
+      
+      Return ONLY the repository name, nothing else.
+
+# Search Configuration
+search:
+  exa:
+    num_results: 5
+    use_autoprompt: true
+    text: true
+    highlights: true
+    summary: true
+
+# Pipeline Configuration
+pipeline:
+  # Input/Output mapping for each stage
+  stages:
+    stage1_research_analysis:
+      input: "${INPUT_FILE:-tests/fixtures/sample_research.json}"
+      outputs:
+        - analysis_results.md
+    
+    stage2_jtbd_research:
+      input: analysis_results.md
+      outputs:
+        - jtbd_research.md
+        - jtbd_research_pain_points.txt
+    
+    stage3_clustering:
+      input: jtbd_research_pain_points.txt
+      outputs:
+        - jtbd_clusters.json
+        - opportunity_zones.json  # Copied from jtbd_clusters
+    
+    stage4_value_curve:
+      input: opportunity_zones.json
+      outputs:
+        - value_curves.json
+        - value_curves_report.md
+    
+    stage5_product_ideas:
+      input: value_curves.json
+      outputs:
+        - product_ideas.json
+        - product_ideas_report.md
+    
+    stage6_consolidation:
+      input: product_ideas.json
+      outputs:
+        - final_innovation_portfolio.json
+        - final_innovation_portfolio_summary.md
+    
+    stage7_github:
+      inputs:  # Multiple inputs for comprehensive README
+        - analysis_results.md
+        - jtbd_research.md
+        - jtbd_clusters.json
+        - value_curves.json
+        - product_ideas.json
+        - final_innovation_portfolio.json
+      output: "GitHub repository in ocean-studio-repos"
+
+# Optimal Settings (what works best)
+optimization:
+  parallel_calls: 4  # Stage 1 parallel decomposition
+  clustering_min_size: 3
+  max_clusters: 10
+  opportunity_threshold: 7.0  # Min score for high-value opportunities
+  product_ideas_count: 8-12
+  github_issues_per_idea: 1
+  
+  # Timing
+  delays:
+    between_llm_calls: 0.5  # seconds
+    between_github_issues: 0.5
+    exa_search_timeout: 30
+
+# Rate Limiting
+rate_limits:
+  anthropic:
+    requests_per_minute: 50
+    fallback_to: openai
+  
+  openai:
+    requests_per_minute: 60
+    fallback_to: anthropic
+  
+  exa:
+    requests_per_minute: 100
+  
+  cohere:
+    requests_per_minute: 100

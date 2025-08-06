@@ -57,6 +57,9 @@ from rich.panel import Panel
 from rich.progress import Progress, SpinnerColumn, TextColumn
 from rich.table import Table
 
+# Import config loader for LLM configurations
+from config_loader import ConfigLoader
+
 # Load environment variables
 load_dotenv()
 
@@ -99,6 +102,9 @@ class JTBDClusterer:
         Raises:
             SystemExit: If API keys are missing or client initialization fails
         """
+        # Load LLM configuration
+        self.config_loader = ConfigLoader()
+        
         # Cohere setup
         self.cohere_api_key = os.getenv("COHERE_API_KEY")
         if not self.cohere_api_key:
@@ -120,6 +126,12 @@ class JTBDClusterer:
         try:
             openai.api_key = self.openai_api_key
             self.openai_client = openai.OpenAI(api_key=self.openai_api_key)
+            
+            # Get model settings from config
+            naming_settings = self.config_loader.get_model_settings('clustering', 'naming')
+            self.model = naming_settings.get('model', 'gpt-4o')
+            self.temperature = naming_settings.get('temperature', 0.5)
+            self.max_tokens = naming_settings.get('max_tokens', 1500)
         except Exception as e:
             console.print(f"[red]Error initializing OpenAI client: {e}[/red]")
             sys.exit(1)
@@ -294,26 +306,16 @@ class JTBDClusterer:
                 sample_size = min(10, len(texts))
                 sample_texts = texts[:sample_size]
 
-                prompt = f"""Analyze these customer pain points and provide:
-1. A concise, descriptive label (3-5 words)
-2. A brief summary of the common theme
-3. The underlying job-to-be-done
-4. Severity level (High/Medium/Low)
-
-Pain points:
-{chr(10).join([f"- {t}" for t in sample_texts])}
-
-Respond in JSON format:
-{{
-    "label": "...",
-    "summary": "...",
-    "job_to_be_done": "When I [situation], I want to [motivation], so I can [outcome]",
-    "severity": "High/Medium/Low"
-}}"""
+                # Format prompt using config loader
+                prompt = self.config_loader.format_prompt(
+                    'clustering', 
+                    'naming',
+                    cluster_items=chr(10).join([f"- {t}" for t in sample_texts])
+                )
 
                 try:
                     response = self.openai_client.chat.completions.create(
-                        model="gpt-4o",
+                        model=self.model,
                         messages=[
                             {
                                 "role": "system",
@@ -321,7 +323,8 @@ Respond in JSON format:
                             },
                             {"role": "user", "content": prompt},
                         ],
-                        temperature=0.3,
+                        temperature=self.temperature,
+                        max_tokens=self.max_tokens,
                         response_format={"type": "json_object"},
                     )
 

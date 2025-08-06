@@ -1,5 +1,15 @@
 # Claude Code Configuration - Multi-Step LLM App
 
+## 🚨 CRITICAL RULE: ONE SCRIPT ONLY
+
+**THERE IS ONLY ONE SCRIPT FOR RUNNING THE PIPELINE: `run_pipeline.sh`**
+- This script runs all 7 stages end-to-end
+- With `--headless` flag: Runs completely automated in remote environments without human interaction
+- Without `--headless` flag: Interactive mode where humans can view progress and click continue
+- **NEVER CREATE ADDITIONAL SCRIPTS** - Only ONE pipeline script exists
+- **DO NOT DELETE OR RENAME THIS SCRIPT**
+- **DO NOT CREATE VARIANTS LIKE run_e2e.sh, run_pipeline_verbose.sh, etc.**
+
 ## 🚀 Project Overview
 
 This is a comprehensive 7-stage Python application suite that transforms raw market research into actionable product innovation portfolios with automatic GitHub repository creation. The pipeline leverages multiple AI models (Claude Sonnet/Opus, GPT-4o, OpenAI o1, Cohere) and search APIs (EXA).

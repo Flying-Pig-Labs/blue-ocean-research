@@ -54,6 +54,9 @@ from rich.table import Table
 from rich.markdown import Markdown
 import anthropic
 
+# Import config loader for LLM configurations
+from config_loader import ConfigLoader
+
 # Load environment variables
 load_dotenv()
 
@@ -98,6 +101,9 @@ class JobsResearcher:
         Raises:
             SystemExit: If EXA_API_KEY is not found in environment
         """
+        # Load LLM configuration
+        self.config_loader = ConfigLoader()
+        
         # EXA setup
         self.exa_api_key = os.getenv("EXA_API_KEY")
         if not self.exa_api_key:
@@ -119,7 +125,9 @@ class JobsResearcher:
                 self.anthropic_client = anthropic.Anthropic(
                     api_key=self.anthropic_api_key
                 )
-                self.model = "claude-3-5-sonnet-20241022"
+                # Get model from config
+                jtbd_settings = self.config_loader.get_model_settings('jtbd_synthesis')
+                self.model = jtbd_settings.get('model', 'claude-3-5-sonnet-20241022')
             except Exception as e:
                 console.print(
                     f"[yellow]Warning: Anthropic client initialization failed: {e}[/yellow]"
@@ -196,13 +204,35 @@ class JobsResearcher:
                     current_section = key
                     break
 
-            # Extract bullet points or key phrases
-            if current_section and (
-                line.strip().startswith("-") or line.strip().startswith("•")
-            ):
-                item = line.strip().lstrip("-•").strip()
-                if len(item) > 5:  # Filter out very short items
-                    elements[current_section].append(item[:100])  # Limit length
+            # Extract bullet points, numbered lists, or key phrases
+            if current_section:
+                line_stripped = line.strip()
+                # Check for bullet points, numbered lists, or key patterns
+                if (line_stripped.startswith("-") or 
+                    line_stripped.startswith("•") or
+                    (line_stripped and line_stripped[0].isdigit() and "." in line_stripped[:3])):
+                    
+                    # Remove list markers
+                    if line_stripped.startswith("-") or line_stripped.startswith("•"):
+                        item = line_stripped.lstrip("-•").strip()
+                    elif line_stripped[0].isdigit():
+                        # Remove number and period (e.g., "1. " or "10. ")
+                        parts = line_stripped.split(".", 1)
+                        if len(parts) > 1:
+                            item = parts[1].strip()
+                        else:
+                            item = line_stripped
+                    else:
+                        item = line_stripped
+                    
+                    # Extract the main point (before colon if present)
+                    if ":" in item:
+                        # For numbered items with descriptions, take the part before the colon
+                        main_point = item.split(":")[0].strip()
+                        if len(main_point) > 5:
+                            elements[current_section].append(main_point[:100])
+                    elif len(item) > 5:  # Filter out very short items
+                        elements[current_section].append(item[:100])  # Limit length
 
         return elements
 
@@ -327,9 +357,7 @@ class JobsResearcher:
             "tutorials": [],
         }
 
-        console.print(
-            "\n[bold cyan]Executing EXA searches for customer context...[/bold cyan]"
-        )
+        console.print("[bright_cyan]Executing EXA searches...[/bright_cyan]")
 
         with Progress(
             SpinnerColumn(),
@@ -378,9 +406,7 @@ class JobsResearcher:
 
         # Summary of results
         total_results = sum(len(v) for v in results.values())
-        console.print(
-            f"\n[green]✅ Found {total_results} total results across {len(results)} categories[/green]"
-        )
+        console.print(f"[bright_cyan]Found {total_results} total results from EXA searches[/bright_cyan]")
 
         return results
 
@@ -679,13 +705,20 @@ class JobsResearcher:
         for job in jobs:
             context = job.get("job_context", "")
             # Clean up and add if meaningful
-            if len(context) > 20:
-                pain_points.append(context.strip())
+            if len(context) > 20 and len(context) < 500:
+                clean_context = context.strip()
+                # Filter out metadata lines
+                if not any(x in clean_context for x in ["Author:", "Score:", "Time Posted:", "Link:"]):
+                    pain_points.append(clean_context)
 
         # Extract from search result snippets
         for category, results in search_results.items():
             for result in results:
                 snippet = result.get("snippet", "")
+                # Skip if snippet is empty or looks like metadata
+                if not snippet or "Author:" in snippet or "Score:" in snippet:
+                    continue
+                    
                 # Look for pain point indicators in snippets
                 indicators = [
                     "frustrated",
@@ -698,6 +731,8 @@ class JobsResearcher:
                     "hate",
                     "annoying",
                     "wish",
+                    "challenge",
+                    "pain point",
                 ]
 
                 for indicator in indicators:
@@ -705,16 +740,39 @@ class JobsResearcher:
                         # Extract sentence containing the indicator
                         sentences = snippet.split(".")
                         for sentence in sentences:
-                            if indicator in sentence.lower() and len(sentence) > 20:
-                                pain_points.append(sentence.strip())
-                                break
+                            if indicator in sentence.lower() and 20 < len(sentence) < 500:
+                                clean_sentence = sentence.strip()
+                                # Filter out broken/incomplete sentences
+                                if not any(x in clean_sentence for x in ["Author:", "Score:", "https://", "http://"]):
+                                    pain_points.append(clean_sentence)
+                                    break
                         break
+
+        # If no pain points found from indicators, extract from key insights
+        if not pain_points:
+            for category, results in search_results.items():
+                for result in results:
+                    snippet = result.get("snippet", "")
+                    if snippet and 50 < len(snippet) < 500:
+                        # Take first meaningful sentence
+                        sentences = snippet.split(".")
+                        for sentence in sentences:
+                            clean_sentence = sentence.strip()
+                            if 30 < len(clean_sentence) < 300 and not any(x in clean_sentence for x in ["Author:", "Score:", "http"]):
+                                pain_points.append(clean_sentence)
+                                break
+                        if len(pain_points) >= 10:  # Limit to avoid too many generic points
+                            break
 
         # Deduplicate while preserving order
         seen = set()
         unique_pain_points = []
         for point in pain_points:
-            if point not in seen:
+            # Clean up the point
+            point = point.replace("\n", " ").replace("\r", " ").strip()
+            point = " ".join(point.split())  # Normalize whitespace
+            
+            if point not in seen and len(point) > 20:
                 seen.add(point)
                 unique_pain_points.append(point)
 
@@ -772,38 +830,45 @@ class JobsResearcher:
         )
 
         # Step 1: Load analysis results
+        console.print("\n[bold]STEP 1: Loading analysis results[/bold]")
+        console.print(f"Input file: {analysis_file}")
         analysis_content = self.load_analysis_results(analysis_file)
+        console.print(f"[red]Input file content (first 1000 chars):[/red]")
+        console.print(f"[red]{analysis_content[:1000]}...[/red]\n")
 
         # Step 2: Extract key elements
+        console.print("[bold]STEP 2: Extracting key elements[/bold]")
         elements = self.extract_key_elements(analysis_content)
-        console.print("\n[cyan]Extracted elements for search:[/cyan]")
-
-        table = Table(title="Search Elements")
-        table.add_column("Category", style="cyan")
-        table.add_column("Count", style="magenta")
-        table.add_column("Examples", style="white")
-
+        
+        # Show extracted content in baby blue
+        console.print("[bright_cyan]Extracted elements:[/bright_cyan]")
         for category, items in elements.items():
-            examples = ", ".join(items[:2]) + ("..." if len(items) > 2 else "")
-            table.add_row(category.replace("_", " ").title(), str(len(items)), examples)
-
-        console.print(table)
+            console.print(f"\n[bright_cyan]{category.replace('_', ' ').title()} ({len(items)} items):[/bright_cyan]")
+            for item in items[:3]:  # Show first 3 of each
+                console.print(f"[bright_cyan]  - {item}[/bright_cyan]")
+            if len(items) > 3:
+                console.print(f"[bright_cyan]  ... and {len(items) - 3} more[/bright_cyan]")
 
         # Step 3: Construct search queries
+        console.print("\n[bold]STEP 3: Constructing search queries[/bold]")
         queries = self.construct_search_queries(elements)
-        console.print(f"\n[green]✅ Constructed {len(queries)} search queries[/green]")
-
+        console.print(f"[bright_cyan]Constructed {len(queries)} search queries[/bright_cyan]")
+        for query in queries:
+            console.print(f"[bright_cyan]  - {query['type']}: {query['query'][:100]}...[/bright_cyan]")
+        
         # Step 4: Execute searches
+        console.print("\n[bold]STEP 4: Executing EXA searches[/bold]")
         search_results = self.search_with_exa(queries)
 
         # Step 5: Extract Jobs-to-be-Done
+        console.print("\n[bold]STEP 5: Extracting Jobs-to-be-Done[/bold]")
         jobs = self.extract_jobs_to_be_done(search_results, analysis_content)
-        console.print(
-            f"\n[green]✅ Extracted {len(jobs)} potential jobs-to-be-done[/green]"
-        )
-
+        console.print(f"[bright_cyan]Extracted {len(jobs)} potential jobs-to-be-done[/bright_cyan]")
+        
         # Step 6: Generate report
+        console.print("\n[bold]STEP 6: Generating JTBD report[/bold]")
         report = self.generate_jtbd_report(jobs, search_results, elements)
+        console.print(f"[bright_cyan]Generated report with {len(report.split())} words[/bright_cyan]")
 
         # Step 7: Save report
         with open(output_file, "w") as f:

@@ -51,3 +51,6 @@ test_*.py
 # Archive and temporary directories
 archive/
 temp/
+
+# E2E test outputs
+test_outputs/

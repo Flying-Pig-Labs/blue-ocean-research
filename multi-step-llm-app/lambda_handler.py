@@ -12,8 +12,17 @@ import uuid
 from datetime import datetime, timedelta
 from typing import Dict, Any, Optional
 import boto3
+from boto3.dynamodb.types import TypeDeserializer, TypeSerializer
+from decimal import Decimal
 import logging
 import traceback
+
+class DecimalEncoder(json.JSONEncoder):
+    """Custom JSON encoder to handle Decimal types from DynamoDB"""
+    def default(self, obj):
+        if isinstance(obj, Decimal):
+            return float(obj)
+        return super(DecimalEncoder, self).default(obj)
 
 # Configure logging
 logger = logging.getLogger()
@@ -25,7 +34,7 @@ lambda_client = boto3.client('lambda')
 
 # Environment variables
 JOBS_TABLE = os.environ.get('JOBS_TABLE', 'PipelineJobs-production')
-ORCHESTRATOR_FUNCTION = os.environ.get('ORCHESTRATOR_FUNCTION', 'multi-step-llm-pipeline-OrchestratorFunction')
+ORCHESTRATOR_FUNCTION = os.environ.get('ORCHESTRATOR_FUNCTION_NAME', 'pipeline-orchestrator-production')
 
 def lambda_handler(event, context):
     """Main Lambda handler - routes requests to appropriate handlers."""
@@ -133,7 +142,7 @@ def start_pipeline_handler(event, context):
                     'status': existing_job['status'],
                     'currentStage': existing_job.get('currentStage', 0),
                     'stageName': existing_job.get('stageName', 'Initializing'),
-                    'overallProgress': existing_job.get('overallProgress', 0.0),
+                    'overallProgress': float(existing_job.get('overallProgress', 0.0)),
                     'estimatedTotalMinutes': estimated_total_minutes,
                     'elapsedMinutes': elapsed_minutes,
                     'estimatedRemainingMinutes': estimated_remaining_minutes,
@@ -142,7 +151,7 @@ def start_pipeline_handler(event, context):
                         'startedAt': existing_job['createdAt'],
                         'username': existing_job['username']
                     }
-                })
+                }, cls=DecimalEncoder)
             }
         
         # Generate job ID
@@ -157,8 +166,8 @@ def start_pipeline_handler(event, context):
             'status': 'QUEUED',
             'currentStage': 0,
             'stageName': 'Initializing',
-            'stageProgress': 0.0,
-            'overallProgress': 0.0,
+            'stageProgress': Decimal('0.0'),
+            'overallProgress': Decimal('0.0'),
             'estimatedCompletion': (datetime.utcnow() + timedelta(minutes=22)).isoformat() + 'Z',
             'estimatedTotalMinutes': 22,
             'createdAt': datetime.utcnow().isoformat() + 'Z',
@@ -306,7 +315,7 @@ def get_status_handler(event, context):
                 'Content-Type': 'application/json',
                 'Access-Control-Allow-Origin': '*'
             },
-            'body': json.dumps(job, default=str)
+            'body': json.dumps(job, cls=DecimalEncoder)
         }
         
     except Exception as e:
@@ -430,8 +439,8 @@ def orchestrator_handler(event, context):
                 ExpressionAttributeValues={
                     ':stage': i,
                     ':stageName': stage['name'],
-                    ':stageProgress': 0.0,
-                    ':overallProgress': (i - 1) / len(stages) * 100,
+                    ':stageProgress': Decimal('0.0'),
+                    ':overallProgress': Decimal(str((i - 1) / len(stages) * 100)),
                     ':updatedAt': datetime.utcnow().isoformat() + 'Z'
                 }
             )
@@ -445,8 +454,8 @@ def orchestrator_handler(event, context):
                     Key={'jobId': job_id},
                     UpdateExpression='SET stageProgress = :stageProgress, overallProgress = :overallProgress, updatedAt = :updatedAt',
                     ExpressionAttributeValues={
-                        ':stageProgress': float(progress),
-                        ':overallProgress': ((i - 1) + progress / 100) / len(stages) * 100,
+                        ':stageProgress': Decimal(str(float(progress))),
+                        ':overallProgress': Decimal(str(((i - 1) + progress / 100) / len(stages) * 100)),
                         ':updatedAt': datetime.utcnow().isoformat() + 'Z'
                     }
                 )
@@ -460,7 +469,7 @@ def orchestrator_handler(event, context):
             ExpressionAttributeNames={'#status': 'status'},
             ExpressionAttributeValues={
                 ':status': 'COMPLETED',
-                ':progress': 100.0,
+                ':progress': Decimal('100.0'),
                 ':completedAt': datetime.utcnow().isoformat() + 'Z',
                 ':updatedAt': datetime.utcnow().isoformat() + 'Z',
                 ':githubUrl': github_repo_url,
