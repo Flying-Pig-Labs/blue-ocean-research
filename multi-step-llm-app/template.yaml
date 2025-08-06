@@ -175,7 +175,6 @@ Resources:
           EXA_API_KEY: !Sub "{{resolve:secretsmanager:pipeline-secrets:SecretString:EXA_API_KEY}}"
           COHERE_API_KEY: !Sub "{{resolve:secretsmanager:pipeline-secrets:SecretString:COHERE_API_KEY}}"
           GITHUB_TOKEN: !Sub "{{resolve:secretsmanager:pipeline-secrets:SecretString:GITHUB_TOKEN}}"
-      ReservedConcurrency: 5
       Policies:
         - DynamoDBCrudPolicy:
             TableName: !Ref JobsTable
