@@ -95,9 +95,19 @@ class ConfigLoader:
         """Get rate limiting configuration for a provider."""
         return self.config.get('rate_limits', {}).get(provider, {})
     
+    def has_example(self, stage: str, task: Optional[str] = None) -> bool:
+        """Check if examples are enabled for a stage/task."""
+        config = self.get_model_config(stage, task) if task else self.config['models'][stage]
+        return config.get('include_example', True) and bool(config.get('example', ''))
+    
+    def get_example(self, stage: str, task: Optional[str] = None) -> str:
+        """Get the example text for a stage/task."""
+        config = self.get_model_config(stage, task) if task else self.config['models'][stage]
+        return config.get('example', '') if config.get('include_example', True) else ''
+    
     def format_prompt(self, stage: str, task: Optional[str] = None, **kwargs) -> str:
         """
-        Format a prompt template with provided variables.
+        Format a prompt template with provided variables and optionally inject examples.
         
         Args:
             stage: The pipeline stage
@@ -105,9 +115,18 @@ class ConfigLoader:
             **kwargs: Variables to inject into the prompt template
         
         Returns:
-            Formatted prompt string
+            Formatted prompt string with example injected if appropriate
         """
-        prompt_template = self.get_prompt(stage, task)
+        config = self.get_model_config(stage, task) if task else self.config['models'][stage]
+        prompt_template = config.get('prompt', '')
+        
+        # Check if we should include examples
+        include_example = config.get('include_example', True)  # Default to True
+        example_text = config.get('example', '') if include_example else ''
+        
+        # Add example to kwargs for template formatting
+        kwargs['example'] = example_text
+        
         return prompt_template.format(**kwargs)
 
 
@@ -140,14 +159,27 @@ if __name__ == "__main__":
     pain_config = config.get_model_config('research_analysis', 'pain_points')
     print(f"Pain Points Model: {pain_config['model']}")
     print(f"Temperature: {pain_config['temperature']}")
+    print(f"Include Example: {pain_config.get('include_example', True)}")
     
-    # Get and format a prompt
+    # Check if examples are available
+    has_example = config.has_example('research_analysis', 'verticals')
+    print(f"\nVerticals has example: {has_example}")
+    
+    # Get and format a prompt with example injection
     prompt = config.format_prompt(
         'research_analysis', 
-        'pain_points',
+        'verticals',
         research_content="[Sample research document here]"
     )
-    print(f"\nFormatted Prompt Preview:\n{prompt[:200]}...")
+    print(f"\nFormatted Prompt Preview:\n{prompt[:300]}...")
+    
+    # Example without example injection (pain_points has include_example: false)
+    prompt_no_example = config.format_prompt(
+        'research_analysis',
+        'pain_points', 
+        research_content="[Sample research document here]"
+    )
+    print(f"\nPrompt without example (first 200 chars):\n{prompt_no_example[:200]}...")
     
     # Get optimization settings
     opt_settings = config.get_optimization_settings()
