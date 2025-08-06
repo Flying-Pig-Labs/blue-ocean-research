@@ -908,7 +908,7 @@ Output in a structured format that can be parsed."""
             try:
                 # Initialize enhanced GitHub integration
                 github_token = os.getenv("GITHUB_TOKEN")
-                organization = "ocean-shark-tank"  # Default organization
+                organization = "ocean-studio-repos"  # Default organization
                 
                 enhanced_github = EnhancedGitHubIntegration(github_token, organization)
                 

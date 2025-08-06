@@ -20,7 +20,7 @@ logger = logging.getLogger(__name__)
 class GitHubIntegration:
     """Handles GitHub repository creation and management."""
 
-    def __init__(self, github_token: Optional[str] = None, organization: str = "ocean-shark-tank"):
+    def __init__(self, github_token: Optional[str] = None, organization: str = "ocean-studio-repos"):
         """Initialize GitHub integration with authentication."""
         self.token = github_token or os.getenv("GITHUB_TOKEN")
         if not self.token:
