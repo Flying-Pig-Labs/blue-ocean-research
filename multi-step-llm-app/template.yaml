@@ -1,0 +1,221 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: >
+  Multi-step LLM Pipeline
+  AWS Lambda functions for async pipeline processing with MVP frontend support features
+
+Parameters:
+  EnvironmentName:
+    Type: String
+    Default: production
+    Description: Environment name (production, staging, development)
+
+Globals:
+  Function:
+    Runtime: python3.11
+    Timeout: 30
+    MemorySize: 512
+    Environment:
+      Variables:
+        PYTHONPATH: /opt/python
+
+Resources:
+  # S3 Bucket for pipeline data
+  S3Bucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub "pipeline-data-${AWS::AccountId}-${AWS::Region}"
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      VersioningConfiguration:
+        Status: Enabled
+
+  # DynamoDB table for job tracking
+  JobsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub "PipelineJobs-${EnvironmentName}"
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: jobId
+          AttributeType: S
+      KeySchema:
+        - AttributeName: jobId
+          KeyType: HASH
+      TimeToLiveSpecification:
+        AttributeName: ttl
+        Enabled: true
+      StreamSpecification:
+        StreamViewType: NEW_AND_OLD_IMAGES
+
+  # API Gateway
+  ApiGateway:
+    Type: AWS::Serverless::Api
+    Properties:
+      StageName: !Ref EnvironmentName
+      Cors:
+        AllowMethods: "'GET,POST,PUT,DELETE,OPTIONS'"
+        AllowHeaders: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token'"
+        AllowOrigin: "'*'"
+        MaxAge: "'600'"
+      DefinitionBody:
+        openapi: 3.0.1
+        info:
+          title: Multi-step LLM Pipeline API
+          version: '1.0'
+        paths:
+          /start-pipeline:
+            post:
+              x-amazon-apigateway-integration:
+                httpMethod: POST
+                type: aws_proxy
+                uri: !Sub "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${StarterFunction.Arn}/invocations"
+            options:
+              x-amazon-apigateway-integration:
+                httpMethod: POST
+                type: aws_proxy
+                uri: !Sub "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${StarterFunction.Arn}/invocations"
+          /status/{jobId}:
+            get:
+              x-amazon-apigateway-integration:
+                httpMethod: POST
+                type: aws_proxy
+                uri: !Sub "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${StarterFunction.Arn}/invocations"
+            options:
+              x-amazon-apigateway-integration:
+                httpMethod: POST
+                type: aws_proxy
+                uri: !Sub "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${StarterFunction.Arn}/invocations"
+          /logs/{jobId}:
+            get:
+              x-amazon-apigateway-integration:
+                httpMethod: POST
+                type: aws_proxy
+                uri: !Sub "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${StarterFunction.Arn}/invocations"
+
+  # Starter Lambda Function (handles API requests)
+  StarterFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub "pipeline-starter-${EnvironmentName}"
+      CodeUri: ./
+      Handler: lambda_handler.lambda_handler
+      Runtime: python3.11
+      Timeout: 30
+      MemorySize: 512
+      Environment:
+        Variables:
+          JOBS_TABLE: !Ref JobsTable
+          ORCHESTRATOR_FUNCTION_NAME: !Ref OrchestratorFunction
+          S3_BUCKET: !Ref S3Bucket
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref JobsTable
+        - LambdaInvokePolicy:
+            FunctionName: !Ref OrchestratorFunction
+        - S3CrudPolicy:
+            BucketName: !Ref S3Bucket
+      Events:
+        StartPipeline:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ApiGateway
+            Path: /start-pipeline
+            Method: post
+        GetStatus:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ApiGateway
+            Path: /status/{jobId}
+            Method: get
+        GetLogs:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ApiGateway
+            Path: /logs/{jobId}
+            Method: get
+        OptionsStartPipeline:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ApiGateway
+            Path: /start-pipeline
+            Method: options
+        OptionsStatus:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ApiGateway
+            Path: /status/{jobId}
+            Method: options
+        OptionsLogs:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ApiGateway
+            Path: /logs/{jobId}
+            Method: options
+
+  # Orchestrator Lambda Function (runs the actual pipeline)
+  OrchestratorFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub "pipeline-orchestrator-${EnvironmentName}"
+      CodeUri: ./
+      Handler: lambda_handler.orchestrator_handler
+      Runtime: python3.11
+      Timeout: 900  # 15 minutes
+      MemorySize: 3008
+      Environment:
+        Variables:
+          JOBS_TABLE: !Ref JobsTable
+          S3_BUCKET: !Ref S3Bucket
+          ANTHROPIC_API_KEY: !Sub "{{resolve:secretsmanager:pipeline-secrets:SecretString:ANTHROPIC_API_KEY}}"
+          OPENAI_API_KEY: !Sub "{{resolve:secretsmanager:pipeline-secrets:SecretString:OPENAI_API_KEY}}"
+          EXA_API_KEY: !Sub "{{resolve:secretsmanager:pipeline-secrets:SecretString:EXA_API_KEY}}"
+          COHERE_API_KEY: !Sub "{{resolve:secretsmanager:pipeline-secrets:SecretString:COHERE_API_KEY}}"
+          GITHUB_TOKEN: !Sub "{{resolve:secretsmanager:pipeline-secrets:SecretString:GITHUB_TOKEN}}"
+      ReservedConcurrencyConfig:
+        ReservedConcurrency: 5
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref JobsTable
+        - S3CrudPolicy:
+            BucketName: !Ref S3Bucket
+        - Statement:
+          - Effect: Allow
+            Action:
+              - secretsmanager:GetSecretValue
+            Resource: 
+              - !Sub "arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:pipeline-secrets*"
+
+Outputs:
+  ApiEndpoint:
+    Description: "API Gateway endpoint URL"
+    Value: !Sub "https://${ApiGateway}.execute-api.${AWS::Region}.amazonaws.com/${EnvironmentName}"
+    Export:
+      Name: !Sub "${AWS::StackName}-ApiEndpoint"
+
+  StarterFunctionArn:
+    Description: "Starter Lambda function ARN"
+    Value: !GetAtt StarterFunction.Arn
+    Export:
+      Name: !Sub "${AWS::StackName}-StarterFunction"
+
+  OrchestratorFunctionArn:
+    Description: "Orchestrator Lambda function ARN"
+    Value: !GetAtt OrchestratorFunction.Arn
+    Export:
+      Name: !Sub "${AWS::StackName}-OrchestratorFunction"
+
+  JobsTableName:
+    Description: "DynamoDB table for job tracking"
+    Value: !Ref JobsTable
+    Export:
+      Name: !Sub "${AWS::StackName}-JobsTable"
+
+  S3BucketName:
+    Description: "S3 bucket for pipeline data"
+    Value: !Ref S3Bucket
+    Export:
+      Name: !Sub "${AWS::StackName}-S3Bucket"
