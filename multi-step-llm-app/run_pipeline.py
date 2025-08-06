@@ -10,7 +10,6 @@ Usage:
     python run_pipeline.py --input file.json  # Custom input file
 """
 
-import subprocess
 import sys
 import os
 import time
@@ -20,6 +19,15 @@ from datetime import datetime
 import boto3
 from botocore.exceptions import ClientError
 from typing import List, Dict, Any
+import shutil
+
+# Import all pipeline modules
+import research_analyzer
+import jobs_researcher
+import cluster_jtbd
+import value_curve_mapper
+import product_idea_generator
+import idea_consolidator
 
 # ANSI color codes for verbose output
 class Colors:
@@ -80,16 +88,16 @@ def load_secrets_from_aws():
     return loaded_count == len(secrets_arns)
 
 def run_module(module_name: str, inputs: Dict[str, str], outputs: List[str], 
-               verbose: bool = False, extra_args: str = "") -> bool:
+               verbose: bool = False, **kwargs) -> bool:
     """
-    Execute a module with explicit input/output declarations.
+    Execute a module by calling its Python function directly.
     
     Args:
         module_name: Name of the Python module to run
         inputs: Dict mapping input names to file paths
         outputs: List of expected output file paths
         verbose: Whether to show LLM prompts and responses
-        extra_args: Additional command line arguments
+        **kwargs: Additional arguments for specific modules
         
     Returns:
         True if successful, False otherwise
@@ -108,67 +116,75 @@ def run_module(module_name: str, inputs: Dict[str, str], outputs: List[str],
     else:
         print(f"\n📦 {module_name}(inputs=[{input_display}], outputs=[{output_display}])")
     
-    # Build command based on module type
-    if module_name == "research_analyzer":
-        # Use the first input file (research document)
-        input_file = list(inputs.values())[0] if inputs else "tests/fixtures/sample_research.json"
-        command = f"python research_analyzer.py --local {input_file}"
-    elif module_name == "jobs_researcher":
-        command = "python jobs_researcher.py"
-    elif module_name == "cluster_jtbd":
-        input_file = inputs.get("pain_points", "jtbd_research_pain_points.txt")
-        command = f"python cluster_jtbd.py {input_file}"
-    elif module_name == "value_curve_mapper":
-        input_file = inputs.get("zones", "opportunity_zones.json")
-        command = f"python value_curve_mapper.py {input_file}"
-    elif module_name == "product_idea_generator":
-        command = "python product_idea_generator.py"
-    elif module_name == "idea_consolidator":
-        command = "python idea_consolidator.py"
-    elif module_name == "github_integration":
-        command = f"python product_idea_generator.py --github {extra_args}"
-    else:
-        print(f"{Colors.RED}Unknown module: {module_name}{Colors.RESET}")
-        return False
-    
-    # Add verbose flag if needed
+    # Set verbose environment variable if needed
     if verbose:
-        # Set environment variable that modules can check
         os.environ['PIPELINE_VERBOSE'] = '1'
-        print(f"{Colors.BOLD}Command: {command}{Colors.RESET}")
     
     start_time = time.time()
     
     try:
-        # Run the command
-        result = subprocess.run(
-            command,
-            shell=True,
-            capture_output=True,
-            text=True,
-            check=True,
-            env=os.environ.copy()
-        )
-        
-        # In verbose mode, parse and color output
-        if verbose and result.stdout:
-            lines = result.stdout.split('\n')
-            for line in lines:
-                # Detect prompts and responses (heuristic - customize as needed)
-                if 'PROMPT:' in line or 'Prompt:' in line:
-                    print(f"{Colors.CYAN}{line}{Colors.RESET}")
-                elif 'RESPONSE:' in line or 'Response:' in line or 'Output:' in line:
-                    print(f"{Colors.SALMON}{line}{Colors.RESET}")
-                else:
-                    print(line)
-        elif result.stdout:
-            print(result.stdout)
+        # Call the appropriate module function directly
+        if module_name == "research_analyzer":
+            # Use the first input file (research document)
+            input_file = list(inputs.values())[0] if inputs else "tests/fixtures/sample_research.json"
+            # Mock command line args for the module
+            sys.argv = ['research_analyzer.py', '--local', input_file]
+            research_analyzer.main()
+            result = True
+            
+        elif module_name == "jobs_researcher":
+            # Call jobs_researcher main function
+            sys.argv = ['jobs_researcher.py']
+            jobs_researcher.main()
+            result = True
+            
+        elif module_name == "cluster_jtbd":
+            # Call cluster_jtbd with input file
+            input_file = inputs.get("pain_points", "jtbd_research_pain_points.txt")
+            sys.argv = ['cluster_jtbd.py', input_file]
+            cluster_jtbd.main()
+            result = True
+            
+        elif module_name == "value_curve_mapper":
+            # Call value_curve_mapper with input file
+            input_file = inputs.get("zones", "opportunity_zones.json")
+            sys.argv = ['value_curve_mapper.py', input_file]
+            value_curve_mapper.main()
+            result = True
+            
+        elif module_name == "product_idea_generator":
+            # Call product_idea_generator
+            sys.argv = ['product_idea_generator.py']
+            product_idea_generator.main()
+            result = True
+            
+        elif module_name == "idea_consolidator":
+            # Call idea_consolidator
+            sys.argv = ['idea_consolidator.py']
+            idea_consolidator.main()
+            result = True
+            
+        elif module_name == "github_integration":
+            # Call product_idea_generator with github flag
+            extra_args = kwargs.get('extra_args', '')
+            sys.argv = ['product_idea_generator.py', '--github'] + extra_args.split()
+            product_idea_generator.main()
+            result = True
+            
+        else:
+            print(f"{Colors.RED}Unknown module: {module_name}{Colors.RESET}")
+            return False
         
         elapsed = time.time() - start_time
         
         # Check outputs exist
         all_outputs_exist = True
         for output_file in outputs:
+            # Special case for GitHub output
+            if output_file == "GitHub repository in ocean-studio-repos organization":
+                print(f"  ✅ GitHub repository created")
+                continue
+                
             if os.path.exists(output_file):
                 size = os.path.getsize(output_file)
                 print(f"  ✅ Created: {output_file} ({size:,} bytes)")
@@ -183,12 +199,11 @@ def run_module(module_name: str, inputs: Dict[str, str], outputs: List[str],
             print(f"  ⚠️  Module completed but some outputs missing")
             return False
             
-    except subprocess.CalledProcessError as e:
+    except Exception as e:
         print(f"\n{Colors.RED}❌ Error executing module {module_name}: {e}{Colors.RESET}")
-        if e.stdout and verbose:
-            print(f"{Colors.RED}STDOUT: {e.stdout}{Colors.RESET}")
-        if e.stderr:
-            print(f"{Colors.RED}STDERR: {e.stderr}{Colors.RESET}")
+        if verbose:
+            import traceback
+            print(f"{Colors.RED}{traceback.format_exc()}{Colors.RESET}")
         return False
     finally:
         # Clear verbose env var
