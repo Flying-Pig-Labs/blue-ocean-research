@@ -54,3 +54,7 @@ temp/
 
 # E2E test outputs
 test_outputs/
+
+# AWS SAM
+.aws-sam/
+samconfig.toml
