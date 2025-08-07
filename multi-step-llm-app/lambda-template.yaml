@@ -1,0 +1,468 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: >
+  Multi-step LLM Pipeline - Lambda Refactored Version
+  Complete serverless pipeline with individual Lambda functions for each stage
+
+Parameters:
+  EnvironmentName:
+    Type: String
+    Default: production
+    Description: Environment name (production, staging, development)
+  
+  SecretsManagerArn:
+    Type: String
+    Default: "arn:aws:secretsmanager:us-east-1:*:secret:pipeline-secrets*"
+    Description: ARN pattern for Secrets Manager secrets
+
+Globals:
+  Function:
+    Runtime: python3.11
+    Timeout: 30
+    MemorySize: 1024
+    Environment:
+      Variables:
+        PYTHONPATH: /opt/python
+        SECRETS_NAME: pipeline-secrets
+        ENVIRONMENT: !Ref EnvironmentName
+
+Resources:
+  # S3 Bucket for pipeline data
+  S3Bucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub "pipeline-data-${AWS::AccountId}-${AWS::Region}"
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      VersioningConfiguration:
+        Status: Enabled
+      LifecycleConfiguration:
+        Rules:
+          - Id: DeleteIncompleteMultipartUploads
+            Status: Enabled
+            AbortIncompleteMultipartUpload:
+              DaysAfterInitiation: 7
+          - Id: DeleteOldVersions
+            Status: Enabled
+            NoncurrentVersionExpirationInDays: 30
+
+  # DynamoDB table for job tracking
+  JobsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub "PipelineJobs-${EnvironmentName}"
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: jobId
+          AttributeType: S
+      KeySchema:
+        - AttributeName: jobId
+          KeyType: HASH
+      TimeToLiveSpecification:
+        AttributeName: ttl
+        Enabled: true
+
+  # Lambda Layer for common dependencies
+  CommonLayer:
+    Type: AWS::Serverless::LayerVersion
+    Properties:
+      LayerName: !Sub "multi-step-llm-common-${EnvironmentName}"
+      Description: Common dependencies for multi-step LLM pipeline
+      ContentUri: layers/common/
+      CompatibleRuntimes:
+        - python3.11
+    Metadata:
+      BuildMethod: python3.11
+
+  # API Gateway
+  ApiGateway:
+    Type: AWS::Serverless::Api
+    Properties:
+      StageName: !Ref EnvironmentName
+      Cors:
+        AllowMethods: "'GET,POST,PUT,DELETE,OPTIONS'"
+        AllowHeaders: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token'"
+        AllowOrigin: "'*'"
+        MaxAge: "'600'"
+
+  # Main API Handler Lambda Function
+  ApiHandlerFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub "multi-step-llm-api-handler-${EnvironmentName}"
+      CodeUri: ./
+      Handler: lambda_handler.lambda_handler
+      Timeout: 30
+      MemorySize: 512
+      Layers:
+        - !Ref CommonLayer
+      Environment:
+        Variables:
+          JOBS_TABLE: !Ref JobsTable
+          ORCHESTRATOR_FUNCTION_NAME: !Ref OrchestratorFunction
+          S3_BUCKET: !Ref S3Bucket
+          FUNCTION_PREFIX: !Sub "multi-step-llm-${EnvironmentName}-"
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref JobsTable
+        - LambdaInvokePolicy:
+            FunctionName: !Ref OrchestratorFunction
+        - S3CrudPolicy:
+            BucketName: !Ref S3Bucket
+        - Statement:
+          - Effect: Allow
+            Action:
+              - secretsmanager:GetSecretValue
+            Resource: !Ref SecretsManagerArn
+      Events:
+        StartPipeline:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ApiGateway
+            Path: /start-pipeline
+            Method: post
+        GetStatus:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ApiGateway
+            Path: /status/{jobId}
+            Method: get
+        GetLogs:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ApiGateway
+            Path: /logs/{jobId}
+            Method: get
+        Options:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ApiGateway
+            Path: /{proxy+}
+            Method: options
+
+  # Orchestrator Function (coordinates pipeline execution)
+  OrchestratorFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub "multi-step-llm-orchestrator-${EnvironmentName}"
+      CodeUri: ./
+      Handler: lambda_handler.orchestrator_handler
+      Timeout: 900  # 15 minutes
+      MemorySize: 1024
+      ReservedConcurrencyLimit: 10
+      Layers:
+        - !Ref CommonLayer
+      Environment:
+        Variables:
+          JOBS_TABLE: !Ref JobsTable
+          S3_BUCKET: !Ref S3Bucket
+          FUNCTION_PREFIX: !Sub "multi-step-llm-${EnvironmentName}-"
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref JobsTable
+        - S3CrudPolicy:
+            BucketName: !Ref S3Bucket
+        - Statement:
+          - Effect: Allow
+            Action:
+              - lambda:InvokeFunction
+            Resource: 
+              - !GetAtt ResearchAnalyzerFunction.Arn
+              - !GetAtt JobsResearcherFunction.Arn
+              - !GetAtt JobsToRedditFunction.Arn
+              - !GetAtt ClusterJtbdFunction.Arn
+              - !GetAtt OpportunityZonesFunction.Arn
+              - !GetAtt ValueCurvesFunction.Arn
+              - !GetAtt ProductIdeasFunction.Arn
+              - !GetAtt ConsolidatorFunction.Arn
+          - Effect: Allow
+            Action:
+              - secretsmanager:GetSecretValue
+            Resource: !Ref SecretsManagerArn
+
+  # Stage 1: Research Analyzer
+  ResearchAnalyzerFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub "multi-step-llm-research-analyzer-${EnvironmentName}"
+      CodeUri: ./
+      Handler: lambda_research_analyzer.lambda_handler
+      Timeout: 300  # 5 minutes
+      MemorySize: 1024
+      Layers:
+        - !Ref CommonLayer
+      Environment:
+        Variables:
+          S3_BUCKET: !Ref S3Bucket
+      Policies:
+        - S3CrudPolicy:
+            BucketName: !Ref S3Bucket
+        - Statement:
+          - Effect: Allow
+            Action:
+              - secretsmanager:GetSecretValue
+            Resource: !Ref SecretsManagerArn
+
+  # Stage 2: Jobs Researcher
+  JobsResearcherFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub "multi-step-llm-jobs-researcher-${EnvironmentName}"
+      CodeUri: ./
+      Handler: lambda_jobs_researcher.lambda_handler
+      Timeout: 900  # 15 minutes
+      MemorySize: 2048
+      Layers:
+        - !Ref CommonLayer
+      Environment:
+        Variables:
+          S3_BUCKET: !Ref S3Bucket
+      Policies:
+        - S3CrudPolicy:
+            BucketName: !Ref S3Bucket
+        - Statement:
+          - Effect: Allow
+            Action:
+              - secretsmanager:GetSecretValue
+            Resource: !Ref SecretsManagerArn
+
+  # Stage 2.5: Jobs to Reddit
+  JobsToRedditFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub "multi-step-llm-jobs-to-reddit-${EnvironmentName}"
+      CodeUri: ./
+      Handler: lambda_jobs_to_reddit.lambda_handler
+      Timeout: 900  # 15 minutes
+      MemorySize: 1024
+      Layers:
+        - !Ref CommonLayer
+      Environment:
+        Variables:
+          S3_BUCKET: !Ref S3Bucket
+      Policies:
+        - S3CrudPolicy:
+            BucketName: !Ref S3Bucket
+        - Statement:
+          - Effect: Allow
+            Action:
+              - secretsmanager:GetSecretValue
+            Resource: !Ref SecretsManagerArn
+
+  # Stage 3: JTBD Clustering
+  ClusterJtbdFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub "multi-step-llm-cluster-jtbd-${EnvironmentName}"
+      CodeUri: ./
+      Handler: lambda_cluster_jtbd.lambda_handler
+      Timeout: 900  # 15 minutes
+      MemorySize: 3008  # Max memory for ML operations
+      Layers:
+        - !Ref CommonLayer
+      Environment:
+        Variables:
+          S3_BUCKET: !Ref S3Bucket
+      Policies:
+        - S3CrudPolicy:
+            BucketName: !Ref S3Bucket
+        - Statement:
+          - Effect: Allow
+            Action:
+              - secretsmanager:GetSecretValue
+            Resource: !Ref SecretsManagerArn
+
+  # Stage 3.5: Advanced Opportunity Zones
+  OpportunityZonesFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub "multi-step-llm-opportunity-zones-${EnvironmentName}"
+      CodeUri: ./
+      Handler: lambda_opportunity_zones.lambda_handler
+      Timeout: 900  # 15 minutes
+      MemorySize: 2048
+      Layers:
+        - !Ref CommonLayer
+      Environment:
+        Variables:
+          S3_BUCKET: !Ref S3Bucket
+      Policies:
+        - S3CrudPolicy:
+            BucketName: !Ref S3Bucket
+        - Statement:
+          - Effect: Allow
+            Action:
+              - secretsmanager:GetSecretValue
+            Resource: !Ref SecretsManagerArn
+
+  # Stage 4: Value Curves
+  ValueCurvesFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub "multi-step-llm-value-curves-${EnvironmentName}"
+      CodeUri: ./
+      Handler: lambda_value_curves.lambda_handler
+      Timeout: 900  # 15 minutes
+      MemorySize: 2048
+      Layers:
+        - !Ref CommonLayer
+      Environment:
+        Variables:
+          S3_BUCKET: !Ref S3Bucket
+      Policies:
+        - S3CrudPolicy:
+            BucketName: !Ref S3Bucket
+        - Statement:
+          - Effect: Allow
+            Action:
+              - secretsmanager:GetSecretValue
+            Resource: !Ref SecretsManagerArn
+
+  # Stage 5: Product Ideas Generation
+  ProductIdeasFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub "multi-step-llm-product-ideas-${EnvironmentName}"
+      CodeUri: ./
+      Handler: lambda_product_ideas.lambda_handler
+      Timeout: 900  # 15 minutes
+      MemorySize: 3008  # Max memory for o1 model processing
+      ReservedConcurrencyLimit: 5  # Limit concurrent executions
+      Layers:
+        - !Ref CommonLayer
+      Environment:
+        Variables:
+          S3_BUCKET: !Ref S3Bucket
+      Policies:
+        - S3CrudPolicy:
+            BucketName: !Ref S3Bucket
+        - Statement:
+          - Effect: Allow
+            Action:
+              - secretsmanager:GetSecretValue
+            Resource: !Ref SecretsManagerArn
+
+  # Stage 6: Consolidator
+  ConsolidatorFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub "multi-step-llm-consolidator-${EnvironmentName}"
+      CodeUri: ./
+      Handler: lambda_consolidator.lambda_handler
+      Timeout: 300  # 5 minutes
+      MemorySize: 1024
+      Layers:
+        - !Ref CommonLayer
+      Environment:
+        Variables:
+          S3_BUCKET: !Ref S3Bucket
+      Policies:
+        - S3CrudPolicy:
+            BucketName: !Ref S3Bucket
+
+  # CloudWatch Log Groups with retention
+  ApiHandlerLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub "/aws/lambda/multi-step-llm-api-handler-${EnvironmentName}"
+      RetentionInDays: 14
+
+  OrchestratorLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub "/aws/lambda/multi-step-llm-orchestrator-${EnvironmentName}"
+      RetentionInDays: 14
+
+  ResearchAnalyzerLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub "/aws/lambda/multi-step-llm-research-analyzer-${EnvironmentName}"
+      RetentionInDays: 14
+
+  JobsResearcherLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub "/aws/lambda/multi-step-llm-jobs-researcher-${EnvironmentName}"
+      RetentionInDays: 14
+
+  JobsToRedditLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub "/aws/lambda/multi-step-llm-jobs-to-reddit-${EnvironmentName}"
+      RetentionInDays: 14
+
+  ClusterJtbdLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub "/aws/lambda/multi-step-llm-cluster-jtbd-${EnvironmentName}"
+      RetentionInDays: 14
+
+  OpportunityZonesLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub "/aws/lambda/multi-step-llm-opportunity-zones-${EnvironmentName}"
+      RetentionInDays: 14
+
+  ValueCurvesLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub "/aws/lambda/multi-step-llm-value-curves-${EnvironmentName}"
+      RetentionInDays: 14
+
+  ProductIdeasLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub "/aws/lambda/multi-step-llm-product-ideas-${EnvironmentName}"
+      RetentionInDays: 14
+
+  ConsolidatorLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub "/aws/lambda/multi-step-llm-consolidator-${EnvironmentName}"
+      RetentionInDays: 14
+
+Outputs:
+  ApiEndpoint:
+    Description: "API Gateway endpoint URL"
+    Value: !Sub "https://${ApiGateway}.execute-api.${AWS::Region}.amazonaws.com/${EnvironmentName}"
+    Export:
+      Name: !Sub "${AWS::StackName}-ApiEndpoint"
+
+  ApiHandlerFunctionArn:
+    Description: "API Handler Lambda function ARN"
+    Value: !GetAtt ApiHandlerFunction.Arn
+    Export:
+      Name: !Sub "${AWS::StackName}-ApiHandlerFunction"
+
+  OrchestratorFunctionArn:
+    Description: "Orchestrator Lambda function ARN"
+    Value: !GetAtt OrchestratorFunction.Arn
+    Export:
+      Name: !Sub "${AWS::StackName}-OrchestratorFunction"
+
+  JobsTableName:
+    Description: "DynamoDB table for job tracking"
+    Value: !Ref JobsTable
+    Export:
+      Name: !Sub "${AWS::StackName}-JobsTable"
+
+  S3BucketName:
+    Description: "S3 bucket for pipeline data"
+    Value: !Ref S3Bucket
+    Export:
+      Name: !Sub "${AWS::StackName}-S3Bucket"
+
+  PipelineStages:
+    Description: "List of all pipeline stage function names"
+    Value: !Sub |
+      Research Analyzer: multi-step-llm-research-analyzer-${EnvironmentName}
+      Jobs Researcher: multi-step-llm-jobs-researcher-${EnvironmentName}
+      Jobs to Reddit: multi-step-llm-jobs-to-reddit-${EnvironmentName}
+      JTBD Clustering: multi-step-llm-cluster-jtbd-${EnvironmentName}
+      Opportunity Zones: multi-step-llm-opportunity-zones-${EnvironmentName}
+      Value Curves: multi-step-llm-value-curves-${EnvironmentName}
+      Product Ideas: multi-step-llm-product-ideas-${EnvironmentName}
+      Consolidator: multi-step-llm-consolidator-${EnvironmentName}

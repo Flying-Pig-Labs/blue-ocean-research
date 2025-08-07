@@ -1,0 +1,151 @@
+{
+  "timestamp": "2025-08-06T23:09:46.500627",
+  "test_coverage": {},
+  "performance_metrics": {
+    "lambda_cold_start": {},
+    "api_response_times": {},
+    "memory_usage": {},
+    "concurrent_execution": {},
+    "large_data_processing": {},
+    "total_test_time": 15.282439947128296,
+    "tests_passed": false
+  },
+  "security_findings": {
+    "input_validation": {
+      "passed": 0,
+      "failed": 0,
+      "issues": []
+    },
+    "injection_prevention": {
+      "passed": 0,
+      "failed": 0,
+      "issues": []
+    },
+    "authentication": {
+      "passed": 0,
+      "failed": 0,
+      "issues": []
+    },
+    "data_encryption": {
+      "passed": 0,
+      "failed": 0,
+      "issues": []
+    },
+    "overall_score": 0
+  },
+  "architecture_compliance": {
+    "lambda_configuration": {
+      "score": 40,
+      "issues": [
+        "Starter function timeout may be insufficient for complex operations",
+        "Orchestrator timeout may be insufficient for full pipeline (22+ minutes)",
+        "No reserved concurrency configured for orchestrator"
+      ],
+      "recommendations": [
+        "Consider increasing starter function timeout to 60s",
+        "Increase orchestrator timeout to 1800s (30 minutes)",
+        "Consider 1024MB memory for better CPU performance",
+        "Set reserved concurrency to prevent throttling"
+      ]
+    },
+    "dynamodb_design": {
+      "score": 100,
+      "issues": [],
+      "recommendations": [
+        "TTL correctly configured for automatic cleanup",
+        "Pay-per-request billing appropriate for variable workload"
+      ]
+    },
+    "api_gateway_setup": {
+      "score": 70,
+      "issues": [
+        "CORS allows all origins (*) - security risk"
+      ],
+      "recommendations": [
+        "Restrict CORS to specific allowed domains"
+      ]
+    },
+    "security_configuration": {
+      "score": 100,
+      "issues": [],
+      "recommendations": [
+        "Environment variables properly accessed",
+        "Logging properly configured"
+      ]
+    },
+    "monitoring_logging": {
+      "score": 0,
+      "issues": [],
+      "recommendations": []
+    },
+    "overall_score": 62.0
+  },
+  "recommendations": [
+    {
+      "priority": "HIGH",
+      "category": "Security",
+      "issue": "Security validation score is 0.0%",
+      "recommendation": "Address failed security tests, implement input validation, restrict CORS"
+    },
+    {
+      "priority": "MEDIUM",
+      "category": "Architecture",
+      "issue": "Architecture compliance is 62.0%",
+      "recommendation": "Review Lambda timeouts, implement reserved concurrency, enhance monitoring"
+    },
+    {
+      "priority": "LOW",
+      "category": "Lambda Configuration",
+      "issue": "Architecture optimization opportunity",
+      "recommendation": "Consider increasing starter function timeout to 60s"
+    },
+    {
+      "priority": "LOW",
+      "category": "Lambda Configuration",
+      "issue": "Architecture optimization opportunity",
+      "recommendation": "Increase orchestrator timeout to 1800s (30 minutes)"
+    },
+    {
+      "priority": "LOW",
+      "category": "Lambda Configuration",
+      "issue": "Architecture optimization opportunity",
+      "recommendation": "Consider 1024MB memory for better CPU performance"
+    },
+    {
+      "priority": "LOW",
+      "category": "Lambda Configuration",
+      "issue": "Architecture optimization opportunity",
+      "recommendation": "Set reserved concurrency to prevent throttling"
+    },
+    {
+      "priority": "LOW",
+      "category": "Dynamodb Design",
+      "issue": "Architecture optimization opportunity",
+      "recommendation": "TTL correctly configured for automatic cleanup"
+    },
+    {
+      "priority": "LOW",
+      "category": "Dynamodb Design",
+      "issue": "Architecture optimization opportunity",
+      "recommendation": "Pay-per-request billing appropriate for variable workload"
+    },
+    {
+      "priority": "LOW",
+      "category": "Api Gateway Setup",
+      "issue": "Architecture optimization opportunity",
+      "recommendation": "Restrict CORS to specific allowed domains"
+    },
+    {
+      "priority": "LOW",
+      "category": "Security Configuration",
+      "issue": "Architecture optimization opportunity",
+      "recommendation": "Environment variables properly accessed"
+    },
+    {
+      "priority": "LOW",
+      "category": "Security Configuration",
+      "issue": "Architecture optimization opportunity",
+      "recommendation": "Logging properly configured"
+    }
+  ]
+}

@@ -551,7 +551,94 @@ Resources:
             Resource: 
               - !Sub "arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:pipeline-secrets*"
 
+  # Enhanced Lambda handler with GraphQL integration
+  StarterFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub "pipeline-starter-${EnvironmentName}"
+      CodeUri: ./
+      Handler: enhanced_lambda_handler.lambda_handler
+      Runtime: python3.11
+      Timeout: 30
+      MemorySize: 512
+      Environment:
+        Variables:
+          JOBS_TABLE: !Ref JobsTable
+          ORCHESTRATOR_FUNCTION_NAME: !Ref OrchestratorFunction
+          S3_BUCKET: !Ref S3Bucket
+          GRAPHQL_API_URL: !GetAtt GraphQLApi.GraphQLUrl
+          GRAPHQL_API_ID: !GetAtt GraphQLApi.ApiId
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref JobsTable
+        - LambdaInvokePolicy:
+            FunctionName: !Ref OrchestratorFunction
+        - S3CrudPolicy:
+            BucketName: !Ref S3Bucket
+        - Statement:
+          - Effect: Allow
+            Action:
+              - appsync:GraphQL
+            Resource: !Sub "${GraphQLApi.Arn}/*"
+      Events:
+        StartPipeline:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ApiGateway
+            Path: /start-pipeline
+            Method: post
+        GetStatus:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ApiGateway
+            Path: /status/{jobId}
+            Method: get
+        GetLogs:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ApiGateway
+            Path: /logs/{jobId}
+            Method: get
+
+  # Orchestrator Lambda Function (Enhanced with GraphQL)
+  OrchestratorFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub "pipeline-orchestrator-${EnvironmentName}"
+      CodeUri: ./
+      Handler: enhanced_lambda_handler.enhanced_orchestrator_handler
+      Runtime: python3.11
+      Timeout: 900  # 15 minutes
+      MemorySize: 3008
+      Environment:
+        Variables:
+          JOBS_TABLE: !Ref JobsTable
+          S3_BUCKET: !Ref S3Bucket
+          GRAPHQL_API_URL: !GetAtt GraphQLApi.GraphQLUrl
+          GRAPHQL_API_ID: !GetAtt GraphQLApi.ApiId
+          ANTHROPIC_API_KEY: !Sub "{{resolve:secretsmanager:pipeline-secrets:SecretString:ANTHROPIC_API_KEY}}"
+          OPENAI_API_KEY: !Sub "{{resolve:secretsmanager:pipeline-secrets:SecretString:OPENAI_API_KEY}}"
+          EXA_API_KEY: !Sub "{{resolve:secretsmanager:pipeline-secrets:SecretString:EXA_API_KEY}}"
+          COHERE_API_KEY: !Sub "{{resolve:secretsmanager:pipeline-secrets:SecretString:COHERE_API_KEY}}"
+          GITHUB_TOKEN: !Sub "{{resolve:secretsmanager:pipeline-secrets:SecretString:GITHUB_TOKEN}}"
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref JobsTable
+        - S3CrudPolicy:
+            BucketName: !Ref S3Bucket
+        - Statement:
+          - Effect: Allow
+            Action:
+              - secretsmanager:GetSecretValue
+            Resource: 
+              - !Sub "arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:pipeline-secrets*"
+          - Effect: Allow
+            Action:
+              - appsync:GraphQL
+            Resource: !Sub "${GraphQLApi.Arn}/*"
+
 Outputs:
+  # REST API Outputs
   ApiEndpoint:
     Description: "API Gateway endpoint URL"
     Value: !Sub "https://${ApiGateway}.execute-api.${AWS::Region}.amazonaws.com/${EnvironmentName}"
@@ -570,14 +657,70 @@ Outputs:
     Export:
       Name: !Sub "${AWS::StackName}-OrchestratorFunction"
 
+  # GraphQL Outputs
+  GraphQLApiUrl:
+    Description: "GraphQL API URL for real-time subscriptions"
+    Value: !GetAtt GraphQLApi.GraphQLUrl
+    Export:
+      Name: !Sub "${AWS::StackName}-GraphQLUrl"
+
+  GraphQLApiId:
+    Description: "GraphQL API ID"
+    Value: !GetAtt GraphQLApi.ApiId
+    Export:
+      Name: !Sub "${AWS::StackName}-GraphQLApiId"
+
+  GraphQLApiKey:
+    Description: "GraphQL API Key for authentication"
+    Value: !GetAtt GraphQLApiKey.ApiKey
+    Export:
+      Name: !Sub "${AWS::StackName}-GraphQLApiKey"
+
+  GraphQLResolverFunctionArn:
+    Description: "GraphQL Resolver Lambda function ARN"
+    Value: !GetAtt GraphQLResolverFunction.Arn
+    Export:
+      Name: !Sub "${AWS::StackName}-GraphQLResolverFunction"
+
+  StreamProcessorFunctionArn:
+    Description: "Stream Processor Lambda function ARN"
+    Value: !GetAtt StreamProcessorFunction.Arn
+    Export:
+      Name: !Sub "${AWS::StackName}-StreamProcessorFunction"
+
+  # Data Outputs
   JobsTableName:
     Description: "DynamoDB table for job tracking"
     Value: !Ref JobsTable
     Export:
       Name: !Sub "${AWS::StackName}-JobsTable"
 
+  JobsTableArn:
+    Description: "DynamoDB table ARN"
+    Value: !GetAtt JobsTable.Arn
+    Export:
+      Name: !Sub "${AWS::StackName}-JobsTableArn"
+
+  JobsTableStreamArn:
+    Description: "DynamoDB table stream ARN"
+    Value: !GetAtt JobsTable.StreamArn
+    Export:
+      Name: !Sub "${AWS::StackName}-JobsTableStreamArn"
+
   S3BucketName:
     Description: "S3 bucket for pipeline data"
     Value: !Ref S3Bucket
     Export:
       Name: !Sub "${AWS::StackName}-S3Bucket"
+
+  # Frontend Environment Variables
+  FrontendConfig:
+    Description: "Configuration values for React frontend"
+    Value: !Sub |
+      REACT_APP_GRAPHQL_URL=${GraphQLApi.GraphQLUrl}
+      REACT_APP_GRAPHQL_API_KEY=${GraphQLApiKey.ApiKey}
+      REACT_APP_REST_API_URL=https://${ApiGateway}.execute-api.${AWS::Region}.amazonaws.com/${EnvironmentName}
+      REACT_APP_AWS_REGION=${AWS::Region}
+      REACT_APP_ENVIRONMENT=${EnvironmentName}
+    Export:
+      Name: !Sub "${AWS::StackName}-FrontendConfig"
