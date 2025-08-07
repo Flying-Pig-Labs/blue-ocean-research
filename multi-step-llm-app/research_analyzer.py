@@ -948,13 +948,28 @@ class ResearchAnalyzer(DebugAwareComponent):
             )
             self.save_results(combined_results, output_file)
 
-            # Optional: Display preview
-            if (
-                console.input(
-                    "\n[yellow]Display preview of results? (y/n): [/yellow]"
-                ).lower()
-                == "y"
-            ):
+            # Check if we're in interactive mode
+            import sys
+            is_interactive = '--interactive' in sys.argv
+            
+            if is_interactive:
+                # In interactive mode, ask the user
+                if (
+                    console.input(
+                        "\n[yellow]Display preview of results? (y/n): [/yellow]"
+                    ).lower()
+                    == "y"
+                ):
+                    preview = (
+                        combined_results[:1000] + "..."
+                        if len(combined_results) > 1000
+                        else combined_results
+                    )
+                    console.print(
+                        Panel(Markdown(preview), title="Preview", border_style="dim")
+                    )
+            else:
+                # In non-interactive mode, always display preview
                 preview = (
                     combined_results[:1000] + "..."
                     if len(combined_results) > 1000

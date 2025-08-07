@@ -1,0 +1,77 @@
+[
+  {
+    "cluster_id": "0",
+    "size": 35,
+    "avg_score": 336.0285714285714,
+    "total_comments": "4852",
+    "top_subreddits": {
+      "FirstTimeHomeBuyer": 12,
+      "RealEstate": 11,
+      "Mortgages": 7
+    },
+    "top_jtbds": [
+      "When I'm a first-time homebuyer, I want step-by-step guidance through the process, so I can avoid common mistakes.",
+      "When I'm buying a luxury property, I want to verify property history and ownership, so I can ensure a sound investment.",
+      "Process real estate transactions while maintaining compliance with current regulations."
+    ],
+    "theme": "Challenges and frustrations in the home buying and selling process",
+    "pain_point": "Users are facing manipulative practices, unexpected costs, and contract issues.",
+    "user_sentiment": "Frustrated and anxious about their real estate transactions",
+    "common_scenario": "Users are navigating complex real estate transactions with untrustworthy agents and unexpected financial burdens.",
+    "potential_solution": "Increased transparency in contracts and better guidance from real estate professionals.",
+    "sample_posts": [
+      {
+        "title": "Manipulative Buyers Got Greedy and Lost a Great House",
+        "score": 3088,
+        "subreddit": "RealEstate"
+      },
+      {
+        "title": "I bought a condo. I hate it here.",
+        "score": 1812,
+        "subreddit": "FirstTimeHomeBuyer"
+      },
+      {
+        "title": "UPDATE: Seller backing out 1 week before close",
+        "score": 1432,
+        "subreddit": "RealEstate"
+      }
+    ]
+  },
+  {
+    "cluster_id": "1",
+    "size": 8,
+    "avg_score": 6.875,
+    "total_comments": "252",
+    "top_subreddits": {
+      "FirstTimeHomeBuyer": 3,
+      "RealEstate": 3,
+      "Mortgages": 1
+    },
+    "top_jtbds": [
+      "Calculate closing costs without waiting for manual estimates.",
+      "When I'm a first-time homebuyer, I want step-by-step guidance through the process, so I can avoid common mistakes."
+    ],
+    "theme": "Concerns about high closing costs for first-time homebuyers",
+    "pain_point": "Users are confused and anxious about understanding and managing closing costs.",
+    "user_sentiment": "Frustrated and seeking help",
+    "common_scenario": "First-time homebuyers navigating the complexities of closing costs and fees.",
+    "potential_solution": "Providing clear breakdowns of closing costs and resources for better understanding.",
+    "sample_posts": [
+      {
+        "title": "Hello, first time buying a home. I close in 10 days and need help on the numbers.  Does this look good?",
+        "score": 22,
+        "subreddit": "FirstTimeHomeBuyer"
+      },
+      {
+        "title": "first time home buyer, why closing costs are so damn high??",
+        "score": 18,
+        "subreddit": "RealEstate"
+      },
+      {
+        "title": "Buying down Interest rate",
+        "score": 6,
+        "subreddit": "Mortgages"
+      }
+    ]
+  }
+]

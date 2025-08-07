@@ -1,0 +1,119 @@
+{
+  "analysis_metadata": {
+    "timestamp": "2025-08-06T21:25:23.061001",
+    "total_jtbds": 5,
+    "total_reddit_threads": 15,
+    "total_zones_discovered": 3,
+    "pain_dimensions_analyzed": [
+      "timing_coordination",
+      "financial_stress",
+      "communication_gaps",
+      "process_complexity",
+      "trust_issues",
+      "technology_gaps",
+      "decision_anxiety",
+      "market_dynamics"
+    ]
+  },
+  "opportunity_zones": [
+    {
+      "zone_id": "OZ_001",
+      "name": "Financial Management & Trust & Verification Platform",
+      "jtbds_addressed": [
+        "JTBD_003",
+        "JTBD_005"
+      ],
+      "jtbd_descriptions": [
+        "When I'm a first-time homebuyer, I want step-by-step guidance through the process, so I can avoid co...",
+        "Access transaction documents while away from the office...."
+      ],
+      "evidence_strength": {
+        "total_threads": 6,
+        "total_engagement": 28085,
+        "avg_score_per_thread": 4319.666666666667
+      },
+      "pain_dimensions": {
+        "timing_coordination": 0.44,
+        "financial_stress": 0.83,
+        "communication_gaps": 0.69,
+        "process_complexity": 0.7,
+        "trust_issues": 0.8,
+        "technology_gaps": 0.39,
+        "decision_anxiety": 0.72
+      },
+      "solution_requirements": [
+        "Mobile-optimized document viewer with offline access capability",
+        "Step-by-step checklist system with automated status tracking and deadline alerts",
+        "Digital document verification system with audit trail and timestamping",
+        "Secure multi-party document sharing portal with role-based access controls",
+        "Automated payment reconciliation tracker with proof-of-transaction records"
+      ],
+      "market_opportunity_score": 0.78
+    },
+    {
+      "zone_id": "OZ_002",
+      "name": "Market Intelligence & Financial Management Platform",
+      "jtbds_addressed": [
+        "JTBD_001",
+        "JTBD_004"
+      ],
+      "jtbd_descriptions": [
+        "Generate marketing materials without hiring multiple creative professionals....",
+        "When I'm selling my home, I want to receive showing feedback immediately, so I can make necessary ad..."
+      ],
+      "evidence_strength": {
+        "total_threads": 6,
+        "total_engagement": 48569,
+        "avg_score_per_thread": 7662.666666666667
+      },
+      "pain_dimensions": {
+        "financial_stress": 0.73,
+        "communication_gaps": 0.3,
+        "trust_issues": 0.52,
+        "decision_anxiety": 0.61,
+        "market_dynamics": 0.77
+      },
+      "solution_requirements": [
+        "Automated feedback collection system that sends surveys within 1 hour of showings",
+        "Marketing template generator with pre-built layouts for listings",
+        "Video/audio recording storage system for property showings with transcription",
+        "Offer strength scoring algorithm based on down payment, loan type, and market conditions",
+        "Digital documentation hub that tracks all communication between parties with timestamp verification"
+      ],
+      "market_opportunity_score": 0.71
+    },
+    {
+      "zone_id": "OZ_003",
+      "name": "Decision Support & Financial Management Platform",
+      "jtbds_addressed": [
+        "JTBD_002"
+      ],
+      "jtbd_descriptions": [
+        "Track mortgage application status while maintaining privacy and security...."
+      ],
+      "evidence_strength": {
+        "total_threads": 3,
+        "total_engagement": 18369,
+        "avg_score_per_thread": 4976.333333333333
+      },
+      "pain_dimensions": {
+        "financial_stress": 0.82,
+        "trust_issues": 0.64,
+        "decision_anxiety": 0.88,
+        "market_dynamics": 0.38
+      },
+      "solution_requirements": [
+        "Anonymized mortgage status tracking portal with unique ID lookup",
+        "End-to-end encrypted document upload and storage system",
+        "Multi-factor authentication for sensitive financial information access",
+        "Private messaging system between applicant and mortgage processor"
+      ],
+      "market_opportunity_score": 0.61
+    }
+  ],
+  "zone_summary": {
+    "highest_opportunity": "Financial Management & Trust & Verification Platform",
+    "total_market_coverage": 1.0,
+    "strongest_pain_dimension": "financial_stress"
+  }
+}

@@ -1,0 +1,7 @@
+# Jobs-to-be-Done extracted from analysis
+
+1. Generate marketing materials without hiring multiple creative professionals.
+2. Track mortgage application status while maintaining privacy and security.
+3. When I'm a first-time homebuyer, I want step-by-step guidance through the process, so I can avoid common mistakes.
+4. When I'm selling my home, I want to receive showing feedback immediately, so I can make necessary adjustments.
+5. Access transaction documents while away from the office.

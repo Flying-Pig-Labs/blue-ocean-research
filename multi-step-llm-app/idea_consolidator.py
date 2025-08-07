@@ -163,7 +163,8 @@ class IdeaConsolidator:
                     in_section = False
                 elif in_section and line.strip() and not line.startswith(" "):
                     factors.append(line.strip())
-        return factors[:5]  # Limit to top 5 factors
+        # Return all factors, not just top 5 - let the caller decide how many to use
+        return factors
 
     def _extract_pain_points_from_zone(self, zone: Dict) -> List[str]:
         """Extract relevant pain points for this zone"""
@@ -327,12 +328,10 @@ class IdeaConsolidator:
                 "highest_scoring_idea": self._find_highest_scoring(all_ideas),
                 "most_innovative_idea": self._find_most_innovative(all_ideas),
                 "quickest_to_market": self._find_quickest_to_market(all_ideas),
-                "recommendation": "Focus on top 3 ideas for initial development",
+                "recommendation": "Evaluate all ideas based on strategic fit and choose 1-2 to pursue",
             },
             "zone_summaries": zone_summaries,
             "all_filtered_ideas": all_ideas,
-            "implementation_roadmap": self._create_roadmap(all_ideas),
-            "resource_allocation": self._suggest_resource_allocation(all_ideas),
             "success_metrics": {
                 "short_term": ["User adoption", "Feature usage", "Customer feedback"],
                 "medium_term": ["Revenue growth", "Market share", "Retention rates"],
@@ -380,27 +379,58 @@ class IdeaConsolidator:
             ),
         )
 
-    def _create_roadmap(self, ideas: List[Dict]) -> Dict:
-        """Create implementation roadmap"""
+    # REMOVED: _create_roadmap was making incorrect assumption that all ideas would be built
+    # Companies choose 1-2 ideas to pursue, not implement entire portfolio
+    
+    def _REMOVED_create_roadmap(self, ideas: List[Dict]) -> Dict:
+        """Create implementation roadmap - distribute ALL ideas across phases"""
+        # Sort ideas by viability score to prioritize implementation
+        sorted_ideas = sorted(ideas, key=lambda x: x.get("scores", {}).get("viability_score", 0), reverse=True)
+        
+        # Distribute ALL ideas across phases intelligently
+        total_ideas = len(sorted_ideas)
+        if total_ideas == 0:
+            return {"phase_1": {}, "phase_2": {}, "phase_3": {}}
+        
+        # Dynamic distribution based on total count
+        if total_ideas <= 3:
+            phase1_ideas = sorted_ideas
+            phase2_ideas = []
+            phase3_ideas = []
+        elif total_ideas <= 6:
+            phase1_ideas = sorted_ideas[:2]
+            phase2_ideas = sorted_ideas[2:]
+            phase3_ideas = []
+        else:
+            # Distribute proportionally: 20% phase 1, 30% phase 2, 50% phase 3
+            phase1_count = max(2, total_ideas // 5)
+            phase2_count = max(2, total_ideas // 3)
+            phase1_ideas = sorted_ideas[:phase1_count]
+            phase2_ideas = sorted_ideas[phase1_count:phase1_count+phase2_count]
+            phase3_ideas = sorted_ideas[phase1_count+phase2_count:]
+        
         return {
             "phase_1": {
                 "duration": "0-3 months",
                 "focus": "Validation and prototyping",
-                "ideas": [idea["idea_id"] for idea in ideas[:2]],
+                "ideas": [idea["idea_id"] for idea in phase1_ideas],
             },
             "phase_2": {
                 "duration": "3-9 months",
                 "focus": "MVP development and launch",
-                "ideas": [idea["idea_id"] for idea in ideas[:3]],
+                "ideas": [idea["idea_id"] for idea in phase2_ideas],
             },
             "phase_3": {
                 "duration": "9-18 months",
                 "focus": "Scale and expand",
-                "ideas": [idea["idea_id"] for idea in ideas[:5]],
+                "ideas": [idea["idea_id"] for idea in phase3_ideas],
             },
         }
 
-    def _suggest_resource_allocation(self, ideas: List[Dict]) -> Dict:
+    # REMOVED: _suggest_resource_allocation assumed building all ideas simultaneously
+    # In reality, companies evaluate and choose specific ideas to pursue
+    
+    def _REMOVED_suggest_resource_allocation(self, ideas: List[Dict]) -> Dict:
         """Suggest resource allocation across ideas"""
         total_ideas = len(ideas)
         if total_ideas == 0:
@@ -466,15 +496,15 @@ class IdeaConsolidator:
         )
         report += f"- **Recommendation**: {exec_summary['recommendation']}\n\n"
 
-        # Top Ideas
-        report += "## Top 3 Ideas\n\n"
-        top_ideas = sorted(
+        # All Ideas Ranked by Viability
+        report += "## All Ideas Ranked by Viability Score\n\n"
+        all_ideas_ranked = sorted(
             final_data["all_filtered_ideas"],
             key=lambda x: x["scores"]["viability_score"],
             reverse=True,
-        )[:3]
+        )
 
-        for i, idea in enumerate(top_ideas, 1):
+        for i, idea in enumerate(all_ideas_ranked, 1):
             report += f"### {i}. {idea['core_concept']['name']}\n"
             report += f"- **Value Proposition**: {idea['core_concept']['value_proposition']}\n"
             report += f"- **Viability Score**: {idea['scores']['viability_score']}/10\n"
@@ -519,14 +549,18 @@ class IdeaConsolidator:
 
         table.add_row("Total Opportunity Zones", str(total_zones))
         table.add_row("Total Innovation Ideas", str(total_ideas))
-        table.add_row(
-            "Average Viability Score",
-            f"{sum(i['scores']['viability_score'] for i in final_output['all_filtered_ideas']) / total_ideas:.1f}",
-        )
-        table.add_row(
-            "Average Innovation Score",
-            f"{sum(i['scores']['innovation_score'] for i in final_output['all_filtered_ideas']) / total_ideas:.1f}",
-        )
+        if total_ideas > 0:
+            table.add_row(
+                "Average Viability Score",
+                f"{sum(i['scores']['viability_score'] for i in final_output['all_filtered_ideas']) / total_ideas:.1f}",
+            )
+            table.add_row(
+                "Average Innovation Score",
+                f"{sum(i['scores']['innovation_score'] for i in final_output['all_filtered_ideas']) / total_ideas:.1f}",
+            )
+        else:
+            table.add_row("Average Viability Score", "N/A")
+            table.add_row("Average Innovation Score", "N/A")
 
         console.print(table)
 

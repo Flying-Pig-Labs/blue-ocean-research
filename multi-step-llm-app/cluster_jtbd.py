@@ -239,10 +239,11 @@ class JTBDClusterer:
         """
         console.print("[cyan]🧠 Clustering with HDBSCAN...[/cyan]")
 
-        # HDBSCAN with auto-tuned parameters
+        # HDBSCAN with auto-tuned parameters for production
+        # More adaptive: works with small (10+) and large (1000+) datasets
         clusterer = HDBSCAN(
-            min_cluster_size=max(5, len(embeddings) // 50),  # Dynamic sizing
-            min_samples=3,
+            min_cluster_size=max(3, min(20, len(embeddings) // 10)),  # Adaptive: 3-20 based on size
+            min_samples=2,  # Lower threshold for denser clusters
             metric="euclidean",
             cluster_selection_epsilon=0.0,
             cluster_selection_method="eom",
@@ -268,6 +269,29 @@ class JTBDClusterer:
             f"[green]✅ Found {n_clusters} clusters ({n_noise} noise points)[/green]"
         )
         console.print(f"[blue]📊 Silhouette score: {silhouette:.3f}[/blue]")
+
+        # FALLBACK: If no clusters found, use KMeans to force clustering
+        if n_clusters == 0:
+            console.print("[yellow]⚠️  No clusters found with HDBSCAN, falling back to KMeans...[/yellow]")
+            from sklearn.cluster import KMeans
+            
+            # Determine optimal number of clusters (5-8 for good diversity)
+            n_target_clusters = min(8, max(5, len(embeddings) // 20))
+            
+            kmeans = KMeans(n_clusters=n_target_clusters, random_state=42, n_init=10)
+            labels = kmeans.fit_predict(embeddings)
+            
+            # Recalculate metrics
+            n_clusters = len(set(labels))
+            n_noise = 0  # KMeans has no noise points
+            
+            try:
+                silhouette = silhouette_score(embeddings, labels)
+            except Exception:
+                silhouette = -1
+                
+            console.print(f"[green]✅ Created {n_clusters} clusters using KMeans fallback[/green]")
+            console.print(f"[blue]📊 Silhouette score: {silhouette:.3f}[/blue]")
 
         return labels, silhouette
 
@@ -302,15 +326,35 @@ class JTBDClusterer:
             task = progress.add_task("Labeling clusters...", total=len(clusters))
 
             for cluster_id, texts in clusters.items():
-                # Prepare sample texts for GPT-4o
-                sample_size = min(10, len(texts))
-                sample_texts = texts[:sample_size]
+                # Use ALL texts for better context, but limit character count for prompt
+                # This ensures GPT-4o sees the full diversity of the cluster
+                all_texts_str = chr(10).join([f"- {t}" for t in texts])
+                
+                # If the full text is too long (>8000 chars), use intelligent sampling
+                if len(all_texts_str) > 8000:
+                    # Take a diverse sample: first few, middle few, last few
+                    sample_texts = []
+                    if len(texts) > 30:
+                        # Take first 10, middle 10, last 10
+                        sample_texts.extend(texts[:10])
+                        mid_point = len(texts) // 2
+                        sample_texts.extend(texts[mid_point-5:mid_point+5])
+                        sample_texts.extend(texts[-10:])
+                    else:
+                        # For smaller clusters, take all
+                        sample_texts = texts
+                    
+                    cluster_items_str = chr(10).join([f"- {t}" for t in sample_texts])
+                else:
+                    # Use all texts if they fit
+                    sample_texts = texts
+                    cluster_items_str = all_texts_str
 
                 # Format prompt using config loader
                 prompt = self.config_loader.format_prompt(
                     'clustering', 
                     'naming',
-                    cluster_items=chr(10).join([f"- {t}" for t in sample_texts])
+                    cluster_items=cluster_items_str
                 )
 
                 try:
@@ -483,7 +527,7 @@ Respond in JSON format:
                     f"Severity: {info['severity']}\n"
                     f"Size: {info['size']} pain points\n\n"
                     f"Sample pain points:\n"
-                    + "\n".join([f"• {t}" for t in info["sample_texts"][:3]]),
+                    + "\n".join([f"• {t}" for t in info["sample_texts"]]),
                     title=f"Cluster {cluster_id}",
                     border_style="blue",
                 )

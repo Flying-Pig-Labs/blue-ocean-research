@@ -24,7 +24,9 @@ import shutil
 # Import all pipeline modules
 import research_analyzer
 import jobs_researcher
+import jobs_to_reddit  # NEW: Extract JTBDs and find Reddit discussions
 import cluster_jtbd
+import opportunity_zone_analyzer  # NEW: Advanced opportunity zone discovery
 import value_curve_mapper
 import product_idea_generator
 import idea_consolidator
@@ -49,6 +51,13 @@ def load_secrets_from_aws():
     """Load all required secrets from AWS Secrets Manager."""
     print("Loading secrets from AWS Secrets Manager...")
     
+    # Get AWS profile and region from environment or use defaults
+    aws_profile = os.environ.get('AWS_PROFILE', 'mvp')
+    aws_region = os.environ.get('AWS_REGION', 'us-east-1')
+    
+    print(f"Using AWS Profile: {aws_profile}")
+    print(f"Using AWS Region: {aws_region}")
+    
     secrets_arns = {
         'ANTHROPIC_API_KEY': 'arn:aws:secretsmanager:us-east-1:984906149037:secret:anthropic_key-47iAE6',
         'OPENAI_API_KEY': 'arn:aws:secretsmanager:us-east-1:984906149037:secret:openai_key-PkoBXY',
@@ -58,7 +67,12 @@ def load_secrets_from_aws():
         'PERPLEXITY_KEY': 'arn:aws:secretsmanager:us-east-1:984906149037:secret:perplexity-key-rrkmhM'
     }
     
-    client = boto3.client('secretsmanager', region_name='us-east-1')
+    # Create session with profile if specified
+    if aws_profile:
+        session = boto3.Session(profile_name=aws_profile, region_name=aws_region)
+        client = session.client('secretsmanager')
+    else:
+        client = boto3.client('secretsmanager', region_name=aws_region)
     loaded_count = 0
     
     for env_var, secret_arn in secrets_arns.items():
@@ -88,7 +102,7 @@ def load_secrets_from_aws():
     return loaded_count == len(secrets_arns)
 
 def run_module(module_name: str, inputs: Dict[str, str], outputs: List[str], 
-               verbose: bool = False, **kwargs) -> bool:
+               verbose: bool = False, interactive: bool = False, **kwargs) -> bool:
     """
     Execute a module by calling its Python function directly.
     
@@ -128,7 +142,10 @@ def run_module(module_name: str, inputs: Dict[str, str], outputs: List[str],
             # Use the first input file (research document)
             input_file = list(inputs.values())[0] if inputs else "tests/fixtures/sample_research.json"
             # Mock command line args for the module
-            sys.argv = ['research_analyzer.py', '--local', input_file]
+            if interactive:
+                sys.argv = ['research_analyzer.py', '--local', input_file, '--interactive']
+            else:
+                sys.argv = ['research_analyzer.py', '--local', input_file]
             research_analyzer.main()
             result = True
             
@@ -138,11 +155,33 @@ def run_module(module_name: str, inputs: Dict[str, str], outputs: List[str],
             jobs_researcher.main()
             result = True
             
+        elif module_name == "jobs_to_reddit":
+            # Call jobs_to_reddit to extract JTBDs and find Reddit discussions
+            input_file = inputs.get("analysis", "analysis_results.md")
+            sys.argv = ['jobs_to_reddit.py', '--input', input_file]
+            jobs_to_reddit.main()
+            result = True
+            
         elif module_name == "cluster_jtbd":
             # Call cluster_jtbd with input file
             input_file = inputs.get("pain_points", "jtbd_research_pain_points.txt")
             sys.argv = ['cluster_jtbd.py', input_file]
             cluster_jtbd.main()
+            result = True
+            
+        elif module_name == "opportunity_zone_analyzer":
+            # Call opportunity zone analyzer with JTBDs and Reddit data
+            jtbd_file = inputs.get("jtbds", "jtbds_20250806_203749.txt")
+            reddit_file = inputs.get("reddit", "reddit_discussions_20250806_203749.csv")
+            n_zones = kwargs.get("n_zones", 7)
+            max_discussions = kwargs.get("max_discussions", 3)
+            sys.argv = ['opportunity_zone_analyzer.py', 
+                       '--jtbd-file', jtbd_file,
+                       '--reddit-file', reddit_file,
+                       '--n-zones', str(n_zones),
+                       '--max-discussions', str(max_discussions),
+                       '--output', 'opportunity_zones_advanced.json']
+            opportunity_zone_analyzer.main()
             result = True
             
         elif module_name == "value_curve_mapper":
@@ -253,7 +292,8 @@ def main(interactive=False, verbose=False, input_file=None):
         module_name="research_analyzer",
         inputs={"research": input_source},
         outputs=["analysis_results.md"],
-        verbose=verbose
+        verbose=verbose,
+        interactive=interactive
     ):
         stages_completed += 1
         if interactive:
@@ -269,34 +309,104 @@ def main(interactive=False, verbose=False, input_file=None):
         module_name="jobs_researcher",
         inputs={"analysis": "analysis_results.md"},
         outputs=["jtbd_research.md", "jtbd_research_pain_points.txt"],
-        verbose=verbose
+        verbose=verbose,
+        interactive=interactive
     ):
         stages_completed += 1
         if interactive:
-            input("\nPress Enter to continue to Stage 3...")
+            input("\nPress Enter to continue to Stage 2.5...")
     else:
         print("⚠️  Skipping remaining stages due to error")
         return
     
-    # Stage 3: Clustering
-    print(f"\n{Colors.BOLD}📌 Stage 3: Pain Point Clustering{Colors.RESET}")
+    # Stage 2.5: Extract JTBDs and Find Reddit Discussions
+    print(f"\n{Colors.BOLD}📌 Stage 2.5: JTBD Extraction & Reddit Discovery{Colors.RESET}")
+    
+    # Check if we already have the Reddit data files
+    import glob
+    jtbd_files = glob.glob("jtbds_*.txt")
+    reddit_files = glob.glob("reddit_discussions_*.csv")
+    
+    if jtbd_files and reddit_files:
+        print(f"  ✅ Using existing JTBD file: {jtbd_files[0]}")
+        print(f"  ✅ Using existing Reddit file: {reddit_files[0]}")
+        jtbd_file = jtbd_files[0]
+        reddit_file = reddit_files[0]
+    else:
+        # Run jobs_to_reddit to generate the files
+        if run_module(
+            module_name="jobs_to_reddit",
+            inputs={"analysis": "analysis_results.md"},
+            outputs=["jtbds_*.txt", "reddit_discussions_*.csv"],
+            verbose=verbose,
+            interactive=interactive
+        ):
+            # Find the generated files
+            jtbd_files = glob.glob("jtbds_*.txt")
+            reddit_files = glob.glob("reddit_discussions_*.csv")
+            if jtbd_files and reddit_files:
+                jtbd_file = jtbd_files[0]
+                reddit_file = reddit_files[0]
+            else:
+                print("⚠️  Failed to generate JTBD and Reddit files")
+                return
+        else:
+            print("⚠️  Skipping remaining stages due to error")
+            return
+    
+    stages_completed += 0.5  # Half stage
+    if interactive:
+        input("\nPress Enter to continue to Stage 3...")
+    
+    # Stage 3: Clustering (Basic)
+    print(f"\n{Colors.BOLD}📌 Stage 3: Pain Point Clustering (Basic){Colors.RESET}")
     
     if run_module(
         module_name="cluster_jtbd",
         inputs={"pain_points": "jtbd_research_pain_points.txt"},
         outputs=["jtbd_clusters.json"],
-        verbose=verbose
+        verbose=verbose,
+        interactive=interactive
     ):
-        # Copy to expected name for next stage
-        import shutil
-        shutil.copy("jtbd_clusters.json", "opportunity_zones.json")
-        print("  📄 Copied jtbd_clusters.json → opportunity_zones.json")
         stages_completed += 1
         if interactive:
-            input("\nPress Enter to continue to Stage 4...")
+            input("\nPress Enter to continue to Stage 3.5...")
     else:
         print("⚠️  Skipping remaining stages due to error")
         return
+    
+    # Stage 3.5: Advanced Opportunity Zone Analysis
+    print(f"\n{Colors.BOLD}📌 Stage 3.5: Advanced Opportunity Zone Discovery{Colors.RESET}")
+    print("  🧠 Analyzing pain dimensions across JTBDs and Reddit discussions...")
+    
+    # Use the files from Stage 2.5
+    if 'jtbd_file' in locals() and 'reddit_file' in locals():
+        if run_module(
+            module_name="opportunity_zone_analyzer",
+            inputs={"jtbds": jtbd_file, "reddit": reddit_file},
+            outputs=["opportunity_zones_advanced.json"],
+            verbose=verbose,
+            interactive=interactive,
+            n_zones=7,
+            max_discussions=3  # Limit for speed
+        ):
+            # Copy to expected name for next stage
+            shutil.copy("opportunity_zones_advanced.json", "opportunity_zones.json")
+            print("  📄 Using advanced opportunity zones for value curve mapping")
+            stages_completed += 0.5
+        else:
+            # Fallback to basic clustering
+            print("  ⚠️  Advanced analysis failed, using basic clustering")
+            shutil.copy("jtbd_clusters.json", "opportunity_zones.json")
+            print("  📄 Copied jtbd_clusters.json → opportunity_zones.json")
+    else:
+        # No Reddit data, use basic clustering
+        print("  ℹ️  No Reddit data available, using basic clustering")
+        shutil.copy("jtbd_clusters.json", "opportunity_zones.json")
+        print("  📄 Copied jtbd_clusters.json → opportunity_zones.json")
+    
+    if interactive:
+        input("\nPress Enter to continue to Stage 4...")
     
     # Stage 4: Value Curve Mapping
     print(f"\n{Colors.BOLD}📌 Stage 4: Value Curve Mapping{Colors.RESET}")
@@ -305,7 +415,8 @@ def main(interactive=False, verbose=False, input_file=None):
         module_name="value_curve_mapper",
         inputs={"zones": "opportunity_zones.json"},
         outputs=["value_curves.json", "value_curves_report.md"],
-        verbose=verbose
+        verbose=verbose,
+        interactive=interactive
     ):
         stages_completed += 1
         if interactive:
@@ -321,7 +432,8 @@ def main(interactive=False, verbose=False, input_file=None):
         module_name="product_idea_generator",
         inputs={"value_curves": "value_curves.json"},
         outputs=["product_ideas.json", "product_ideas_report.md"],
-        verbose=verbose
+        verbose=verbose,
+        interactive=interactive
     ):
         stages_completed += 1
         if interactive:
@@ -337,7 +449,8 @@ def main(interactive=False, verbose=False, input_file=None):
         module_name="idea_consolidator",
         inputs={"product_ideas": "product_ideas.json"},
         outputs=["final_innovation_portfolio.json", "final_innovation_portfolio_summary.md"],
-        verbose=verbose
+        verbose=verbose,
+        interactive=interactive
     ):
         stages_completed += 1
         if interactive:
@@ -363,7 +476,8 @@ def main(interactive=False, verbose=False, input_file=None):
                 "portfolio": "final_innovation_portfolio.json"
             },
             outputs=["GitHub repository in ocean-studio-repos organization"],
-            verbose=verbose
+            verbose=verbose,
+            interactive=interactive
         ):
             print(f"✅ GitHub repository created in ocean-studio-repos organization")
             stages_completed += 1
@@ -386,6 +500,7 @@ def main(interactive=False, verbose=False, input_file=None):
                 },
                 outputs=["GitHub repository in ocean-studio-repos organization"],
                 verbose=verbose,
+                interactive=interactive,
                 extra_args=private_flag
             ):
                 print(f"✅ GitHub repository created in ocean-studio-repos organization")

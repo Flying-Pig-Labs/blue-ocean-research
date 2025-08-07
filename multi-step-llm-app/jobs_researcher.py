@@ -162,6 +162,51 @@ class JobsResearcher:
             sys.exit(1)
 
     def extract_key_elements(self, analysis: str) -> Dict[str, List[str]]:
+        """Extract elements using Claude Haiku for robust parsing, with regex fallback."""
+        
+        # Try LLM extraction first
+        if self.anthropic_client:
+            # Use more of the document to ensure we get all elements (Haiku can handle ~100k tokens)
+            analysis_chunk = analysis[:30000] if len(analysis) > 30000 else analysis
+            
+            prompt = f"""Extract ALL pain points, personas, and verticals from this analysis.
+            
+            Return ONLY a JSON object with these exact keys:
+            - pain_points: List of ALL pain point names found (e.g., "Technology Infrastructure Limitations")
+            - personas: List of ALL persona names found (e.g., "First-Time Millennial Buyer")  
+            - verticals: List of ALL vertical names found (e.g., "Residential Real Estate Brokerage")
+            
+            Look for sections titled "Pain Points", "Personas", "Verticals", "Industry Verticals" etc.
+            Extract EVERY item from each section, not just the first one.
+            Do not include metadata labels like "Frequency" or "Current solutions".
+            
+            Document:
+            {analysis_chunk}
+            """
+            
+            try:
+                response = self.anthropic_client.messages.create(
+                    model="claude-3-haiku-20240307",
+                    max_tokens=4000,  # Increased to get all elements
+                    messages=[{"role": "user", "content": prompt}]
+                )
+                result = json.loads(response.content[0].text)
+                console.print(f"[green]✅ Extracted {len(result.get('pain_points', []))} pain points via Claude Haiku[/green]")
+                
+                # Convert to expected format
+                return {
+                    "pain_points": result.get("pain_points", []),
+                    "personas": result.get("personas", []),
+                    "verticals": result.get("verticals", []),
+                    "solution_types": []  # Not extracted by LLM
+                }
+            except Exception as e:
+                console.print(f"[yellow]Warning: LLM extraction failed: {e}, falling back to regex[/yellow]")
+        
+        # Fall back to regex extraction
+        return self.extract_key_elements_regex(analysis)
+    
+    def extract_key_elements_regex(self, analysis: str) -> Dict[str, List[str]]:
         """
         Extract key elements from the analysis for search queries.
 
@@ -264,16 +309,18 @@ class JobsResearcher:
         """
         queries = []
 
-        # Get first few items from each category
-        verticals = elements["verticals"][:3]
-        personas = elements["personas"][:3]
-        pain_points = elements["pain_points"][:3]
+        # Use all available elements for comprehensive search coverage
+        verticals = elements["verticals"]  # Use ALL verticals
+        personas = elements["personas"]  # Use ALL personas
+        pain_points = elements["pain_points"]  # Use ALL pain points
 
         # Reddit queries for authentic user discussions
         if verticals and personas:
             queries.append(
                 {
-                    "query": f"site:reddit.com ({' OR '.join(verticals[:2])}) frustration problem daily workflow",
+                    # Rotate through verticals to ensure all get coverage
+                    # Use all verticals in rotation
+                    "query": f"site:reddit.com ({' OR '.join(verticals)}) frustration problem daily workflow",
                     "type": "reddit",
                     "focus": "user_frustrations",
                 }
@@ -282,7 +329,9 @@ class JobsResearcher:
         if personas and pain_points:
             queries.append(
                 {
-                    "query": f'site:reddit.com "{personas[0]}" "{pain_points[0]}" advice help',
+                    # Use multiple personas and pain points for broader coverage
+                    # Use all personas and pain points
+                    "query": f'site:reddit.com ({" OR ".join([f"\"{p}\"" for p in personas])}) ({" OR ".join([f"\"{pp}\"" for pp in pain_points[:min(3, len(pain_points))]])}) advice help',
                     "type": "reddit",
                     "focus": "pain_point_discussions",
                 }
@@ -292,7 +341,9 @@ class JobsResearcher:
         if verticals:
             queries.append(
                 {
-                    "query": f"product review comparison {verticals[0]} software tools pros cons",
+                    # Rotate through different verticals for each query
+                    # Include all verticals for comprehensive comparison
+                    "query": f"product review comparison {' '.join(verticals)} software tools pros cons",
                     "type": "reviews",
                     "focus": "product_comparisons",
                 }
@@ -302,7 +353,9 @@ class JobsResearcher:
         if personas:
             queries.append(
                 {
-                    "query": f'interview case study "{personas[0]}" challenges workflow process',
+                    # Include multiple personas for broader coverage
+                    # Include all personas for complete coverage
+                    "query": f'interview case study {" OR ".join([f"\"{p}\"" for p in personas])} challenges workflow process',
                     "type": "interviews",
                     "focus": "user_interviews",
                 }
@@ -312,7 +365,9 @@ class JobsResearcher:
         if verticals and pain_points:
             queries.append(
                 {
-                    "query": f"{verticals[0]} industry challenges {pain_points[0]} trends 2024",
+                    # Combine multiple verticals and pain points
+                    # Use all verticals and rotate through pain points
+                    "query": f"{' '.join(verticals)} industry challenges {' '.join(pain_points[:min(3, len(pain_points))])} trends 2024",
                     "type": "news",
                     "focus": "industry_analysis",
                 }
@@ -322,12 +377,45 @@ class JobsResearcher:
         if pain_points:
             queries.append(
                 {
-                    "query": f"how to solve {pain_points[0]} tutorial guide workaround",
+                    # Include multiple pain points for comprehensive solutions
+                    # Rotate through all pain points across multiple queries
+                    "query": f"how to solve {' OR '.join(pain_points[:min(5, len(pain_points))])} tutorial guide workaround",
                     "type": "tutorials",
                     "focus": "solution_attempts",
                 }
             )
 
+        # Add additional queries if we have many elements to ensure full coverage
+        # Create rotating queries for remaining verticals
+        if len(verticals) > 3:
+            for i in range(3, len(verticals), 2):
+                batch = verticals[i:i+2]
+                queries.append({
+                    "query": f"site:reddit.com ({' OR '.join(batch)}) problems issues frustration",
+                    "type": "reddit",
+                    "focus": f"vertical_batch_{i//2}"
+                })
+        
+        # Create rotating queries for remaining personas
+        if len(personas) > 3:
+            for i in range(3, len(personas), 2):
+                batch = personas[i:i+2]
+                queries.append({
+                    "query": f'"{" OR ".join(batch)}" daily challenges workflow',
+                    "type": "interviews",
+                    "focus": f"persona_batch_{i//2}"
+                })
+        
+        # Create rotating queries for remaining pain points
+        if len(pain_points) > 3:
+            for i in range(3, len(pain_points), 3):
+                batch = pain_points[i:i+3]
+                queries.append({
+                    "query": f"solution for {' '.join(batch[:2])} problems",
+                    "type": "tutorials",
+                    "focus": f"pain_batch_{i//3}"
+                })
+        
         return queries
 
     def search_with_exa(self, queries: List[Dict[str, str]]) -> Dict[str, List[Dict]]:
@@ -373,9 +461,10 @@ class JobsResearcher:
                 progress.update(task, description=f"Searching {query_type}...")
 
                 try:
-                    # Execute search with EXA
+                    # Execute search with EXA (MAXIMUM PRODUCTION: 100 results per query)
+                    # Note: EXA API typically caps at 100 results per search
                     search_results = self.exa.search_and_contents(
-                        query, num_results=5, text=True, highlights=True, summary=True
+                        query, num_results=100, text=True, highlights=True, summary=True
                     )
 
                     # Process results
@@ -529,10 +618,12 @@ class JobsResearcher:
                 report += f"*{len(results)} sources analyzed*\n\n"
 
                 # Summarize top findings
-                for i, result in enumerate(results[:3]):
+                # Show all results, not just first 3
+                for i, result in enumerate(results):
                     report += f"**{i + 1}. [{result['title']}]({result['url']})**\n"
                     if result.get("highlights"):
-                        report += f"   - Key insights: {', '.join(result['highlights'][:2])}\n"
+                        # Show all highlights
+                        report += f"   - Key insights: {', '.join(result['highlights'])}\n"
                     report += f"   - Focus: {result.get('focus', 'general').replace('_', ' ').title()}\n\n"
 
         # Jobs-to-be-Done Table
@@ -558,7 +649,8 @@ class JobsResearcher:
 
         for focus, focus_jobs in jobs_by_focus.items():
             report += f"### {focus.replace('_', ' ').title()}\n\n"
-            for job in focus_jobs[:5]:  # Top 5 per category
+            # Include all jobs, not just top 5
+            for job in focus_jobs:
                 report += f'- **Pattern**: "{job["pattern"]}"\n'
                 report += f"  - Context: {job['job_context']}\n"
                 report += f"  - Source: [{job['source']}]({job['url']})\n\n"
@@ -594,15 +686,16 @@ class JobsResearcher:
         context = "Based on the following real-world customer insights, create a Jobs-to-be-Done table:\n\n"
 
         # Add analysis context
-        context += "Target Verticals: " + ", ".join(elements["verticals"][:3]) + "\n"
-        context += "Key Personas: " + ", ".join(elements["personas"][:3]) + "\n"
+        context += "Target Verticals: " + ", ".join(elements["verticals"]) + "\n"
+        context += "Key Personas: " + ", ".join(elements["personas"]) + "\n"
         context += (
-            "Main Pain Points: " + ", ".join(elements["pain_points"][:3]) + "\n\n"
+            "Main Pain Points: " + ", ".join(elements["pain_points"]) + "\n\n"
         )
 
         # Add job contexts
         context += "Customer Voices:\n"
-        for job in jobs[:20]:  # Limit to prevent token overflow
+        # Include all jobs for comprehensive synthesis
+        for job in jobs:
             context += f"- {job['job_context']}\n"
 
         prompt = """Create a Jobs-to-be-Done table with these columns:
@@ -652,7 +745,8 @@ class JobsResearcher:
         # Process unique job patterns
         seen_patterns = set()
 
-        for job in jobs[:15]:  # Top 15 jobs
+        # Include all jobs in the table
+        for job in jobs:
             pattern_key = f"{job['pattern']}_{job['focus']}"
             if pattern_key not in seen_patterns:
                 seen_patterns.add(pattern_key)
@@ -761,7 +855,7 @@ class JobsResearcher:
                             if 30 < len(clean_sentence) < 300 and not any(x in clean_sentence for x in ["Author:", "Score:", "http"]):
                                 pain_points.append(clean_sentence)
                                 break
-                        if len(pain_points) >= 10:  # Limit to avoid too many generic points
+                        if len(pain_points) >= 50:  # Increased limit from 10 to 50 for more data
                             break
 
         # Deduplicate while preserving order
@@ -776,7 +870,81 @@ class JobsResearcher:
                 seen.add(point)
                 unique_pain_points.append(point)
 
+        # Expand pain points using AI if we have too few
+        if len(unique_pain_points) < 100 and self.anthropic_client:
+            unique_pain_points = self.expand_pain_points_with_ai(unique_pain_points, search_results)
+        
         return unique_pain_points
+
+    def expand_pain_points_with_ai(self, initial_pain_points: List[str], search_results: Dict[str, List[Dict]]) -> List[str]:
+        """Use Claude to expand pain points to reach ~100 total."""
+        console.print("[cyan]🔍 Expanding pain points with AI to reach 100+ for better clustering...[/cyan]")
+        
+        # Collect all snippets for context
+        all_snippets = []
+        for category, results in search_results.items():
+            # Use ALL results from each category for comprehensive context
+            for result in results:
+                if result.get("snippet"):
+                    all_snippets.append(result["snippet"])
+        
+        # Load and format the prompt from config
+        prompt = self.config_loader.load_prompt_from_file('2-jobs-researcher-expansion.txt')
+        if not prompt:
+            # Fallback to inline prompt if file not found
+            prompt = """Based on these search results and initial pain points, generate 100 specific, unique pain points.
+
+Initial pain points found ({initial_count}):
+{initial_pain_points}
+
+Search result context:
+{search_snippets}
+
+Generate 100 specific pain points that real customers would experience. Each should be:
+- A complete sentence describing a specific problem or frustration
+- 20-150 characters long
+- Unique and not redundant
+- Based on real customer issues from the search results
+- Actionable for product development
+
+Return ONLY a numbered list of pain points, nothing else:
+1. [pain point]
+2. [pain point]
+...
+100. [pain point]"""
+        
+        # Format the prompt with actual data
+        prompt = prompt.format(
+            initial_count=len(initial_pain_points),
+            initial_pain_points=chr(10).join(initial_pain_points),
+            search_snippets=chr(10).join(all_snippets)
+        )
+
+        try:
+            response = self.anthropic_client.messages.create(
+                model="claude-3-5-sonnet-20241022",
+                max_tokens=4000,
+                messages=[{"role": "user", "content": prompt}]
+            )
+            
+            # Parse the response to extract pain points
+            expanded_points = []
+            lines = response.content[0].text.split('\n')
+            for line in lines:
+                # Remove numbering and clean up
+                cleaned = line.strip()
+                if cleaned and cleaned[0].isdigit():
+                    # Remove number prefix (e.g., "1. " or "23. ")
+                    point = cleaned.split('. ', 1)[-1] if '. ' in cleaned else cleaned
+                    if 20 < len(point) < 500:
+                        expanded_points.append(point)
+            
+            console.print(f"[green]✅ Expanded to {len(expanded_points)} pain points using AI[/green]")
+            return expanded_points[:100]  # Ensure we don't exceed 100
+            
+        except Exception as e:
+            console.print(f"[yellow]Warning: Could not expand pain points with AI: {e}[/yellow]")
+            return initial_pain_points
 
     def save_pain_points(
         self, pain_points: List[str], output_file: str = "pain_points.txt"
@@ -844,7 +1012,8 @@ class JobsResearcher:
         console.print("[bright_cyan]Extracted elements:[/bright_cyan]")
         for category, items in elements.items():
             console.print(f"\n[bright_cyan]{category.replace('_', ' ').title()} ({len(items)} items):[/bright_cyan]")
-            for item in items[:3]:  # Show first 3 of each
+            # Show all items
+            for item in items:
                 console.print(f"[bright_cyan]  - {item}[/bright_cyan]")
             if len(items) > 3:
                 console.print(f"[bright_cyan]  ... and {len(items) - 3} more[/bright_cyan]")

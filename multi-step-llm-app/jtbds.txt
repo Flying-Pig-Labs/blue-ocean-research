@@ -1,0 +1,23 @@
+# Jobs-to-be-Done extracted from analysis
+# Based on real estate market research
+
+When I'm selling and buying simultaneously, I want to coordinate all transaction timelines, so I can avoid temporary housing or carrying two mortgages
+Track all transaction progress and deadlines without having to contact multiple parties separately
+Find and analyze investment properties while the opportunities are still fresh
+Manage multiple property transactions without increasing my personal time investment
+When I'm a first-time buyer, I want to understand each step before it happens, so I can make confident decisions
+Generate market analysis reports without manual data compilation
+Price properties accurately without relying solely on gut feel or basic comps
+Communicate with all parties involved while maintaining a single source of truth
+Scale my real estate portfolio while maintaining consistent quality standards
+Access property documents and history without searching through multiple systems
+When I'm downsizing, I want to efficiently sort and manage my belongings, so I can smoothly transition to my new home
+Qualify leads automatically without spending time on initial consultations
+Monitor market trends across multiple neighborhoods while staying ahead of opportunities
+When I'm relocating, I want to research neighborhoods remotely, so I can narrow my search before visiting
+Close deals faster without sacrificing due diligence
+Manage client relationships while maintaining consistent communication standards
+When I'm an investor, I want to analyze potential returns quickly, so I can make rapid offers
+Schedule showings and coordinate with sellers without playing phone tag
+Complete mortgage applications without repeatedly providing the same information
+When I'm a luxury buyer, I want to discretely view properties, so I can maintain privacy during my search

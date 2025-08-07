@@ -203,6 +203,14 @@ class ConfigLoader:
         step_config = self.get_step_config(step_name)
         return step_config.get('required_env_vars', [])
     
+    def load_prompt_from_file(self, filename: str) -> str:
+        """Load a prompt template from the prompts directory."""
+        prompt_path = os.path.join(os.path.dirname(__file__), 'prompts', filename)
+        if os.path.exists(prompt_path):
+            with open(prompt_path, 'r') as f:
+                return f.read()
+        return ""
+    
     def format_prompt(self, stage: str, task: Optional[str] = None, **kwargs) -> str:
         """
         Format a prompt template with provided variables and optionally inject examples.
@@ -216,7 +224,15 @@ class ConfigLoader:
             Formatted prompt string with example injected if appropriate
         """
         config = self.get_model_config(stage, task) if task else self.config['models'][stage]
-        prompt_template = config.get('prompt', '')
+        
+        # Check if prompt is a file reference or inline
+        prompt_ref = config.get('prompt', '')
+        if prompt_ref.endswith('.txt'):
+            # Load from file
+            prompt_template = self.load_prompt_from_file(prompt_ref)
+        else:
+            # Use inline prompt
+            prompt_template = prompt_ref
         
         # Check if we should include examples
         include_example = config.get('include_example', True)  # Default to True

@@ -1,0 +1,78 @@
+[
+  {
+    "cluster_id": "0",
+    "size": 36,
+    "avg_score": 676.1111111111111,
+    "total_comments": "7904",
+    "top_subreddits": {
+      "FirstTimeHomeBuyer": 13,
+      "RealEstate": 10,
+      "Mortgages": 7
+    },
+    "top_jtbds": [
+      "When I'm a first-time homebuyer, I want step-by-step guidance through the process, so I can avoid common mistakes.",
+      "When I'm selling my home, I want to receive showing feedback immediately, so I can make necessary adjustments.",
+      "Track mortgage application status while maintaining privacy and security."
+    ],
+    "theme": "Cluster 0",
+    "pain_point": "Unable to identify",
+    "user_sentiment": "Unknown",
+    "common_scenario": "Various",
+    "potential_solution": "Further analysis needed",
+    "sample_posts": [
+      {
+        "title": "Bought Home; Feeling Very Sad",
+        "score": 11544,
+        "subreddit": "FirstTimeHomeBuyer"
+      },
+      {
+        "title": "Manipulative Buyers Got Greedy and Lost a Great House",
+        "score": 3088,
+        "subreddit": "RealEstate"
+      },
+      {
+        "title": "Buyers moved in before closing",
+        "score": 2395,
+        "subreddit": "RealEstate"
+      }
+    ]
+  },
+  {
+    "cluster_id": "1",
+    "size": 12,
+    "avg_score": 6.0,
+    "total_comments": "407",
+    "top_subreddits": {
+      "realestateinvesting": 4,
+      "RealEstate": 3,
+      "Mortgages": 2
+    },
+    "top_jtbds": [
+      "Calculate closing costs without waiting for manual estimates.",
+      "When I'm a first-time homebuyer, I want step-by-step guidance through the process, so I can avoid common mistakes.",
+      "When I'm relocating, I want to explore neighborhoods virtually, so I can narrow down my search area efficiently."
+    ],
+    "theme": "Cluster 1",
+    "pain_point": "Unable to identify",
+    "user_sentiment": "Unknown",
+    "common_scenario": "Various",
+    "potential_solution": "Further analysis needed",
+    "sample_posts": [
+      {
+        "title": "first time home buyer, why closing costs are so damn high??",
+        "score": 18,
+        "subreddit": "RealEstate"
+      },
+      {
+        "title": "Bought a house at a low rate and now I\u2019m looking to move. Need advice",
+        "score": 15,
+        "subreddit": "Mortgages"
+      },
+      {
+        "title": "Should I Sell My Rental Property? Debt Stress, Low Cash Flow, and Market Uncertainty",
+        "score": 13,
+        "subreddit": "realestateinvesting"
+      }
+    ]
+  }
+]

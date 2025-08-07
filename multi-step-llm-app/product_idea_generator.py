@@ -316,17 +316,9 @@ Output in a structured format that can be parsed."""
         if current_idea:
             ideas.append(current_idea)
 
-        # Ensure we have exactly 10 ideas (pad if necessary)
-        while len(ideas) < 10:
-            ideas.append(
-                {
-                    "name": f"Idea {len(ideas) + 1}",
-                    "value_proposition": "Placeholder idea",
-                    "innovation_score": 5,
-                }
-            )
-
-        return ideas[:10]
+        # Return all parsed ideas, not just first 10
+        # The prompt asks for 10, but if we get more, use them all
+        return ideas
 
     def _merge_viability_scores(
         self, ideas: List[Dict], viability_text: str
@@ -943,8 +935,7 @@ Output in a structured format that can be parsed."""
                 enhanced_github.create_labels(repo)
                 
                 # Upload appendix files
-                console.print("
-[cyan]📁 Creating appendix with research documents...[/cyan]")
+                console.print("[cyan]📁 Creating appendix with research documents...[/cyan]")
                 uploaded_files = []
                 for filename, description in appendix_files_to_upload:
                     if os.path.exists(filename):
@@ -993,8 +984,7 @@ Output in a structured format that can be parsed."""
                 console.print("  ✓ Created enhanced README.md")
                 
                 # Create issues for product ideas
-                console.print("
-[cyan]💡 Creating product idea issues...[/cyan]")
+                console.print("[cyan]💡 Creating product idea issues...[/cyan]")
                 issues_created = 0
                 
                 for i, idea in enumerate(ideas_data.get("product_ideas", []), 1):
