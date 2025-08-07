@@ -1,0 +1,15 @@
+{
+  "name": "pipeline-stream-processor",
+  "version": "1.0.0",
+  "description": "DynamoDB stream processor for triggering GraphQL subscriptions",
+  "main": "index.js",
+  "dependencies": {
+    "aws-sdk": "^2.1467.0"
+  },
+  "devDependencies": {},
+  "scripts": {
+    "test": "echo \"No tests specified\" && exit 0"
+  },
+  "author": "",
+  "license": "MIT"
+}

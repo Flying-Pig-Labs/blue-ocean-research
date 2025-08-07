@@ -1,517 +1,599 @@
 #!/usr/bin/env python3
 """
-AWS Lambda handler for multi-step LLM pipeline with MVP frontend support features.
-Supports async job processing with progress tracking, concurrent job prevention, 
-enhanced time estimates, and job metadata.
+Main Lambda Handler for Multi-Step LLM Pipeline
+Orchestrates the complete pipeline execution across multiple Lambda functions
+
+This handler manages:
+- API Gateway endpoints (/start-pipeline, /status/{jobId}, /logs/{jobId})
+- Job state management in DynamoDB
+- Pipeline orchestration across individual Lambda functions
+- Error handling and progress tracking
 """
 
 import json
 import os
-import time
-import uuid
-from datetime import datetime, timedelta
-from typing import Dict, Any, Optional
 import boto3
-from boto3.dynamodb.types import TypeDeserializer, TypeSerializer
-from decimal import Decimal
 import logging
-import traceback
-
-class DecimalEncoder(json.JSONEncoder):
-    """Custom JSON encoder to handle Decimal types from DynamoDB"""
-    def default(self, obj):
-        if isinstance(obj, Decimal):
-            return float(obj)
-        return super(DecimalEncoder, self).default(obj)
+from datetime import datetime, timedelta
+from typing import Dict, List, Any, Optional
+import uuid
+import time
 
 # Configure logging
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 
-# AWS clients
-dynamodb = boto3.resource('dynamodb')
-lambda_client = boto3.client('lambda')
+# Initialize AWS clients (outside handlers for connection reuse)
+dynamodb = None
+lambda_client = None
+s3_client = None
 
-# Environment variables
-JOBS_TABLE = os.environ.get('JOBS_TABLE', 'PipelineJobs-production')
-ORCHESTRATOR_FUNCTION = os.environ.get('ORCHESTRATOR_FUNCTION_NAME', 'pipeline-orchestrator-production')
-
-def lambda_handler(event, context):
-    """Main Lambda handler - routes requests to appropriate handlers."""
-    try:
-        # Log the incoming event
-        logger.info(f"Received event: {json.dumps(event)}")
-        
-        # Handle different HTTP methods and paths
-        http_method = event.get('httpMethod', '')
-        path = event.get('path', '')
-        
-        if http_method == 'POST' and path == '/start-pipeline':
-            return start_pipeline_handler(event, context)
-        elif http_method == 'GET' and path.startswith('/status/'):
-            return get_status_handler(event, context)
-        elif http_method == 'GET' and path.startswith('/logs/'):
-            return get_logs_handler(event, context)
-        elif http_method == 'OPTIONS':
-            return handle_cors_preflight(event, context)
-        else:
-            # For direct invocation by orchestrator
-            return orchestrator_handler(event, context)
-            
-    except Exception as e:
-        logger.error(f"Handler error: {str(e)}")
-        logger.error(traceback.format_exc())
-        return {
-            'statusCode': 500,
-            'headers': {
-                'Content-Type': 'application/json',
-                'Access-Control-Allow-Origin': '*'
-            },
-            'body': json.dumps({'error': 'Internal server error'})
-        }
-
-
-def check_existing_job(research_doc_id: str, username: str) -> Optional[Dict[str, Any]]:
-    """Check if there's an existing running job for this researchDocId."""
-    table = dynamodb.Table(JOBS_TABLE)
+def initialize_clients():
+    """Initialize AWS clients with retry configuration"""
+    global dynamodb, lambda_client, s3_client
     
-    # Scan for jobs with this researchDocId (in production, consider using GSI)
-    response = table.scan(
-        FilterExpression='researchDocId = :docId AND username = :user AND (#status = :running OR #status = :queued)',
-        ExpressionAttributeNames={
-            '#status': 'status'
-        },
-        ExpressionAttributeValues={
-            ':docId': research_doc_id,
-            ':user': username,
-            ':running': 'RUNNING',
-            ':queued': 'QUEUED'
-        }
-    )
-    
-    if response.get('Items'):
-        # Return the most recent running/queued job
-        jobs = sorted(response['Items'], key=lambda x: x.get('createdAt', ''), reverse=True)
-        return jobs[0]
-    
-    return None
-
-
-def start_pipeline_handler(event, context):
-    """Handle POST /start-pipeline requests with idempotency and concurrent job prevention."""
-    try:
-        # Parse request body
-        body = json.loads(event.get('body', '{}'))
-        research_doc_id = body.get('researchDocId', '').strip()
-        
-        # Validate required fields
-        if not research_doc_id:
-            return {
-                'statusCode': 400,
-                'headers': {
-                    'Content-Type': 'application/json',
-                    'Access-Control-Allow-Origin': '*'
-                },
-                'body': json.dumps({'error': 'researchDocId is required'})
-            }
-        
-        # Get username (required for S3 path)
-        username = body.get('username', 'fprior')  # Default to fprior if not provided
-        
-        # Check for existing running job (idempotency + concurrent job prevention)
-        existing_job = check_existing_job(research_doc_id, username)
-        
-        if existing_job:
-            # Calculate time estimates for existing job
-            created_at = datetime.fromisoformat(existing_job['createdAt'].rstrip('Z'))
-            elapsed_seconds = (datetime.utcnow() - created_at).total_seconds()
-            elapsed_minutes = int(elapsed_seconds / 60)
-            estimated_total_minutes = 22  # Standard estimate
-            estimated_remaining_minutes = max(0, estimated_total_minutes - elapsed_minutes)
-            
-            # Return 409 Conflict with existing job information
-            return {
-                'statusCode': 409,
-                'headers': {
-                    'Content-Type': 'application/json',
-                    'Access-Control-Allow-Origin': '*'
-                },
-                'body': json.dumps({
-                    'error': 'Pipeline already running for this research document',
-                    'existingJobId': existing_job['jobId'],
-                    'status': existing_job['status'],
-                    'currentStage': existing_job.get('currentStage', 0),
-                    'stageName': existing_job.get('stageName', 'Initializing'),
-                    'overallProgress': float(existing_job.get('overallProgress', 0.0)),
-                    'estimatedTotalMinutes': estimated_total_minutes,
-                    'elapsedMinutes': elapsed_minutes,
-                    'estimatedRemainingMinutes': estimated_remaining_minutes,
-                    'metadata': {
-                        'researchDocId': existing_job['researchDocId'],
-                        'startedAt': existing_job['createdAt'],
-                        'username': existing_job['username']
-                    }
-                }, cls=DecimalEncoder)
-            }
-        
-        # Generate job ID
-        job_id = f"job-{datetime.now().strftime('%Y%m%d')}-{uuid.uuid4().hex[:8]}"
-        
-        # Create job record in DynamoDB with enhanced metadata
-        table = dynamodb.Table(JOBS_TABLE)
-        job_record = {
-            'jobId': job_id,
-            'researchDocId': research_doc_id,
-            'username': username,
-            'status': 'QUEUED',
-            'currentStage': 0,
-            'stageName': 'Initializing',
-            'stageProgress': Decimal('0.0'),
-            'overallProgress': Decimal('0.0'),
-            'estimatedCompletion': (datetime.utcnow() + timedelta(minutes=22)).isoformat() + 'Z',
-            'estimatedTotalMinutes': 22,
-            'createdAt': datetime.utcnow().isoformat() + 'Z',
-            'updatedAt': datetime.utcnow().isoformat() + 'Z',
-            'ttl': int((datetime.utcnow() + timedelta(days=30)).timestamp()),
-            'stages': [
-                {'name': 'Research Analysis', 'status': 'pending', 'estimatedMinutes': 2},
-                {'name': 'JTBD Research', 'status': 'pending', 'estimatedMinutes': 3},
-                {'name': 'Pain Point Clustering', 'status': 'pending', 'estimatedMinutes': 1},
-                {'name': 'Value Curve Mapping', 'status': 'pending', 'estimatedMinutes': 5},
-                {'name': 'Product Idea Generation', 'status': 'pending', 'estimatedMinutes': 8},
-                {'name': 'Idea Consolidation', 'status': 'pending', 'estimatedMinutes': 1},
-                {'name': 'GitHub Repository Creation', 'status': 'pending', 'estimatedMinutes': 2}
-            ],
-            'results': {
-                'githubRepoUrl': None,
-                'githubRepoName': None,
-                'issuesCreated': 0,
-                'analysisResults': None
-            }
-        }
-        
-        # Store job in DynamoDB
-        table.put_item(Item=job_record)
-        
-        # Invoke orchestrator function asynchronously
-        lambda_client.invoke(
-            FunctionName=ORCHESTRATOR_FUNCTION,
-            InvocationType='Event',  # Async invocation
-            Payload=json.dumps({
-                'jobId': job_id,
-                'researchDocId': research_doc_id,
-                'username': username,
-                'action': 'start_pipeline'
-            })
+    if dynamodb is None:
+        dynamodb = boto3.resource('dynamodb',
+            config=boto3.session.Config(
+                retries={'max_attempts': 3, 'mode': 'adaptive'},
+                region_name=os.environ.get('AWS_REGION', 'us-east-1')
+            )
         )
-        
-        # Return job ID immediately with enhanced response
-        return {
-            'statusCode': 202,
-            'headers': {
-                'Content-Type': 'application/json',
-                'Access-Control-Allow-Origin': '*'
-            },
-            'body': json.dumps({
-                'jobId': job_id,
-                'status': 'QUEUED',
-                'message': 'Pipeline job started successfully',
-                'estimatedCompletion': job_record['estimatedCompletion'],
-                'estimatedTotalMinutes': 22,
-                'metadata': {
-                    'researchDocId': research_doc_id,
-                    'startedAt': job_record['createdAt'],
-                    'username': username
-                }
-            })
-        }
-        
-    except Exception as e:
-        logger.error(f"Error starting pipeline: {str(e)}")
-        logger.error(traceback.format_exc())
-        return {
-            'statusCode': 500,
-            'headers': {
-                'Content-Type': 'application/json',
-                'Access-Control-Allow-Origin': '*'
-            },
-            'body': json.dumps({'error': 'Internal server error'})
-        }
+    
+    if lambda_client is None:
+        lambda_client = boto3.client('lambda',
+            config=boto3.session.Config(
+                retries={'max_attempts': 3, 'mode': 'adaptive'},
+                region_name=os.environ.get('AWS_REGION', 'us-east-1')
+            )
+        )
+    
+    if s3_client is None:
+        s3_client = boto3.client('s3',
+            config=boto3.session.Config(
+                retries={'max_attempts': 3, 'mode': 'adaptive'},
+                region_name=os.environ.get('AWS_REGION', 'us-east-1')
+            )
+        )
 
-
-def get_status_handler(event, context):
-    """Handle GET /status/{jobId} requests with enhanced time estimates and metadata."""
-    try:
-        # Extract job ID from path
-        job_id = event['pathParameters'].get('jobId')
-        if not job_id:
-            return {
-                'statusCode': 400,
-                'headers': {
-                    'Content-Type': 'application/json',
-                    'Access-Control-Allow-Origin': '*'
-                },
-                'body': json.dumps({'error': 'jobId is required'})
-            }
-        
-        # Get job from DynamoDB
-        table = dynamodb.Table(JOBS_TABLE)
-        response = table.get_item(Key={'jobId': job_id})
-        
-        if 'Item' not in response:
-            return {
-                'statusCode': 404,
-                'headers': {
-                    'Content-Type': 'application/json',
-                    'Access-Control-Allow-Origin': '*'
-                },
-                'body': json.dumps({'error': 'Job not found'})
-            }
-        
-        job = response['Item']
-        
-        # Calculate enhanced time estimates
-        created_at = datetime.fromisoformat(job['createdAt'].rstrip('Z'))
-        elapsed_seconds = (datetime.utcnow() - created_at).total_seconds()
-        elapsed_minutes = int(elapsed_seconds / 60)
-        
-        # Use stored estimate or default to 22 minutes
-        estimated_total_minutes = job.get('estimatedTotalMinutes', 22)
-        
-        # Calculate remaining time based on status
-        if job['status'] in ['RUNNING', 'QUEUED']:
-            estimated_remaining_minutes = max(0, estimated_total_minutes - elapsed_minutes)
-        else:
-            estimated_remaining_minutes = 0
-        
-        # Add enhanced time estimates to response
-        job['estimatedTotalMinutes'] = estimated_total_minutes
-        job['elapsedMinutes'] = elapsed_minutes
-        job['estimatedRemainingMinutes'] = estimated_remaining_minutes
-        
-        # Add metadata section
-        job['metadata'] = {
-            'researchDocId': job.get('researchDocId', ''),
-            'startedAt': job.get('createdAt', ''),
-            'username': job.get('username', ''),
-            'jobId': job_id
-        }
-        
-        # Add completion time if job is finished
-        if job['status'] == 'COMPLETED' and 'completedAt' in job:
-            completed_at = datetime.fromisoformat(job['completedAt'].rstrip('Z'))
-            actual_duration = (completed_at - created_at).total_seconds() / 60
-            job['actualDurationMinutes'] = int(actual_duration)
-        
-        # Backward compatibility - keep the old estimatedRemaining field
-        if job['status'] == 'RUNNING':
-            remaining_seconds = estimated_remaining_minutes * 60
-            job['estimatedRemaining'] = f"{estimated_remaining_minutes} minutes" if remaining_seconds > 60 else f"{int(remaining_seconds)} seconds"
-        
-        # Return enhanced status
-        return {
-            'statusCode': 200,
-            'headers': {
-                'Content-Type': 'application/json',
-                'Access-Control-Allow-Origin': '*'
-            },
-            'body': json.dumps(job, cls=DecimalEncoder)
-        }
-        
-    except Exception as e:
-        logger.error(f"Error getting status: {str(e)}")
-        return {
-            'statusCode': 500,
-            'headers': {
-                'Content-Type': 'application/json',
-                'Access-Control-Allow-Origin': '*'
-            },
-            'body': json.dumps({'error': 'Internal server error'})
-        }
-
-
-def get_logs_handler(event, context):
-    """Handle GET /logs/{jobId} requests for cursor-based log polling."""
-    try:
-        job_id = event['pathParameters'].get('jobId')
-        since = event.get('queryStringParameters', {}).get('since', '0') if event.get('queryStringParameters') else '0'
-        
-        if not job_id:
-            return {
-                'statusCode': 400,
-                'headers': {
-                    'Content-Type': 'application/json',
-                    'Access-Control-Allow-Origin': '*'
-                },
-                'body': json.dumps({'error': 'jobId is required'})
-            }
-        
-        # Get job logs from CloudWatch or DynamoDB
-        # For now, return basic log structure
-        logs = [
-            {
-                'timestamp': int(time.time() * 1000),
-                'level': 'INFO',
-                'message': f'Job {job_id} is processing...',
-                'stage': 'current'
-            }
-        ]
-        
-        return {
-            'statusCode': 200,
-            'headers': {
-                'Content-Type': 'application/json',
-                'Access-Control-Allow-Origin': '*'
-            },
-            'body': json.dumps({
-                'logs': logs,
-                'cursor': str(int(time.time() * 1000))
-            })
-        }
-        
-    except Exception as e:
-        logger.error(f"Error getting logs: {str(e)}")
-        return {
-            'statusCode': 500,
-            'headers': {
-                'Content-Type': 'application/json',
-                'Access-Control-Allow-Origin': '*'
-            },
-            'body': json.dumps({'error': 'Internal server error'})
-        }
-
-
-def handle_cors_preflight(event, context):
-    """Handle CORS preflight requests."""
+def get_cors_headers():
+    """Get CORS headers for API responses"""
     return {
-        'statusCode': 200,
-        'headers': {
-            'Access-Control-Allow-Origin': '*',
-            'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
-            'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Requested-With',
-            'Access-Control-Max-Age': '86400'
-        },
-        'body': ''
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Headers': 'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token',
+        'Access-Control-Allow-Methods': 'GET,POST,PUT,DELETE,OPTIONS'
     }
 
+def create_job_record(job_id: str, job_data: Dict[str, Any]) -> None:
+    """Create initial job record in DynamoDB"""
+    initialize_clients()
+    
+    table = dynamodb.Table(os.environ['JOBS_TABLE'])
+    
+    # TTL for 30 days from now
+    ttl = int((datetime.now() + timedelta(days=30)).timestamp())
+    
+    item = {
+        'jobId': job_id,
+        'status': 'INITIATED',
+        'createdAt': datetime.now().isoformat(),
+        'updatedAt': datetime.now().isoformat(),
+        'ttl': ttl,
+        'pipeline_config': job_data,
+        'current_stage': 'research_analysis',
+        'stages_completed': [],
+        'total_stages': 8,
+        'progress_percentage': 0,
+        'logs': [{
+            'timestamp': datetime.now().isoformat(),
+            'level': 'INFO',
+            'message': 'Pipeline job initiated',
+            'stage': 'orchestrator'
+        }]
+    }
+    
+    table.put_item(Item=item)
+    logger.info(f"Created job record for {job_id}")
 
-def orchestrator_handler(event, context):
-    """Handle orchestrator invocations - runs the actual pipeline."""
+def update_job_status(job_id: str, status: str, current_stage: str = None, 
+                     progress: int = None, logs: List[Dict] = None) -> None:
+    """Update job status in DynamoDB"""
+    initialize_clients()
+    
+    table = dynamodb.Table(os.environ['JOBS_TABLE'])
+    
+    update_expression = "SET #status = :status, updatedAt = :updated"
+    expression_values = {
+        ':status': status,
+        ':updated': datetime.now().isoformat()
+    }
+    expression_names = {'#status': 'status'}
+    
+    if current_stage:
+        update_expression += ", current_stage = :stage"
+        expression_values[':stage'] = current_stage
+    
+    if progress is not None:
+        update_expression += ", progress_percentage = :progress"
+        expression_values[':progress'] = progress
+    
+    if logs:
+        update_expression += ", logs = list_append(logs, :logs)"
+        expression_values[':logs'] = logs
+    
+    table.update_item(
+        Key={'jobId': job_id},
+        UpdateExpression=update_expression,
+        ExpressionAttributeNames=expression_names,
+        ExpressionAttributeValues=expression_values
+    )
+
+def get_job_status(job_id: str) -> Optional[Dict[str, Any]]:
+    """Get job status from DynamoDB"""
+    initialize_clients()
+    
+    table = dynamodb.Table(os.environ['JOBS_TABLE'])
+    
     try:
-        job_id = event.get('jobId')
-        research_doc_id = event.get('researchDocId')
-        username = event.get('username')
-        
-        if not all([job_id, research_doc_id, username]):
-            logger.error("Missing required parameters for orchestrator")
-            return {'statusCode': 400, 'body': 'Missing required parameters'}
-        
-        # Update job status to RUNNING
-        table = dynamodb.Table(JOBS_TABLE)
-        table.update_item(
-            Key={'jobId': job_id},
-            UpdateExpression='SET #status = :status, currentStage = :stage, stageName = :stageName, updatedAt = :updatedAt',
-            ExpressionAttributeNames={'#status': 'status'},
-            ExpressionAttributeValues={
-                ':status': 'RUNNING',
-                ':stage': 1,
-                ':stageName': 'Research Analysis',
-                ':updatedAt': datetime.utcnow().isoformat() + 'Z'
-            }
+        response = table.get_item(Key={'jobId': job_id})
+        return response.get('Item')
+    except Exception as e:
+        logger.error(f"Failed to get job status for {job_id}: {e}")
+        return None
+
+def invoke_lambda_stage(function_name: str, payload: Dict[str, Any]) -> Dict[str, Any]:
+    """Invoke a specific Lambda function for a pipeline stage"""
+    initialize_clients()
+    
+    try:
+        response = lambda_client.invoke(
+            FunctionName=function_name,
+            InvocationType='RequestResponse',
+            Payload=json.dumps(payload)
         )
         
-        # Simulate pipeline execution stages
+        response_payload = json.loads(response['Payload'].read())
+        
+        if response.get('StatusCode') == 200:
+            return response_payload
+        else:
+            raise Exception(f"Lambda invocation failed with status {response.get('StatusCode')}")
+            
+    except Exception as e:
+        logger.error(f"Failed to invoke {function_name}: {e}")
+        return {'statusCode': 500, 'error': str(e)}
+
+def execute_pipeline_stage(job_id: str, stage_name: str, stage_config: Dict[str, Any]) -> Dict[str, Any]:
+    """Execute a single pipeline stage"""
+    
+    bucket = os.environ['S3_BUCKET']
+    function_prefix = os.environ.get('FUNCTION_PREFIX', 'multi-step-llm-')
+    
+    # Map stage names to Lambda function names
+    stage_function_map = {
+        'research_analysis': f'{function_prefix}research-analyzer',
+        'jobs_research': f'{function_prefix}jobs-researcher', 
+        'jobs_to_reddit': f'{function_prefix}jobs-to-reddit',
+        'clustering': f'{function_prefix}cluster-jtbd',
+        'opportunity_zones': f'{function_prefix}opportunity-zones',
+        'value_curves': f'{function_prefix}value-curves',
+        'product_ideas': f'{function_prefix}product-ideas',
+        'consolidation': f'{function_prefix}consolidator'
+    }
+    
+    function_name = stage_function_map.get(stage_name)
+    if not function_name:
+        raise ValueError(f"Unknown stage: {stage_name}")
+    
+    # Build stage payload
+    payload = {
+        'bucket': bucket,
+        'job_id': job_id,
+        'stage_name': stage_name,
+        **stage_config
+    }
+    
+    logger.info(f"Executing stage {stage_name} for job {job_id}")
+    
+    # Invoke the stage Lambda function
+    result = invoke_lambda_stage(function_name, payload)
+    
+    # Log stage completion
+    update_job_status(
+        job_id,
+        'RUNNING',
+        logs=[{
+            'timestamp': datetime.now().isoformat(),
+            'level': 'INFO',
+            'message': f'Completed stage: {stage_name}',
+            'stage': stage_name,
+            'execution_time': result.get('execution_time', 0),
+            'status_code': result.get('statusCode', 500)
+        }]
+    )
+    
+    return result
+
+def orchestrator_handler(event: Dict[str, Any], context) -> Dict[str, Any]:
+    """Main orchestrator handler - executes the complete pipeline"""
+    
+    job_id = event.get('job_id')
+    pipeline_config = event.get('pipeline_config', {})
+    
+    if not job_id:
+        return {'statusCode': 400, 'error': 'Missing job_id'}
+    
+    logger.info(f"Starting pipeline orchestration for job {job_id}")
+    
+    bucket = os.environ['S3_BUCKET']
+    
+    try:
+        # Update job status to RUNNING
+        update_job_status(job_id, 'RUNNING', 'research_analysis', 0)
+        
+        # Pipeline stages configuration
         stages = [
-            {'name': 'Research Analysis', 'duration': 2},
-            {'name': 'JTBD Research', 'duration': 3}, 
-            {'name': 'Pain Point Clustering', 'duration': 1},
-            {'name': 'Value Curve Mapping', 'duration': 5},
-            {'name': 'Product Idea Generation', 'duration': 8},
-            {'name': 'Idea Consolidation', 'duration': 1},
-            {'name': 'GitHub Repository Creation', 'duration': 2}
+            {
+                'name': 'research_analysis',
+                'config': {
+                    'input_key': pipeline_config.get('input_key', 'input/research.json'),
+                    'output_key': f'jobs/{job_id}/analysis/results.md'
+                },
+                'progress': 12
+            },
+            {
+                'name': 'jobs_research',
+                'config': {
+                    'input_key': f'jobs/{job_id}/analysis/results.md',
+                    'output_keys': {
+                        'jtbd_report': f'jobs/{job_id}/jtbd/research.md',
+                        'pain_points': f'jobs/{job_id}/jtbd/pain_points.txt'
+                    }
+                },
+                'progress': 25
+            },
+            {
+                'name': 'jobs_to_reddit',
+                'config': {
+                    'input_key': f'jobs/{job_id}/analysis/results.md',
+                    'output_keys': {
+                        'jtbds': f'jobs/{job_id}/jtbd/extracted.txt',
+                        'reddit_discussions': f'jobs/{job_id}/reddit/discussions.csv'
+                    },
+                    'max_jtbds': pipeline_config.get('max_jtbds', 20)
+                },
+                'progress': 37
+            },
+            {
+                'name': 'clustering',
+                'config': {
+                    'input_key': f'jobs/{job_id}/jtbd/pain_points.txt',
+                    'output_key': f'jobs/{job_id}/clusters/opportunity_zones.json',
+                    'clustering_params': {
+                        'min_cluster_size': 3,
+                        'max_clusters': pipeline_config.get('max_clusters', 8)
+                    }
+                },
+                'progress': 50
+            },
+            {
+                'name': 'opportunity_zones',
+                'config': {
+                    'input_keys': {
+                        'jtbds': f'jobs/{job_id}/jtbd/extracted.txt',
+                        'reddit_discussions': f'jobs/{job_id}/reddit/discussions.csv'
+                    },
+                    'output_key': f'jobs/{job_id}/zones/advanced_analysis.json',
+                    'analysis_params': {
+                        'n_zones': pipeline_config.get('max_clusters', 8),
+                        'max_discussions_per_jtbd': 3
+                    }
+                },
+                'progress': 62
+            },
+            {
+                'name': 'value_curves',
+                'config': {
+                    'input_key': f'jobs/{job_id}/zones/advanced_analysis.json',
+                    'output_keys': {
+                        'value_curves': f'jobs/{job_id}/value_curves/analysis.json',
+                        'report': f'jobs/{job_id}/value_curves/report.md'
+                    }
+                },
+                'progress': 75
+            },
+            {
+                'name': 'product_ideas',
+                'config': {
+                    'input_key': f'jobs/{job_id}/value_curves/analysis.json',
+                    'output_keys': {
+                        'ideas': f'jobs/{job_id}/products/ideas.json',
+                        'report': f'jobs/{job_id}/products/report.md'
+                    },
+                    'generation_params': {
+                        'target_count': pipeline_config.get('target_ideas', 12),
+                        'final_count': pipeline_config.get('final_ideas', 8)
+                    }
+                },
+                'progress': 87
+            },
+            {
+                'name': 'consolidation',
+                'config': {
+                    'input_key': f'jobs/{job_id}/products/ideas.json',
+                    'output_keys': {
+                        'portfolio': f'jobs/{job_id}/final/portfolio.json',
+                        'summary': f'jobs/{job_id}/final/summary.md'
+                    }
+                },
+                'progress': 100
+            }
         ]
         
-        for i, stage in enumerate(stages, 1):
-            # Update stage status
-            table.update_item(
-                Key={'jobId': job_id},
-                UpdateExpression='SET currentStage = :stage, stageName = :stageName, stageProgress = :stageProgress, overallProgress = :overallProgress, updatedAt = :updatedAt',
-                ExpressionAttributeValues={
-                    ':stage': i,
-                    ':stageName': stage['name'],
-                    ':stageProgress': Decimal('0.0'),
-                    ':overallProgress': Decimal(str((i - 1) / len(stages) * 100)),
-                    ':updatedAt': datetime.utcnow().isoformat() + 'Z'
-                }
-            )
+        # Execute stages sequentially
+        completed_stages = []
+        
+        for stage in stages:
+            stage_name = stage['name']
+            stage_config = stage['config']
+            progress = stage['progress']
             
-            # Simulate stage processing
-            stage_duration = stage['duration'] * 60  # Convert to seconds
-            for progress in range(0, 101, 20):
-                time.sleep(stage_duration / 5 * 0.01)  # Simulate work (much faster for demo)
+            try:
+                logger.info(f"Starting stage: {stage_name}")
+                update_job_status(job_id, 'RUNNING', stage_name, progress)
                 
-                table.update_item(
-                    Key={'jobId': job_id},
-                    UpdateExpression='SET stageProgress = :stageProgress, overallProgress = :overallProgress, updatedAt = :updatedAt',
-                    ExpressionAttributeValues={
-                        ':stageProgress': Decimal(str(float(progress))),
-                        ':overallProgress': Decimal(str(((i - 1) + progress / 100) / len(stages) * 100)),
-                        ':updatedAt': datetime.utcnow().isoformat() + 'Z'
-                    }
+                # Execute the stage
+                result = execute_pipeline_stage(job_id, stage_name, stage_config)
+                
+                if result.get('statusCode') != 200:
+                    raise Exception(f"Stage {stage_name} failed: {result.get('error', 'Unknown error')}")
+                
+                completed_stages.append(stage_name)
+                logger.info(f"Completed stage: {stage_name}")
+                
+            except Exception as e:
+                logger.error(f"Stage {stage_name} failed: {e}")
+                
+                # Update job with failure
+                update_job_status(
+                    job_id, 
+                    'FAILED',
+                    stage_name,
+                    progress,
+                    [{
+                        'timestamp': datetime.now().isoformat(),
+                        'level': 'ERROR',
+                        'message': f'Stage {stage_name} failed: {str(e)}',
+                        'stage': stage_name
+                    }]
                 )
+                
+                return {
+                    'statusCode': 500,
+                    'job_id': job_id,
+                    'error': f'Pipeline failed at stage {stage_name}: {str(e)}',
+                    'completed_stages': completed_stages
+                }
         
-        # Mark job as completed
-        github_repo_url = f"https://github.com/{username}/innovation-analysis-{research_doc_id[:8]}"
-        
-        table.update_item(
-            Key={'jobId': job_id},
-            UpdateExpression='SET #status = :status, overallProgress = :progress, completedAt = :completedAt, updatedAt = :updatedAt, results.githubRepoUrl = :githubUrl, results.githubRepoName = :githubName, results.issuesCreated = :issuesCreated',
-            ExpressionAttributeNames={'#status': 'status'},
-            ExpressionAttributeValues={
-                ':status': 'COMPLETED',
-                ':progress': Decimal('100.0'),
-                ':completedAt': datetime.utcnow().isoformat() + 'Z',
-                ':updatedAt': datetime.utcnow().isoformat() + 'Z',
-                ':githubUrl': github_repo_url,
-                ':githubName': f"innovation-analysis-{research_doc_id[:8]}",
-                ':issuesCreated': 12
-            }
+        # Pipeline completed successfully
+        update_job_status(
+            job_id,
+            'COMPLETED',
+            'finished',
+            100,
+            [{
+                'timestamp': datetime.now().isoformat(),
+                'level': 'INFO',
+                'message': 'Pipeline completed successfully',
+                'stage': 'orchestrator'
+            }]
         )
         
         logger.info(f"Pipeline completed successfully for job {job_id}")
-        return {'statusCode': 200, 'body': 'Pipeline completed successfully'}
+        
+        return {
+            'statusCode': 200,
+            'job_id': job_id,
+            'message': 'Pipeline completed successfully',
+            'completed_stages': completed_stages,
+            'results_location': f's3://{bucket}/jobs/{job_id}/final/'
+        }
         
     except Exception as e:
-        logger.error(f"Orchestrator error: {str(e)}")
-        logger.error(traceback.format_exc())
+        logger.error(f"Pipeline orchestration failed for job {job_id}: {e}")
         
-        # Mark job as failed
-        if 'job_id' in locals():
-            table = dynamodb.Table(JOBS_TABLE)
-            table.update_item(
-                Key={'jobId': job_id},
-                UpdateExpression='SET #status = :status, errorMessage = :error, updatedAt = :updatedAt',
-                ExpressionAttributeNames={'#status': 'status'},
-                ExpressionAttributeValues={
-                    ':status': 'FAILED',
-                    ':error': str(e),
-                    ':updatedAt': datetime.utcnow().isoformat() + 'Z'
-                }
-            )
+        update_job_status(
+            job_id,
+            'FAILED',
+            logs=[{
+                'timestamp': datetime.now().isoformat(),
+                'level': 'ERROR',
+                'message': f'Pipeline orchestration failed: {str(e)}',
+                'stage': 'orchestrator'
+            }]
+        )
         
-        return {'statusCode': 500, 'body': 'Pipeline failed'}
+        return {
+            'statusCode': 500,
+            'job_id': job_id,
+            'error': f'Pipeline orchestration failed: {str(e)}'
+        }
 
+def lambda_handler(event: Dict[str, Any], context) -> Dict[str, Any]:
+    """Main Lambda handler for API Gateway endpoints"""
+    
+    # Handle CORS preflight requests
+    if event.get('httpMethod') == 'OPTIONS':
+        return {
+            'statusCode': 200,
+            'headers': get_cors_headers(),
+            'body': ''
+        }
+    
+    path = event.get('path', '')
+    method = event.get('httpMethod', '')
+    
+    try:
+        # Start pipeline endpoint
+        if path == '/start-pipeline' and method == 'POST':
+            return handle_start_pipeline(event, context)
+        
+        # Get job status endpoint
+        elif path.startswith('/status/') and method == 'GET':
+            job_id = path.split('/')[-1]
+            return handle_get_status(job_id)
+        
+        # Get job logs endpoint
+        elif path.startswith('/logs/') and method == 'GET':
+            job_id = path.split('/')[-1]
+            return handle_get_logs(job_id)
+        
+        else:
+            return {
+                'statusCode': 404,
+                'headers': get_cors_headers(),
+                'body': json.dumps({'error': 'Endpoint not found'})
+            }
+    
+    except Exception as e:
+        logger.error(f"Handler error: {e}")
+        return {
+            'statusCode': 500,
+            'headers': get_cors_headers(),
+            'body': json.dumps({'error': str(e)})
+        }
 
-if __name__ == "__main__":
-    # For local testing
-    test_event = {
-        'httpMethod': 'POST',
-        'path': '/start-pipeline',
-        'body': json.dumps({
-            'researchDocId': 'test-doc-123',
-            'username': 'testuser'
-        })
+def handle_start_pipeline(event: Dict[str, Any], context) -> Dict[str, Any]:
+    """Handle pipeline start request"""
+    
+    try:
+        # Parse request body
+        body = json.loads(event.get('body', '{}'))
+        
+        # Generate unique job ID
+        job_id = f"job-{int(time.time())}-{str(uuid.uuid4())[:8]}"
+        
+        # Validate required parameters
+        input_data = body.get('input_data')
+        if not input_data:
+            return {
+                'statusCode': 400,
+                'headers': get_cors_headers(),
+                'body': json.dumps({'error': 'Missing input_data'})
+            }
+        
+        # Pipeline configuration
+        pipeline_config = {
+            'input_key': f'jobs/{job_id}/input/research.json',
+            'max_jtbds': body.get('max_jtbds', 20),
+            'max_clusters': body.get('max_clusters', 8),
+            'target_ideas': body.get('target_ideas', 12),
+            'final_ideas': body.get('final_ideas', 8)
+        }
+        
+        # Store input data in S3
+        initialize_clients()
+        bucket = os.environ['S3_BUCKET']
+        
+        s3_client.put_object(
+            Bucket=bucket,
+            Key=pipeline_config['input_key'],
+            Body=json.dumps(input_data).encode('utf-8'),
+            ContentType='application/json',
+            ServerSideEncryption='AES256'
+        )
+        
+        # Create job record
+        create_job_record(job_id, pipeline_config)
+        
+        # Invoke orchestrator Lambda asynchronously
+        orchestrator_function = os.environ['ORCHESTRATOR_FUNCTION_NAME']
+        
+        orchestrator_payload = {
+            'job_id': job_id,
+            'pipeline_config': pipeline_config
+        }
+        
+        lambda_client.invoke(
+            FunctionName=orchestrator_function,
+            InvocationType='Event',  # Async invocation
+            Payload=json.dumps(orchestrator_payload)
+        )
+        
+        return {
+            'statusCode': 202,  # Accepted
+            'headers': get_cors_headers(),
+            'body': json.dumps({
+                'job_id': job_id,
+                'status': 'INITIATED',
+                'message': 'Pipeline started successfully',
+                'status_url': f'/status/{job_id}'
+            })
+        }
+        
+    except Exception as e:
+        logger.error(f"Failed to start pipeline: {e}")
+        return {
+            'statusCode': 500,
+            'headers': get_cors_headers(),
+            'body': json.dumps({'error': f'Failed to start pipeline: {str(e)}'})
+        }
+
+def handle_get_status(job_id: str) -> Dict[str, Any]:
+    """Handle get job status request"""
+    
+    job_data = get_job_status(job_id)
+    
+    if not job_data:
+        return {
+            'statusCode': 404,
+            'headers': get_cors_headers(),
+            'body': json.dumps({'error': 'Job not found'})
+        }
+    
+    # Clean up response
+    response_data = {
+        'job_id': job_data['jobId'],
+        'status': job_data['status'],
+        'current_stage': job_data.get('current_stage', 'unknown'),
+        'progress_percentage': job_data.get('progress_percentage', 0),
+        'created_at': job_data['createdAt'],
+        'updated_at': job_data['updatedAt'],
+        'stages_completed': job_data.get('stages_completed', []),
+        'total_stages': job_data.get('total_stages', 8)
     }
     
-    result = lambda_handler(test_event, None)
-    print(json.dumps(result, indent=2))
+    # Add results location if completed
+    if job_data['status'] == 'COMPLETED':
+        bucket = os.environ['S3_BUCKET']
+        response_data['results_location'] = f's3://{bucket}/jobs/{job_id}/final/'
+    
+    return {
+        'statusCode': 200,
+        'headers': get_cors_headers(),
+        'body': json.dumps(response_data)
+    }
+
+def handle_get_logs(job_id: str) -> Dict[str, Any]:
+    """Handle get job logs request"""
+    
+    job_data = get_job_status(job_id)
+    
+    if not job_data:
+        return {
+            'statusCode': 404,
+            'headers': get_cors_headers(),
+            'body': json.dumps({'error': 'Job not found'})
+        }
+    
+    logs = job_data.get('logs', [])
+    
+    return {
+        'statusCode': 200,
+        'headers': get_cors_headers(),
+        'body': json.dumps({
+            'job_id': job_id,
+            'logs': logs,
+            'total_logs': len(logs)
+        })
+    }

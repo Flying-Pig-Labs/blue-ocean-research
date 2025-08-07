@@ -1,0 +1,876 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: >
+  Multi-Step LLM Pipeline - Comprehensive AWS Infrastructure
+  Serverless processing pipeline for research-to-product-ideas transformation
+
+Parameters:
+  EnvironmentName:
+    Type: String
+    Default: production
+    AllowedValues: [development, staging, production]
+    Description: Environment name for resource naming and configuration
+
+  PipelineVpcId:
+    Type: String
+    Default: ""
+    Description: Optional VPC ID for Lambda functions (leave empty for default VPC)
+
+  SubnetIds:
+    Type: CommaDelimitedList
+    Default: ""
+    Description: Optional subnet IDs for Lambda functions (leave empty for default subnets)
+
+  NotificationEmail:
+    Type: String
+    Default: ""
+    Description: Email for pipeline notifications and alerts
+
+Conditions:
+  IsProduction: !Equals [!Ref EnvironmentName, production]
+  HasVpcConfig: !Not [!Equals [!Ref PipelineVpcId, ""]]
+  HasNotificationEmail: !Not [!Equals [!Ref NotificationEmail, ""]]
+
+Globals:
+  Function:
+    Runtime: python3.11
+    Timeout: 900
+    MemorySize: 3008
+    Environment:
+      Variables:
+        ENVIRONMENT: !Ref EnvironmentName
+        PIPELINE_TABLE: !Ref PipelineJobsTable
+        PIPELINE_BUCKET: !Ref PipelineBucket
+        SECRETS_ARN: !Ref PipelineSecrets
+        STATE_MACHINE_ARN: !Ref PipelineStateMachine
+        AWS_REGION: !Ref AWS::Region
+        PYTHONPATH: /opt/python:/var/runtime
+    VpcConfig: !If
+      - HasVpcConfig
+      - VpcId: !Ref PipelineVpcId
+        SubnetIds: !Ref SubnetIds
+        SecurityGroupIds: [!Ref LambdaSecurityGroup]
+      - !Ref AWS::NoValue
+    ReservedConcurrencyConfig:
+      ReservedConcurrency: !If [IsProduction, 50, 10]
+    DeadLetterQueue:
+      Type: SQS
+      TargetArn: !GetAtt DeadLetterQueue.Arn
+    Tracing: Active
+
+Resources:
+  # ========== STORAGE LAYER ==========
+  
+  # S3 Bucket for pipeline artifacts
+  PipelineBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub "${AWS::StackName}-pipeline-${AWS::AccountId}-${AWS::Region}"
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+      VersioningConfiguration:
+        Status: Enabled
+      LifecycleConfiguration:
+        Rules:
+          - Id: DeleteOldVersions
+            Status: Enabled
+            NoncurrentVersionExpirationInDays: 30
+          - Id: AbortIncompleteMultipartUploads
+            Status: Enabled
+            AbortIncompleteMultipartUpload:
+              DaysAfterInitiation: 7
+          - Id: TransitionToIA
+            Status: Enabled
+            TransitionInDays: 30
+            StorageClass: STANDARD_IA
+      NotificationConfiguration:
+        CloudWatchConfigurations:
+          - Event: s3:ObjectCreated:*
+            CloudWatchConfiguration:
+              LogGroupName: !Ref S3NotificationLogGroup
+
+  # DynamoDB table for job tracking and state management
+  PipelineJobsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub "${AWS::StackName}-jobs-${EnvironmentName}"
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: jobId
+          AttributeType: S
+        - AttributeName: researchDocId
+          AttributeType: S
+        - AttributeName: username
+          AttributeType: S
+        - AttributeName: status
+          AttributeType: S
+        - AttributeName: createdAt
+          AttributeType: S
+      KeySchema:
+        - AttributeName: jobId
+          KeyType: HASH
+      GlobalSecondaryIndexes:
+        - IndexName: ResearchDocIndex
+          KeySchema:
+            - AttributeName: researchDocId
+              KeyType: HASH
+            - AttributeName: createdAt
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
+        - IndexName: UserJobsIndex
+          KeySchema:
+            - AttributeName: username
+              KeyType: HASH
+            - AttributeName: createdAt
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
+        - IndexName: StatusIndex
+          KeySchema:
+            - AttributeName: status
+              KeyType: HASH
+            - AttributeName: createdAt
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
+      StreamSpecification:
+        StreamViewType: NEW_AND_OLD_IMAGES
+      TimeToLiveSpecification:
+        AttributeName: ttl
+        Enabled: true
+      BackupPolicy:
+        PointInTimeRecoveryEnabled: true
+      DeletionPolicy: !If [IsProduction, Retain, Delete]
+
+  # Secrets Manager for API keys
+  PipelineSecrets:
+    Type: AWS::SecretsManager::Secret
+    Properties:
+      Name: !Sub "${AWS::StackName}-secrets"
+      Description: "API keys for multi-step LLM pipeline"
+      SecretString: !Sub |
+        {
+          "ANTHROPIC_API_KEY": "change-me",
+          "OPENAI_API_KEY": "change-me", 
+          "EXA_API_KEY": "change-me",
+          "COHERE_API_KEY": "change-me",
+          "GITHUB_TOKEN": "change-me",
+          "PERPLEXITY_KEY": "change-me"
+        }
+
+  # ========== COMPUTE LAYER ==========
+
+  # Python dependencies layer
+  PipelineDependenciesLayer:
+    Type: AWS::Serverless::LayerVersion
+    Properties:
+      LayerName: !Sub "${AWS::StackName}-dependencies"
+      Description: Python dependencies for pipeline functions
+      ContentUri: ./layers/dependencies/
+      CompatibleRuntimes:
+        - python3.11
+      RetentionPolicy: Delete
+    Metadata:
+      BuildMethod: python3.11
+
+  # Common utilities layer
+  PipelineUtilsLayer:
+    Type: AWS::Serverless::LayerVersion
+    Properties:
+      LayerName: !Sub "${AWS::StackName}-utils"
+      Description: Common utilities and configuration
+      ContentUri: ./layers/utils/
+      CompatibleRuntimes:
+        - python3.11
+      RetentionPolicy: Delete
+
+  # API Gateway
+  PipelineApi:
+    Type: AWS::Serverless::Api
+    Properties:
+      Name: !Sub "${AWS::StackName}-api"
+      StageName: !Ref EnvironmentName
+      TracingEnabled: true
+      Cors:
+        AllowMethods: "'GET,POST,PUT,DELETE,OPTIONS'"
+        AllowHeaders: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token'"
+        AllowOrigin: "'*'"
+        MaxAge: "'600'"
+      DefinitionBody:
+        openapi: 3.0.1
+        info:
+          title: Multi-Step LLM Pipeline API
+          version: '1.0'
+        paths:
+          /pipeline/start:
+            post:
+              summary: Start pipeline execution
+              x-amazon-apigateway-integration:
+                httpMethod: POST
+                type: aws_proxy
+                uri: !Sub "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${PipelineStarterFunction.Arn}/invocations"
+          /pipeline/status/{jobId}:
+            get:
+              summary: Get pipeline status
+              x-amazon-apigateway-integration:
+                httpMethod: POST
+                type: aws_proxy
+                uri: !Sub "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${StatusFunction.Arn}/invocations"
+          /pipeline/logs/{jobId}:
+            get:
+              summary: Get pipeline logs
+              x-amazon-apigateway-integration:
+                httpMethod: POST
+                type: aws_proxy
+                uri: !Sub "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${LogsFunction.Arn}/invocations"
+          /pipeline/cancel/{jobId}:
+            post:
+              summary: Cancel pipeline execution
+              x-amazon-apigateway-integration:
+                httpMethod: POST
+                type: aws_proxy
+                uri: !Sub "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${CancelFunction.Arn}/invocations"
+
+  # Pipeline Starter Lambda - handles API requests
+  PipelineStarterFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub "${AWS::StackName}-starter-${EnvironmentName}"
+      CodeUri: ./src/lambda/starter/
+      Handler: handler.lambda_handler
+      Timeout: 30
+      MemorySize: 512
+      Layers:
+        - !Ref PipelineDependenciesLayer
+        - !Ref PipelineUtilsLayer
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref PipelineJobsTable
+        - S3CrudPolicy:
+            BucketName: !Ref PipelineBucket
+        - StepFunctionsExecutionPolicy:
+            StateMachineName: !GetAtt PipelineStateMachine.Name
+        - Statement:
+          - Effect: Allow
+            Action:
+              - secretsmanager:GetSecretValue
+            Resource: !Ref PipelineSecrets
+      Events:
+        StartPipeline:
+          Type: Api
+          Properties:
+            RestApiId: !Ref PipelineApi
+            Path: /pipeline/start
+            Method: post
+        OptionsCors:
+          Type: Api
+          Properties:
+            RestApiId: !Ref PipelineApi
+            Path: /pipeline/start
+            Method: options
+
+  # Status Function
+  StatusFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub "${AWS::StackName}-status-${EnvironmentName}"
+      CodeUri: ./src/lambda/status/
+      Handler: handler.lambda_handler
+      Timeout: 30
+      MemorySize: 256
+      Layers:
+        - !Ref PipelineUtilsLayer
+      Policies:
+        - DynamoDBReadPolicy:
+            TableName: !Ref PipelineJobsTable
+        - S3ReadPolicy:
+            BucketName: !Ref PipelineBucket
+      Events:
+        GetStatus:
+          Type: Api
+          Properties:
+            RestApiId: !Ref PipelineApi
+            Path: /pipeline/status/{jobId}
+            Method: get
+
+  # Logs Function
+  LogsFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub "${AWS::StackName}-logs-${EnvironmentName}"
+      CodeUri: ./src/lambda/logs/
+      Handler: handler.lambda_handler
+      Timeout: 30
+      MemorySize: 256
+      Layers:
+        - !Ref PipelineUtilsLayer
+      Policies:
+        - S3ReadPolicy:
+            BucketName: !Ref PipelineBucket
+        - Statement:
+          - Effect: Allow
+            Action:
+              - logs:DescribeLogGroups
+              - logs:DescribeLogStreams
+              - logs:GetLogEvents
+            Resource: "*"
+      Events:
+        GetLogs:
+          Type: Api
+          Properties:
+            RestApiId: !Ref PipelineApi
+            Path: /pipeline/logs/{jobId}
+            Method: get
+
+  # Cancel Function
+  CancelFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub "${AWS::StackName}-cancel-${EnvironmentName}"
+      CodeUri: ./src/lambda/cancel/
+      Handler: handler.lambda_handler
+      Timeout: 30
+      MemorySize: 256
+      Layers:
+        - !Ref PipelineUtilsLayer
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref PipelineJobsTable
+        - Statement:
+          - Effect: Allow
+            Action:
+              - states:StopExecution
+            Resource: !Sub "${PipelineStateMachine}*"
+      Events:
+        CancelPipeline:
+          Type: Api
+          Properties:
+            RestApiId: !Ref PipelineApi
+            Path: /pipeline/cancel/{jobId}
+            Method: post
+
+  # ========== PIPELINE EXECUTION FUNCTIONS ==========
+
+  # Stage 1: Research Analysis
+  ResearchAnalysisFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub "${AWS::StackName}-research-analysis-${EnvironmentName}"
+      CodeUri: ./src/lambda/stages/
+      Handler: research_analysis.lambda_handler
+      Timeout: 300
+      MemorySize: 1024
+      Layers:
+        - !Ref PipelineDependenciesLayer
+        - !Ref PipelineUtilsLayer
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref PipelineJobsTable
+        - S3CrudPolicy:
+            BucketName: !Ref PipelineBucket
+        - Statement:
+          - Effect: Allow
+            Action:
+              - secretsmanager:GetSecretValue
+            Resource: !Ref PipelineSecrets
+
+  # Stage 2: JTBD Research
+  JTBDResearchFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub "${AWS::StackName}-jtbd-research-${EnvironmentName}"
+      CodeUri: ./src/lambda/stages/
+      Handler: jtbd_research.lambda_handler
+      Timeout: 600
+      MemorySize: 1024
+      Layers:
+        - !Ref PipelineDependenciesLayer
+        - !Ref PipelineUtilsLayer
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref PipelineJobsTable
+        - S3CrudPolicy:
+            BucketName: !Ref PipelineBucket
+        - Statement:
+          - Effect: Allow
+            Action:
+              - secretsmanager:GetSecretValue
+            Resource: !Ref PipelineSecrets
+
+  # Stage 3: Clustering
+  ClusteringFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub "${AWS::StackName}-clustering-${EnvironmentName}"
+      CodeUri: ./src/lambda/stages/
+      Handler: clustering.lambda_handler
+      Timeout: 600
+      MemorySize: 2048
+      Layers:
+        - !Ref PipelineDependenciesLayer
+        - !Ref PipelineUtilsLayer
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref PipelineJobsTable
+        - S3CrudPolicy:
+            BucketName: !Ref PipelineBucket
+        - Statement:
+          - Effect: Allow
+            Action:
+              - secretsmanager:GetSecretValue
+            Resource: !Ref PipelineSecrets
+
+  # Stage 4: Value Curve Mapping
+  ValueCurveMappingFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub "${AWS::StackName}-value-curve-mapping-${EnvironmentName}"
+      CodeUri: ./src/lambda/stages/
+      Handler: value_curve_mapping.lambda_handler
+      Timeout: 900
+      MemorySize: 1536
+      Layers:
+        - !Ref PipelineDependenciesLayer
+        - !Ref PipelineUtilsLayer
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref PipelineJobsTable
+        - S3CrudPolicy:
+            BucketName: !Ref PipelineBucket
+        - Statement:
+          - Effect: Allow
+            Action:
+              - secretsmanager:GetSecretValue
+            Resource: !Ref PipelineSecrets
+
+  # Stage 5: Product Idea Generation
+  ProductIdeaGenerationFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub "${AWS::StackName}-product-idea-generation-${EnvironmentName}"
+      CodeUri: ./src/lambda/stages/
+      Handler: product_idea_generation.lambda_handler
+      Timeout: 900
+      MemorySize: 3008
+      Layers:
+        - !Ref PipelineDependenciesLayer
+        - !Ref PipelineUtilsLayer
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref PipelineJobsTable
+        - S3CrudPolicy:
+            BucketName: !Ref PipelineBucket
+        - Statement:
+          - Effect: Allow
+            Action:
+              - secretsmanager:GetSecretValue
+            Resource: !Ref PipelineSecrets
+
+  # Stage 6: Idea Consolidation
+  IdeaConsolidationFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub "${AWS::StackName}-idea-consolidation-${EnvironmentName}"
+      CodeUri: ./src/lambda/stages/
+      Handler: idea_consolidation.lambda_handler
+      Timeout: 300
+      MemorySize: 1024
+      Layers:
+        - !Ref PipelineDependenciesLayer
+        - !Ref PipelineUtilsLayer
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref PipelineJobsTable
+        - S3CrudPolicy:
+            BucketName: !Ref PipelineBucket
+        - Statement:
+          - Effect: Allow
+            Action:
+              - secretsmanager:GetSecretValue
+            Resource: !Ref PipelineSecrets
+
+  # Stage 7: GitHub Integration
+  GitHubIntegrationFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub "${AWS::StackName}-github-integration-${EnvironmentName}"
+      CodeUri: ./src/lambda/stages/
+      Handler: github_integration.lambda_handler
+      Timeout: 300
+      MemorySize: 1024
+      Layers:
+        - !Ref PipelineDependenciesLayer
+        - !Ref PipelineUtilsLayer
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref PipelineJobsTable
+        - S3CrudPolicy:
+            BucketName: !Ref PipelineBucket
+        - Statement:
+          - Effect: Allow
+            Action:
+              - secretsmanager:GetSecretValue
+            Resource: !Ref PipelineSecrets
+
+  # ========== STEP FUNCTIONS STATE MACHINE ==========
+
+  PipelineStateMachine:
+    Type: AWS::Serverless::StateMachine
+    Properties:
+      Name: !Sub "${AWS::StackName}-pipeline-${EnvironmentName}"
+      DefinitionUri: ./src/stepfunctions/pipeline.asl.json
+      DefinitionSubstitutions:
+        ResearchAnalysisFunction: !GetAtt ResearchAnalysisFunction.Arn
+        JTBDResearchFunction: !GetAtt JTBDResearchFunction.Arn
+        ClusteringFunction: !GetAtt ClusteringFunction.Arn
+        ValueCurveMappingFunction: !GetAtt ValueCurveMappingFunction.Arn
+        ProductIdeaGenerationFunction: !GetAtt ProductIdeaGenerationFunction.Arn
+        IdeaConsolidationFunction: !GetAtt IdeaConsolidationFunction.Arn
+        GitHubIntegrationFunction: !GetAtt GitHubIntegrationFunction.Arn
+        PipelineJobsTable: !Ref PipelineJobsTable
+        PipelineBucket: !Ref PipelineBucket
+      Policies:
+        - LambdaInvokePolicy:
+            FunctionName: !Ref ResearchAnalysisFunction
+        - LambdaInvokePolicy:
+            FunctionName: !Ref JTBDResearchFunction
+        - LambdaInvokePolicy:
+            FunctionName: !Ref ClusteringFunction
+        - LambdaInvokePolicy:
+            FunctionName: !Ref ValueCurveMappingFunction
+        - LambdaInvokePolicy:
+            FunctionName: !Ref ProductIdeaGenerationFunction
+        - LambdaInvokePolicy:
+            FunctionName: !Ref IdeaConsolidationFunction
+        - LambdaInvokePolicy:
+            FunctionName: !Ref GitHubIntegrationFunction
+        - DynamoDBCrudPolicy:
+            TableName: !Ref PipelineJobsTable
+        - S3CrudPolicy:
+            BucketName: !Ref PipelineBucket
+      Logging:
+        IncludeExecutionData: true
+        Level: ALL
+        Destinations:
+          - CloudWatchLogsLogGroup:
+              LogGroupArn: !GetAtt StepFunctionLogGroup.Arn
+      Tracing:
+        Enabled: true
+      Events:
+        DynamoDBJobTrigger:
+          Type: DynamoDB
+          Properties:
+            Stream: !GetAtt PipelineJobsTable.StreamArn
+            StartingPosition: LATEST
+            FilterCriteria:
+              Filters:
+                - Pattern: '{"eventName": ["INSERT"], "dynamodb": {"NewImage": {"status": {"S": ["QUEUED"]}}}}'
+
+  # ========== MONITORING AND OBSERVABILITY ==========
+
+  # CloudWatch Log Groups
+  ApiGatewayLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub "/aws/apigateway/${AWS::StackName}-api"
+      RetentionInDays: !If [IsProduction, 90, 30]
+
+  StepFunctionLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub "/aws/stepfunctions/${AWS::StackName}-pipeline"
+      RetentionInDays: !If [IsProduction, 90, 30]
+
+  S3NotificationLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub "/aws/s3/${AWS::StackName}-bucket"
+      RetentionInDays: !If [IsProduction, 90, 30]
+
+  # CloudWatch Dashboard
+  PipelineDashboard:
+    Type: AWS::CloudWatch::Dashboard
+    Properties:
+      DashboardName: !Sub "${AWS::StackName}-pipeline-${EnvironmentName}"
+      DashboardBody: !Sub |
+        {
+          "widgets": [
+            {
+              "type": "metric",
+              "x": 0, "y": 0,
+              "width": 12, "height": 6,
+              "properties": {
+                "metrics": [
+                  ["AWS/States", "ExecutionsSucceeded", "StateMachineArn", "${PipelineStateMachine}"],
+                  [".", "ExecutionsFailed", ".", "."],
+                  [".", "ExecutionsTimedOut", ".", "."]
+                ],
+                "view": "timeSeries",
+                "stacked": false,
+                "region": "${AWS::Region}",
+                "title": "Pipeline Executions",
+                "period": 300
+              }
+            },
+            {
+              "type": "metric",
+              "x": 12, "y": 0,
+              "width": 12, "height": 6,
+              "properties": {
+                "metrics": [
+                  ["AWS/Lambda", "Duration", "FunctionName", "${ResearchAnalysisFunction}"],
+                  [".", ".", ".", "${JTBDResearchFunction}"],
+                  [".", ".", ".", "${ClusteringFunction}"],
+                  [".", ".", ".", "${ValueCurveMappingFunction}"],
+                  [".", ".", ".", "${ProductIdeaGenerationFunction}"],
+                  [".", ".", ".", "${IdeaConsolidationFunction}"],
+                  [".", ".", ".", "${GitHubIntegrationFunction}"]
+                ],
+                "view": "timeSeries",
+                "stacked": false,
+                "region": "${AWS::Region}",
+                "title": "Function Duration",
+                "period": 300
+              }
+            },
+            {
+              "type": "metric",
+              "x": 0, "y": 6,
+              "width": 12, "height": 6,
+              "properties": {
+                "metrics": [
+                  ["AWS/DynamoDB", "ConsumedReadCapacityUnits", "TableName", "${PipelineJobsTable}"],
+                  [".", "ConsumedWriteCapacityUnits", ".", "."]
+                ],
+                "view": "timeSeries",
+                "stacked": false,
+                "region": "${AWS::Region}",
+                "title": "DynamoDB Capacity",
+                "period": 300
+              }
+            },
+            {
+              "type": "metric",
+              "x": 12, "y": 6,
+              "width": 12, "height": 6,
+              "properties": {
+                "metrics": [
+                  ["AWS/S3", "NumberOfObjects", "BucketName", "${PipelineBucket}", "StorageType", "AllStorageTypes"],
+                  [".", "BucketSizeBytes", ".", ".", ".", "."]
+                ],
+                "view": "timeSeries",
+                "stacked": false,
+                "region": "${AWS::Region}",
+                "title": "S3 Bucket Metrics",
+                "period": 86400
+              }
+            }
+          ]
+        }
+
+  # CloudWatch Alarms
+  FailedExecutionsAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Condition: HasNotificationEmail
+    Properties:
+      AlarmName: !Sub "${AWS::StackName}-FailedExecutions-${EnvironmentName}"
+      AlarmDescription: "Pipeline executions are failing"
+      MetricName: ExecutionsFailed
+      Namespace: AWS/States
+      Statistic: Sum
+      Period: 300
+      EvaluationPeriods: 1
+      Threshold: 1
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      Dimensions:
+        - Name: StateMachineArn
+          Value: !Ref PipelineStateMachine
+      AlarmActions:
+        - !Ref NotificationTopic
+
+  LambdaErrorRateAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Condition: HasNotificationEmail
+    Properties:
+      AlarmName: !Sub "${AWS::StackName}-LambdaErrors-${EnvironmentName}"
+      AlarmDescription: "Lambda functions are experiencing high error rates"
+      MetricName: Errors
+      Namespace: AWS/Lambda
+      Statistic: Sum
+      Period: 300
+      EvaluationPeriods: 2
+      Threshold: 5
+      ComparisonOperator: GreaterThanThreshold
+      AlarmActions:
+        - !Ref NotificationTopic
+
+  # SNS Topic for notifications
+  NotificationTopic:
+    Type: AWS::SNS::Topic
+    Condition: HasNotificationEmail
+    Properties:
+      TopicName: !Sub "${AWS::StackName}-notifications-${EnvironmentName}"
+      Subscription:
+        - Endpoint: !Ref NotificationEmail
+          Protocol: email
+
+  # ========== SECURITY LAYER ==========
+
+  # Security Group for Lambda functions (if VPC is specified)
+  LambdaSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Condition: HasVpcConfig
+    Properties:
+      GroupDescription: Security group for pipeline Lambda functions
+      VpcId: !Ref PipelineVpcId
+      SecurityGroupEgress:
+        - IpProtocol: tcp
+          FromPort: 443
+          ToPort: 443
+          CidrIp: 0.0.0.0/0
+          Description: HTTPS outbound for API calls
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 0.0.0.0/0
+          Description: HTTP outbound for API calls
+
+  # WAF Web ACL for API Gateway
+  WebACL:
+    Type: AWS::WAFv2::WebACL
+    Condition: IsProduction
+    Properties:
+      Name: !Sub "${AWS::StackName}-webacl-${EnvironmentName}"
+      Scope: REGIONAL
+      DefaultAction:
+        Allow: {}
+      Rules:
+        - Name: RateLimitRule
+          Priority: 1
+          Statement:
+            RateBasedStatement:
+              Limit: 1000
+              AggregateKeyType: IP
+          Action:
+            Block: {}
+          VisibilityConfig:
+            SampledRequestsEnabled: true
+            CloudWatchMetricsEnabled: true
+            MetricName: RateLimitRule
+        - Name: AWSManagedRulesCommonRuleSet
+          Priority: 2
+          OverrideAction:
+            None: {}
+          Statement:
+            ManagedRuleGroupStatement:
+              VendorName: AWS
+              Name: AWSManagedRulesCommonRuleSet
+          VisibilityConfig:
+            SampledRequestsEnabled: true
+            CloudWatchMetricsEnabled: true
+            MetricName: CommonRuleSetMetric
+
+  # Associate WAF with API Gateway
+  WebACLAssociation:
+    Type: AWS::WAFv2::WebACLAssociation
+    Condition: IsProduction
+    Properties:
+      ResourceArn: !Sub "arn:aws:apigateway:${AWS::Region}::/restapis/${PipelineApi}/stages/${EnvironmentName}"
+      WebACLArn: !GetAtt WebACL.Arn
+
+  # ========== ERROR HANDLING ==========
+
+  # Dead Letter Queue for failed Lambda executions
+  DeadLetterQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: !Sub "${AWS::StackName}-dlq-${EnvironmentName}"
+      MessageRetentionPeriod: 1209600  # 14 days
+      VisibilityTimeoutSeconds: 60
+
+  # ========== COST OPTIMIZATION ==========
+
+  # EventBridge rule to clean up old jobs
+  JobCleanupRule:
+    Type: AWS::Events::Rule
+    Properties:
+      Name: !Sub "${AWS::StackName}-job-cleanup-${EnvironmentName}"
+      Description: "Clean up old pipeline jobs"
+      ScheduleExpression: "cron(0 2 * * ? *)"  # Daily at 2 AM
+      State: ENABLED
+      Targets:
+        - Arn: !GetAtt JobCleanupFunction.Arn
+          Id: JobCleanupTarget
+
+  JobCleanupFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub "${AWS::StackName}-job-cleanup-${EnvironmentName}"
+      CodeUri: ./src/lambda/cleanup/
+      Handler: handler.lambda_handler
+      Timeout: 300
+      MemorySize: 512
+      Layers:
+        - !Ref PipelineUtilsLayer
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref PipelineJobsTable
+        - S3CrudPolicy:
+            BucketName: !Ref PipelineBucket
+      Events:
+        CleanupSchedule:
+          Type: Schedule
+          Properties:
+            Schedule: "cron(0 2 * * ? *)"
+
+Outputs:
+  ApiEndpoint:
+    Description: "API Gateway endpoint URL"
+    Value: !Sub "https://${PipelineApi}.execute-api.${AWS::Region}.amazonaws.com/${EnvironmentName}"
+    Export:
+      Name: !Sub "${AWS::StackName}-ApiEndpoint"
+
+  PipelineStateMachineArn:
+    Description: "Step Functions state machine ARN"
+    Value: !Ref PipelineStateMachine
+    Export:
+      Name: !Sub "${AWS::StackName}-StateMachine"
+
+  PipelineBucket:
+    Description: "S3 bucket for pipeline artifacts"
+    Value: !Ref PipelineBucket
+    Export:
+      Name: !Sub "${AWS::StackName}-Bucket"
+
+  JobsTableName:
+    Description: "DynamoDB table for job tracking"
+    Value: !Ref PipelineJobsTable
+    Export:
+      Name: !Sub "${AWS::StackName}-JobsTable"
+
+  SecretsArn:
+    Description: "Secrets Manager ARN for API keys"
+    Value: !Ref PipelineSecrets
+    Export:
+      Name: !Sub "${AWS::StackName}-Secrets"
+
+  DashboardUrl:
+    Description: "CloudWatch Dashboard URL"
+    Value: !Sub "https://console.aws.amazon.com/cloudwatch/home?region=${AWS::Region}#dashboards:name=${AWS::StackName}-pipeline-${EnvironmentName}"
+    Export:
+      Name: !Sub "${AWS::StackName}-Dashboard"
+
+  DeploymentInstructions:
+    Description: "Deployment instructions"
+    Value: !Sub |
+      1. Update secrets: aws secretsmanager put-secret-value --secret-id ${PipelineSecrets} --secret-string '{"ANTHROPIC_API_KEY":"your-key","OPENAI_API_KEY":"your-key","EXA_API_KEY":"your-key","COHERE_API_KEY":"your-key","GITHUB_TOKEN":"your-token","PERPLEXITY_KEY":"your-key"}'
+      2. Test API: curl -X POST ${PipelineApi}/pipeline/start -H "Content-Type: application/json" -d '{"researchDocId":"test-doc","username":"testuser"}'
+      3. Monitor: ${PipelineApi}/pipeline/status/{jobId}

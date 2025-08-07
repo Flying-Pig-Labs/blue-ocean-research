@@ -1,8 +1,8 @@
 AWSTemplateFormatVersion: '2010-09-09'
 Transform: AWS::Serverless-2016-10-31
 Description: >
-  Multi-step LLM Pipeline
-  AWS Lambda functions for async pipeline processing with MVP frontend support features
+  Multi-step LLM Pipeline with Real-time Updates
+  Complete infrastructure with GraphQL subscriptions, Lambda functions, and React Flow visualization
 
 Parameters:
   EnvironmentName:
@@ -33,7 +33,7 @@ Resources:
       VersioningConfiguration:
         Status: Enabled
 
-  # DynamoDB table for job tracking
+  # DynamoDB table for job tracking with streams enabled
   JobsTable:
     Type: AWS::DynamoDB::Table
     Properties:
@@ -42,16 +42,380 @@ Resources:
       AttributeDefinitions:
         - AttributeName: jobId
           AttributeType: S
+        - AttributeName: username
+          AttributeType: S
+        - AttributeName: status
+          AttributeType: S
       KeySchema:
         - AttributeName: jobId
           KeyType: HASH
+      GlobalSecondaryIndexes:
+        - IndexName: UserIndex
+          KeySchema:
+            - AttributeName: username
+              KeyType: HASH
+            - AttributeName: status
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
       TimeToLiveSpecification:
         AttributeName: ttl
         Enabled: true
       StreamSpecification:
         StreamViewType: NEW_AND_OLD_IMAGES
 
-  # API Gateway
+  # AppSync GraphQL API
+  GraphQLApi:
+    Type: AWS::AppSync::GraphQLApi
+    Properties:
+      Name: !Sub "multi-step-pipeline-${EnvironmentName}"
+      AuthenticationType: API_KEY
+      AdditionalAuthenticationProviders:
+        - AuthenticationType: AWS_IAM
+      LogConfig:
+        FieldLogLevel: ALL
+        CloudWatchLogsRoleArn: !GetAtt AppSyncServiceRole.Arn
+      XrayEnabled: true
+      Tags:
+        - Key: Environment
+          Value: !Ref EnvironmentName
+        - Key: Application
+          Value: MultiStepPipeline
+
+  # API Key for GraphQL
+  GraphQLApiKey:
+    Type: AWS::AppSync::ApiKey
+    Properties:
+      ApiId: !GetAtt GraphQLApi.ApiId
+      Description: !Sub "API Key for ${EnvironmentName} environment"
+      Expires: 1735689600  # 2025-01-01
+
+  # GraphQL Schema
+  GraphQLSchema:
+    Type: AWS::AppSync::GraphQLSchema
+    Properties:
+      ApiId: !GetAtt GraphQLApi.ApiId
+      Definition: !Sub |
+        type ExecutionUpdate {
+          jobId: ID!
+          status: ExecutionStatus!
+          currentStage: Int!
+          stageName: String!
+          stageProgress: Float!
+          overallProgress: Float!
+          estimatedRemainingMinutes: Int
+          completedStages: [StageUpdate!]!
+          currentStageUpdate: StageUpdate
+          error: String
+          timestamp: AWSDateTime!
+          metadata: ExecutionMetadata
+          results: ExecutionResults
+        }
+
+        type StageUpdate {
+          stageId: Int!
+          name: String!
+          status: StageStatus!
+          progress: Float!
+          startedAt: AWSDateTime
+          completedAt: AWSDateTime
+          estimatedMinutes: Int
+          actualMinutes: Int
+          outputs: [StageOutput!]
+          error: String
+          metadata: AWSJSON
+        }
+
+        type StageOutput {
+          fileName: String!
+          fileSize: Int
+          contentPreview: String
+          s3Location: String
+          generatedAt: AWSDateTime!
+        }
+
+        type ExecutionMetadata {
+          researchDocId: String!
+          username: String!
+          startedAt: AWSDateTime!
+          completedAt: AWSDateTime
+          totalStages: Int!
+          estimatedTotalMinutes: Int!
+          actualDurationMinutes: Int
+          pipelineVersion: String
+        }
+
+        type ExecutionResults {
+          githubRepoUrl: String
+          githubRepoName: String
+          issuesCreated: Int
+          analysisResults: AWSJSON
+          finalPortfolio: AWSJSON
+        }
+
+        enum ExecutionStatus {
+          QUEUED
+          RUNNING
+          COMPLETED
+          FAILED
+          CANCELLED
+        }
+
+        enum StageStatus {
+          PENDING
+          RUNNING
+          COMPLETED
+          FAILED
+          SKIPPED
+        }
+
+        type Query {
+          getExecution(jobId: ID!): ExecutionUpdate
+          listExecutions(username: String, status: ExecutionStatus, limit: Int, nextToken: String): ExecutionConnection
+        }
+
+        type ExecutionConnection {
+          items: [ExecutionUpdate!]!
+          nextToken: String
+        }
+
+        type Mutation {
+          startExecution(input: StartExecutionInput!): ExecutionUpdate!
+          updateStageProgress(input: UpdateStageProgressInput!): ExecutionUpdate!
+        }
+
+        input StartExecutionInput {
+          researchDocId: String!
+          username: String!
+          pipelineConfig: AWSJSON
+        }
+
+        input UpdateStageProgressInput {
+          jobId: ID!
+          stageId: Int!
+          progress: Float!
+          status: StageStatus
+          outputs: [StageOutputInput!]
+          metadata: AWSJSON
+        }
+
+        input StageOutputInput {
+          fileName: String!
+          fileSize: Int
+          contentPreview: String
+          s3Location: String
+        }
+
+        type Subscription {
+          onExecutionUpdate(jobId: ID): ExecutionUpdate
+            @aws_subscribe(mutations: ["updateStageProgress"])
+        }
+
+        schema {
+          query: Query
+          mutation: Mutation
+          subscription: Subscription
+        }
+
+  # Service Role for AppSync
+  AppSyncServiceRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: appsync.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: AppSyncDynamoDBPolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - dynamodb:GetItem
+                  - dynamodb:PutItem
+                  - dynamodb:UpdateItem
+                  - dynamodb:DeleteItem
+                  - dynamodb:Query
+                  - dynamodb:Scan
+                Resource: 
+                  - !GetAtt JobsTable.Arn
+                  - !Sub "${JobsTable.Arn}/index/*"
+        - PolicyName: AppSyncLambdaPolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - lambda:InvokeFunction
+                Resource: !GetAtt GraphQLResolverFunction.Arn
+        - PolicyName: AppSyncLogsPolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                Resource: "*"
+
+  # DynamoDB Data Source
+  DynamoDBDataSource:
+    Type: AWS::AppSync::DataSource
+    Properties:
+      ApiId: !GetAtt GraphQLApi.ApiId
+      Name: DynamoDBJobsTable
+      Type: AMAZON_DYNAMODB
+      ServiceRoleArn: !GetAtt AppSyncServiceRole.Arn
+      DynamoDBConfig:
+        TableName: !Ref JobsTable
+        AwsRegion: !Ref AWS::Region
+
+  # Lambda Data Source for GraphQL resolvers
+  LambdaDataSource:
+    Type: AWS::AppSync::DataSource
+    Properties:
+      ApiId: !GetAtt GraphQLApi.ApiId
+      Name: GraphQLResolverLambda
+      Type: AWS_LAMBDA
+      ServiceRoleArn: !GetAtt AppSyncServiceRole.Arn
+      LambdaConfig:
+        LambdaFunctionArn: !GetAtt GraphQLResolverFunction.Arn
+
+  # GraphQL resolver Lambda function
+  GraphQLResolverFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub "pipeline-graphql-resolver-${EnvironmentName}"
+      CodeUri: graphql/resolvers/
+      Handler: index.handler
+      Runtime: nodejs18.x
+      Timeout: 30
+      MemorySize: 512
+      Environment:
+        Variables:
+          JOBS_TABLE: !Ref JobsTable
+          ORCHESTRATOR_FUNCTION_NAME: !Ref OrchestratorFunction
+          ENVIRONMENT: !Ref EnvironmentName
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref JobsTable
+        - LambdaInvokePolicy:
+            FunctionName: !Ref OrchestratorFunction
+
+  # Stream processor for real-time updates
+  StreamProcessorFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub "pipeline-stream-processor-${EnvironmentName}"
+      CodeUri: graphql/stream-processor/
+      Handler: index.handler
+      Runtime: nodejs18.x
+      Timeout: 30
+      MemorySize: 256
+      Environment:
+        Variables:
+          GRAPHQL_API_URL: !GetAtt GraphQLApi.GraphQLUrl
+          GRAPHQL_API_ID: !GetAtt GraphQLApi.ApiId
+      Events:
+        DynamoDBStream:
+          Type: DynamoDB
+          Properties:
+            Stream: !GetAtt JobsTable.StreamArn
+            StartingPosition: LATEST
+            BatchSize: 10
+            MaximumBatchingWindowInSeconds: 5
+      Policies:
+        - Statement:
+          - Effect: Allow
+            Action:
+              - appsync:GraphQL
+            Resource: !Sub "${GraphQLApi.Arn}/*"
+
+  # GraphQL Resolvers
+  GetExecutionResolver:
+    Type: AWS::AppSync::Resolver
+    Properties:
+      ApiId: !GetAtt GraphQLApi.ApiId
+      TypeName: Query
+      FieldName: getExecution
+      DataSourceName: !GetAtt DynamoDBDataSource.Name
+      RequestMappingTemplate: |
+        {
+          "version": "2017-02-28",
+          "operation": "GetItem",
+          "key": {
+            "jobId": $util.dynamodb.toDynamoDBJson($ctx.args.jobId)
+          }
+        }
+      ResponseMappingTemplate: |
+        #if($ctx.error)
+          $util.error($ctx.error.message, $ctx.error.type)
+        #end
+        $util.toJson($ctx.result)
+
+  ListExecutionsResolver:
+    Type: AWS::AppSync::Resolver
+    Properties:
+      ApiId: !GetAtt GraphQLApi.ApiId
+      TypeName: Query
+      FieldName: listExecutions
+      DataSourceName: !GetAtt LambdaDataSource.Name
+      RequestMappingTemplate: |
+        {
+          "version": "2017-02-28",
+          "operation": "Invoke",
+          "payload": {
+            "field": "listExecutions",
+            "arguments": $util.toJson($ctx.args)
+          }
+        }
+      ResponseMappingTemplate: |
+        $util.toJson($ctx.result)
+
+  StartExecutionResolver:
+    Type: AWS::AppSync::Resolver
+    Properties:
+      ApiId: !GetAtt GraphQLApi.ApiId
+      TypeName: Mutation
+      FieldName: startExecution
+      DataSourceName: !GetAtt LambdaDataSource.Name
+      RequestMappingTemplate: |
+        {
+          "version": "2017-02-28",
+          "operation": "Invoke",
+          "payload": {
+            "field": "startExecution",
+            "arguments": $util.toJson($ctx.args)
+          }
+        }
+      ResponseMappingTemplate: |
+        $util.toJson($ctx.result)
+
+  UpdateStageProgressResolver:
+    Type: AWS::AppSync::Resolver
+    Properties:
+      ApiId: !GetAtt GraphQLApi.ApiId
+      TypeName: Mutation
+      FieldName: updateStageProgress
+      DataSourceName: !GetAtt LambdaDataSource.Name
+      RequestMappingTemplate: |
+        {
+          "version": "2017-02-28",
+          "operation": "Invoke",
+          "payload": {
+            "field": "updateStageProgress",
+            "arguments": $util.toJson($ctx.args)
+          }
+        }
+      ResponseMappingTemplate: |
+        $util.toJson($ctx.result)
+
+  # API Gateway (Enhanced)
   ApiGateway:
     Type: AWS::Serverless::Api
     Properties:

@@ -1,0 +1,625 @@
+{
+  "Comment": "Multi-Step LLM Pipeline State Machine - Orchestrates 7-stage research-to-product transformation",
+  "StartAt": "InitializePipeline",
+  "States": {
+    "InitializePipeline": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::aws-sdk:dynamodb:updateItem",
+      "Parameters": {
+        "TableName": "${PipelineJobsTable}",
+        "Key": {
+          "jobId": {
+            "S.$": "$.jobId"
+          }
+        },
+        "UpdateExpression": "SET #status = :status, currentStage = :stage, stageName = :stageName, stageProgress = :stageProgress, overallProgress = :overallProgress, updatedAt = :updatedAt",
+        "ExpressionAttributeNames": {
+          "#status": "status"
+        },
+        "ExpressionAttributeValues": {
+          ":status": {
+            "S": "RUNNING"
+          },
+          ":stage": {
+            "N": "1"
+          },
+          ":stageName": {
+            "S": "Research Analysis"
+          },
+          ":stageProgress": {
+            "N": "0"
+          },
+          ":overallProgress": {
+            "N": "0"
+          },
+          ":updatedAt": {
+            "S.$": "$$.State.EnteredTime"
+          }
+        }
+      },
+      "Next": "Stage1ResearchAnalysis",
+      "Retry": [
+        {
+          "ErrorEquals": ["States.ALL"],
+          "IntervalSeconds": 2,
+          "MaxAttempts": 3,
+          "BackoffRate": 2.0
+        }
+      ],
+      "Catch": [
+        {
+          "ErrorEquals": ["States.ALL"],
+          "Next": "HandleFailure",
+          "ResultPath": "$.error"
+        }
+      ]
+    },
+
+    "Stage1ResearchAnalysis": {
+      "Type": "Task",
+      "Resource": "${ResearchAnalysisFunction}",
+      "Parameters": {
+        "jobId.$": "$.jobId",
+        "researchDocId.$": "$.researchDocId", 
+        "username.$": "$.username",
+        "stage": 1,
+        "stageName": "Research Analysis",
+        "bucket": "${PipelineBucket}",
+        "table": "${PipelineJobsTable}"
+      },
+      "ResultPath": "$.stage1Result",
+      "Next": "UpdateStage1Progress",
+      "TimeoutSeconds": 300,
+      "Retry": [
+        {
+          "ErrorEquals": ["Lambda.ServiceException", "Lambda.AWSLambdaException", "Lambda.SdkClientException"],
+          "IntervalSeconds": 5,
+          "MaxAttempts": 3,
+          "BackoffRate": 2.0
+        }
+      ],
+      "Catch": [
+        {
+          "ErrorEquals": ["States.ALL"],
+          "Next": "HandleFailure",
+          "ResultPath": "$.error"
+        }
+      ]
+    },
+
+    "UpdateStage1Progress": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::aws-sdk:dynamodb:updateItem",
+      "Parameters": {
+        "TableName": "${PipelineJobsTable}",
+        "Key": {
+          "jobId": {
+            "S.$": "$.jobId"
+          }
+        },
+        "UpdateExpression": "SET currentStage = :stage, stageName = :stageName, stageProgress = :stageProgress, overallProgress = :overallProgress, updatedAt = :updatedAt, stage1Output = :stage1Output",
+        "ExpressionAttributeValues": {
+          ":stage": {
+            "N": "2"
+          },
+          ":stageName": {
+            "S": "JTBD Research"
+          },
+          ":stageProgress": {
+            "N": "0"
+          },
+          ":overallProgress": {
+            "N": "14.3"
+          },
+          ":updatedAt": {
+            "S.$": "$$.State.EnteredTime"
+          },
+          ":stage1Output": {
+            "S.$": "$.stage1Result.outputFile"
+          }
+        }
+      },
+      "Next": "Stage2JTBDResearch"
+    },
+
+    "Stage2JTBDResearch": {
+      "Type": "Task",
+      "Resource": "${JTBDResearchFunction}",
+      "Parameters": {
+        "jobId.$": "$.jobId",
+        "researchDocId.$": "$.researchDocId",
+        "username.$": "$.username",
+        "stage": 2,
+        "stageName": "JTBD Research",
+        "inputFile.$": "$.stage1Result.outputFile",
+        "bucket": "${PipelineBucket}",
+        "table": "${PipelineJobsTable}"
+      },
+      "ResultPath": "$.stage2Result",
+      "Next": "UpdateStage2Progress",
+      "TimeoutSeconds": 600,
+      "Retry": [
+        {
+          "ErrorEquals": ["Lambda.ServiceException", "Lambda.AWSLambdaException", "Lambda.SdkClientException"],
+          "IntervalSeconds": 5,
+          "MaxAttempts": 3,
+          "BackoffRate": 2.0
+        }
+      ],
+      "Catch": [
+        {
+          "ErrorEquals": ["States.ALL"],
+          "Next": "HandleFailure",
+          "ResultPath": "$.error"
+        }
+      ]
+    },
+
+    "UpdateStage2Progress": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::aws-sdk:dynamodb:updateItem",
+      "Parameters": {
+        "TableName": "${PipelineJobsTable}",
+        "Key": {
+          "jobId": {
+            "S.$": "$.jobId"
+          }
+        },
+        "UpdateExpression": "SET currentStage = :stage, stageName = :stageName, stageProgress = :stageProgress, overallProgress = :overallProgress, updatedAt = :updatedAt, stage2Output = :stage2Output",
+        "ExpressionAttributeValues": {
+          ":stage": {
+            "N": "3"
+          },
+          ":stageName": {
+            "S": "Pain Point Clustering"
+          },
+          ":stageProgress": {
+            "N": "0"
+          },
+          ":overallProgress": {
+            "N": "28.6"
+          },
+          ":updatedAt": {
+            "S.$": "$$.State.EnteredTime"
+          },
+          ":stage2Output": {
+            "M": {
+              "painPointsFile": {
+                "S.$": "$.stage2Result.painPointsFile"
+              },
+              "researchFile": {
+                "S.$": "$.stage2Result.researchFile"
+              }
+            }
+          }
+        }
+      },
+      "Next": "Stage3Clustering"
+    },
+
+    "Stage3Clustering": {
+      "Type": "Task",
+      "Resource": "${ClusteringFunction}",
+      "Parameters": {
+        "jobId.$": "$.jobId",
+        "researchDocId.$": "$.researchDocId",
+        "username.$": "$.username",
+        "stage": 3,
+        "stageName": "Pain Point Clustering",
+        "inputFile.$": "$.stage2Result.painPointsFile",
+        "bucket": "${PipelineBucket}",
+        "table": "${PipelineJobsTable}"
+      },
+      "ResultPath": "$.stage3Result",
+      "Next": "UpdateStage3Progress",
+      "TimeoutSeconds": 600,
+      "Retry": [
+        {
+          "ErrorEquals": ["Lambda.ServiceException", "Lambda.AWSLambdaException", "Lambda.SdkClientException"],
+          "IntervalSeconds": 5,
+          "MaxAttempts": 3,
+          "BackoffRate": 2.0
+        }
+      ],
+      "Catch": [
+        {
+          "ErrorEquals": ["States.ALL"],
+          "Next": "HandleFailure",
+          "ResultPath": "$.error"
+        }
+      ]
+    },
+
+    "UpdateStage3Progress": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::aws-sdk:dynamodb:updateItem",
+      "Parameters": {
+        "TableName": "${PipelineJobsTable}",
+        "Key": {
+          "jobId": {
+            "S.$": "$.jobId"
+          }
+        },
+        "UpdateExpression": "SET currentStage = :stage, stageName = :stageName, stageProgress = :stageProgress, overallProgress = :overallProgress, updatedAt = :updatedAt, stage3Output = :stage3Output",
+        "ExpressionAttributeValues": {
+          ":stage": {
+            "N": "4"
+          },
+          ":stageName": {
+            "S": "Value Curve Mapping"
+          },
+          ":stageProgress": {
+            "N": "0"
+          },
+          ":overallProgress": {
+            "N": "42.9"
+          },
+          ":updatedAt": {
+            "S.$": "$$.State.EnteredTime"
+          },
+          ":stage3Output": {
+            "S.$": "$.stage3Result.outputFile"
+          }
+        }
+      },
+      "Next": "Stage4ValueCurveMapping"
+    },
+
+    "Stage4ValueCurveMapping": {
+      "Type": "Task",
+      "Resource": "${ValueCurveMappingFunction}",
+      "Parameters": {
+        "jobId.$": "$.jobId",
+        "researchDocId.$": "$.researchDocId",
+        "username.$": "$.username",
+        "stage": 4,
+        "stageName": "Value Curve Mapping",
+        "inputFile.$": "$.stage3Result.outputFile",
+        "bucket": "${PipelineBucket}",
+        "table": "${PipelineJobsTable}"
+      },
+      "ResultPath": "$.stage4Result",
+      "Next": "UpdateStage4Progress",
+      "TimeoutSeconds": 900,
+      "Retry": [
+        {
+          "ErrorEquals": ["Lambda.ServiceException", "Lambda.AWSLambdaException", "Lambda.SdkClientException"],
+          "IntervalSeconds": 5,
+          "MaxAttempts": 3,
+          "BackoffRate": 2.0
+        }
+      ],
+      "Catch": [
+        {
+          "ErrorEquals": ["States.ALL"],
+          "Next": "HandleFailure",
+          "ResultPath": "$.error"
+        }
+      ]
+    },
+
+    "UpdateStage4Progress": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::aws-sdk:dynamodb:updateItem",
+      "Parameters": {
+        "TableName": "${PipelineJobsTable}",
+        "Key": {
+          "jobId": {
+            "S.$": "$.jobId"
+          }
+        },
+        "UpdateExpression": "SET currentStage = :stage, stageName = :stageName, stageProgress = :stageProgress, overallProgress = :overallProgress, updatedAt = :updatedAt, stage4Output = :stage4Output",
+        "ExpressionAttributeValues": {
+          ":stage": {
+            "N": "5"
+          },
+          ":stageName": {
+            "S": "Product Idea Generation"
+          },
+          ":stageProgress": {
+            "N": "0"
+          },
+          ":overallProgress": {
+            "N": "57.1"
+          },
+          ":updatedAt": {
+            "S.$": "$$.State.EnteredTime"
+          },
+          ":stage4Output": {
+            "M": {
+              "valueCurvesFile": {
+                "S.$": "$.stage4Result.valueCurvesFile"
+              },
+              "reportFile": {
+                "S.$": "$.stage4Result.reportFile"
+              }
+            }
+          }
+        }
+      },
+      "Next": "Stage5ProductIdeaGeneration"
+    },
+
+    "Stage5ProductIdeaGeneration": {
+      "Type": "Task",
+      "Resource": "${ProductIdeaGenerationFunction}",
+      "Parameters": {
+        "jobId.$": "$.jobId",
+        "researchDocId.$": "$.researchDocId",
+        "username.$": "$.username",
+        "stage": 5,
+        "stageName": "Product Idea Generation",
+        "inputFile.$": "$.stage4Result.valueCurvesFile",
+        "bucket": "${PipelineBucket}",
+        "table": "${PipelineJobsTable}"
+      },
+      "ResultPath": "$.stage5Result",
+      "Next": "UpdateStage5Progress",
+      "TimeoutSeconds": 900,
+      "Retry": [
+        {
+          "ErrorEquals": ["Lambda.ServiceException", "Lambda.AWSLambdaException", "Lambda.SdkClientException"],
+          "IntervalSeconds": 5,
+          "MaxAttempts": 3,
+          "BackoffRate": 2.0
+        }
+      ],
+      "Catch": [
+        {
+          "ErrorEquals": ["States.ALL"],
+          "Next": "HandleFailure",
+          "ResultPath": "$.error"
+        }
+      ]
+    },
+
+    "UpdateStage5Progress": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::aws-sdk:dynamodb:updateItem",
+      "Parameters": {
+        "TableName": "${PipelineJobsTable}",
+        "Key": {
+          "jobId": {
+            "S.$": "$.jobId"
+          }
+        },
+        "UpdateExpression": "SET currentStage = :stage, stageName = :stageName, stageProgress = :stageProgress, overallProgress = :overallProgress, updatedAt = :updatedAt, stage5Output = :stage5Output",
+        "ExpressionAttributeValues": {
+          ":stage": {
+            "N": "6"
+          },
+          ":stageName": {
+            "S": "Idea Consolidation"
+          },
+          ":stageProgress": {
+            "N": "0"
+          },
+          ":overallProgress": {
+            "N": "71.4"
+          },
+          ":updatedAt": {
+            "S.$": "$$.State.EnteredTime"
+          },
+          ":stage5Output": {
+            "M": {
+              "ideasFile": {
+                "S.$": "$.stage5Result.ideasFile"
+              },
+              "reportFile": {
+                "S.$": "$.stage5Result.reportFile"
+              }
+            }
+          }
+        }
+      },
+      "Next": "Stage6IdeaConsolidation"
+    },
+
+    "Stage6IdeaConsolidation": {
+      "Type": "Task",
+      "Resource": "${IdeaConsolidationFunction}",
+      "Parameters": {
+        "jobId.$": "$.jobId",
+        "researchDocId.$": "$.researchDocId",
+        "username.$": "$.username",
+        "stage": 6,
+        "stageName": "Idea Consolidation",
+        "inputFile.$": "$.stage5Result.ideasFile",
+        "bucket": "${PipelineBucket}",
+        "table": "${PipelineJobsTable}"
+      },
+      "ResultPath": "$.stage6Result",
+      "Next": "UpdateStage6Progress",
+      "TimeoutSeconds": 300,
+      "Retry": [
+        {
+          "ErrorEquals": ["Lambda.ServiceException", "Lambda.AWSLambdaException", "Lambda.SdkClientException"],
+          "IntervalSeconds": 5,
+          "MaxAttempts": 3,
+          "BackoffRate": 2.0
+        }
+      ],
+      "Catch": [
+        {
+          "ErrorEquals": ["States.ALL"],
+          "Next": "HandleFailure",
+          "ResultPath": "$.error"
+        }
+      ]
+    },
+
+    "UpdateStage6Progress": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::aws-sdk:dynamodb:updateItem",
+      "Parameters": {
+        "TableName": "${PipelineJobsTable}",
+        "Key": {
+          "jobId": {
+            "S.$": "$.jobId"
+          }
+        },
+        "UpdateExpression": "SET currentStage = :stage, stageName = :stageName, stageProgress = :stageProgress, overallProgress = :overallProgress, updatedAt = :updatedAt, stage6Output = :stage6Output",
+        "ExpressionAttributeValues": {
+          ":stage": {
+            "N": "7"
+          },
+          ":stageName": {
+            "S": "GitHub Repository Creation"
+          },
+          ":stageProgress": {
+            "N": "0"
+          },
+          ":overallProgress": {
+            "N": "85.7"
+          },
+          ":updatedAt": {
+            "S.$": "$$.State.EnteredTime"
+          },
+          ":stage6Output": {
+            "M": {
+              "portfolioFile": {
+                "S.$": "$.stage6Result.portfolioFile"
+              },
+              "summaryFile": {
+                "S.$": "$.stage6Result.summaryFile"
+              }
+            }
+          }
+        }
+      },
+      "Next": "Stage7GitHubIntegration"
+    },
+
+    "Stage7GitHubIntegration": {
+      "Type": "Task",
+      "Resource": "${GitHubIntegrationFunction}",
+      "Parameters": {
+        "jobId.$": "$.jobId",
+        "researchDocId.$": "$.researchDocId",
+        "username.$": "$.username",
+        "stage": 7,
+        "stageName": "GitHub Repository Creation",
+        "allStageOutputs": {
+          "stage1.$": "$.stage1Result",
+          "stage2.$": "$.stage2Result",
+          "stage3.$": "$.stage3Result",
+          "stage4.$": "$.stage4Result",
+          "stage5.$": "$.stage5Result",
+          "stage6.$": "$.stage6Result"
+        },
+        "bucket": "${PipelineBucket}",
+        "table": "${PipelineJobsTable}"
+      },
+      "ResultPath": "$.stage7Result",
+      "Next": "CompletePipeline",
+      "TimeoutSeconds": 300,
+      "Retry": [
+        {
+          "ErrorEquals": ["Lambda.ServiceException", "Lambda.AWSLambdaException", "Lambda.SdkClientException"],
+          "IntervalSeconds": 5,
+          "MaxAttempts": 3,
+          "BackoffRate": 2.0
+        }
+      ],
+      "Catch": [
+        {
+          "ErrorEquals": ["States.ALL"],
+          "Next": "HandleFailure",
+          "ResultPath": "$.error"
+        }
+      ]
+    },
+
+    "CompletePipeline": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::aws-sdk:dynamodb:updateItem",
+      "Parameters": {
+        "TableName": "${PipelineJobsTable}",
+        "Key": {
+          "jobId": {
+            "S.$": "$.jobId"
+          }
+        },
+        "UpdateExpression": "SET #status = :status, currentStage = :stage, stageName = :stageName, stageProgress = :stageProgress, overallProgress = :overallProgress, completedAt = :completedAt, updatedAt = :updatedAt, results.githubRepoUrl = :githubRepoUrl, results.githubRepoName = :githubRepoName, results.issuesCreated = :issuesCreated",
+        "ExpressionAttributeNames": {
+          "#status": "status"
+        },
+        "ExpressionAttributeValues": {
+          ":status": {
+            "S": "COMPLETED"
+          },
+          ":stage": {
+            "N": "7"
+          },
+          ":stageName": {
+            "S": "Completed"
+          },
+          ":stageProgress": {
+            "N": "100"
+          },
+          ":overallProgress": {
+            "N": "100"
+          },
+          ":completedAt": {
+            "S.$": "$$.State.EnteredTime"
+          },
+          ":updatedAt": {
+            "S.$": "$$.State.EnteredTime"
+          },
+          ":githubRepoUrl": {
+            "S.$": "$.stage7Result.githubRepoUrl"
+          },
+          ":githubRepoName": {
+            "S.$": "$.stage7Result.githubRepoName"
+          },
+          ":issuesCreated": {
+            "N.$": "$.stage7Result.issuesCreated"
+          }
+        }
+      },
+      "Next": "PipelineSuccess"
+    },
+
+    "PipelineSuccess": {
+      "Type": "Succeed",
+      "Comment": "Pipeline completed successfully"
+    },
+
+    "HandleFailure": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::aws-sdk:dynamodb:updateItem",
+      "Parameters": {
+        "TableName": "${PipelineJobsTable}",
+        "Key": {
+          "jobId": {
+            "S.$": "$.jobId"
+          }
+        },
+        "UpdateExpression": "SET #status = :status, errorMessage = :errorMessage, failedAt = :failedAt, updatedAt = :updatedAt",
+        "ExpressionAttributeNames": {
+          "#status": "status"
+        },
+        "ExpressionAttributeValues": {
+          ":status": {
+            "S": "FAILED"
+          },
+          ":errorMessage": {
+            "S.$": "$.error.Cause"
+          },
+          ":failedAt": {
+            "S.$": "$$.State.EnteredTime"
+          },
+          ":updatedAt": {
+            "S.$": "$$.State.EnteredTime"
+          }
+        }
+      },
+      "Next": "PipelineFailure"
+    },
+
+    "PipelineFailure": {
+      "Type": "Fail",
+      "Comment": "Pipeline execution failed"
+    }
+  }
+}
