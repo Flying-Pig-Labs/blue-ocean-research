@@ -1,0 +1,1239 @@
+{
+  "Comment": "Multi-Step LLM Pipeline - 7 Stage Product Innovation Orchestration",
+  "StartAt": "InitializePipeline",
+  "States": {
+    "InitializePipeline": {
+      "Type": "Pass",
+      "Comment": "Initialize pipeline execution with metadata and checkpointing",
+      "Parameters": {
+        "executionId.$": "$$.Execution.Name",
+        "startTime.$": "$$.Execution.StartTime",
+        "pipelineConfig": {
+          "stages": 7,
+          "maxRetries": 3,
+          "checkpointEnabled": true,
+          "parallelismEnabled": true
+        },
+        "input.$": "$",
+        "metadata": {
+          "version": "2.0",
+          "environment": "production"
+        }
+      },
+      "ResultPath": "$.pipeline",
+      "Next": "PublishPipelineStarted"
+    },
+
+    "PublishPipelineStarted": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::events:putEvents",
+      "Comment": "Publish pipeline start event to EventBridge",
+      "Parameters": {
+        "Entries": [
+          {
+            "Source": "pipeline.multi-step-llm",
+            "DetailType": "Pipeline Started",
+            "Detail": {
+              "executionId.$": "$.pipeline.executionId",
+              "startTime.$": "$.pipeline.startTime",
+              "inputSize.$": "States.StringLength(States.JsonToString($.input))"
+            }
+          }
+        ]
+      },
+      "ResultPath": "$.events.started",
+      "Next": "CheckResumePoint",
+      "Retry": [
+        {
+          "ErrorEquals": ["States.TaskFailed"],
+          "IntervalSeconds": 2,
+          "MaxAttempts": 3,
+          "BackoffRate": 2.0
+        }
+      ]
+    },
+
+    "CheckResumePoint": {
+      "Type": "Choice",
+      "Comment": "Check if execution should resume from a checkpoint",
+      "Choices": [
+        {
+          "Variable": "$.input.resumeFromStage",
+          "NumericGreaterThan": 1,
+          "Next": "ResumeFromCheckpoint"
+        }
+      ],
+      "Default": "Stage1_ResearchAnalysis"
+    },
+
+    "ResumeFromCheckpoint": {
+      "Type": "Pass",
+      "Comment": "Resume execution from specified stage",
+      "Parameters": {
+        "resumeStage.$": "$.input.resumeFromStage",
+        "checkpointData.$": "$.input.checkpointData"
+      },
+      "ResultPath": "$.resume",
+      "Next": "ChooseResumeStage"
+    },
+
+    "ChooseResumeStage": {
+      "Type": "Choice",
+      "Comment": "Route to appropriate stage based on resume point",
+      "Choices": [
+        {
+          "Variable": "$.resume.resumeStage",
+          "NumericEquals": 2,
+          "Next": "Stage2_JTBDResearch"
+        },
+        {
+          "Variable": "$.resume.resumeStage",
+          "NumericEquals": 3,
+          "Next": "Stage3_Clustering"
+        },
+        {
+          "Variable": "$.resume.resumeStage",
+          "NumericEquals": 4,
+          "Next": "Stage4_ValueCurveMapping"
+        },
+        {
+          "Variable": "$.resume.resumeStage",
+          "NumericEquals": 5,
+          "Next": "Stage5_ProductIdeaGeneration"
+        },
+        {
+          "Variable": "$.resume.resumeStage",
+          "NumericEquals": 6,
+          "Next": "Stage6_IdeaConsolidation"
+        },
+        {
+          "Variable": "$.resume.resumeStage",
+          "NumericEquals": 7,
+          "Next": "Stage7_GitHubIntegration"
+        }
+      ],
+      "Default": "Stage1_ResearchAnalysis"
+    },
+
+    "Stage1_ResearchAnalysis": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::lambda:invoke",
+      "Comment": "Stage 1: Research Analysis with parallel LLM calls",
+      "Parameters": {
+        "FunctionName": "${ResearchAnalyzerFunction}",
+        "Payload": {
+          "stage": 1,
+          "stageName": "ResearchAnalysis",
+          "executionId.$": "$.pipeline.executionId",
+          "input.$": "$.input",
+          "config": {
+            "parallelTasks": 4,
+            "models": ["claude-3-5-sonnet-20241022", "claude-3-opus-20240229"],
+            "timeout": 300,
+            "maxTokens": 4000
+          }
+        }
+      },
+      "ResultPath": "$.stage1",
+      "TimeoutSeconds": 600,
+      "Retry": [
+        {
+          "ErrorEquals": ["Lambda.ServiceException", "Lambda.AWSLambdaException"],
+          "IntervalSeconds": 5,
+          "MaxAttempts": 3,
+          "BackoffRate": 2.0
+        },
+        {
+          "ErrorEquals": ["Lambda.SdkClientException"],
+          "IntervalSeconds": 2,
+          "MaxAttempts": 5,
+          "BackoffRate": 1.5
+        },
+        {
+          "ErrorEquals": ["States.TaskFailed"],
+          "IntervalSeconds": 10,
+          "MaxAttempts": 2,
+          "BackoffRate": 2.0
+        }
+      ],
+      "Catch": [
+        {
+          "ErrorEquals": ["States.ALL"],
+          "Next": "HandleStage1Error",
+          "ResultPath": "$.error"
+        }
+      ],
+      "Next": "PublishStage1Complete"
+    },
+
+    "HandleStage1Error": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::events:putEvents",
+      "Comment": "Handle Stage 1 error and decide on circuit breaker",
+      "Parameters": {
+        "Entries": [
+          {
+            "Source": "pipeline.multi-step-llm",
+            "DetailType": "Stage Failed",
+            "Detail": {
+              "stage": 1,
+              "stageName": "ResearchAnalysis",
+              "executionId.$": "$.pipeline.executionId",
+              "error.$": "$.error"
+            }
+          }
+        ]
+      },
+      "Next": "Stage1ErrorChoice"
+    },
+
+    "Stage1ErrorChoice": {
+      "Type": "Choice",
+      "Comment": "Decide whether to fail pipeline or attempt graceful degradation",
+      "Choices": [
+        {
+          "Variable": "$.error.Error",
+          "StringEquals": "Lambda.TooManyRequestsException",
+          "Next": "Stage1_RetryWithBackoff"
+        },
+        {
+          "Variable": "$.error.Error",
+          "StringEquals": "States.TaskFailed",
+          "Next": "PipelineFailure"
+        }
+      ],
+      "Default": "PipelineFailure"
+    },
+
+    "Stage1_RetryWithBackoff": {
+      "Type": "Wait",
+      "Comment": "Exponential backoff for rate limiting",
+      "Seconds": 30,
+      "Next": "Stage1_ResearchAnalysis"
+    },
+
+    "PublishStage1Complete": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::events:putEvents",
+      "Comment": "Publish Stage 1 completion event",
+      "Parameters": {
+        "Entries": [
+          {
+            "Source": "pipeline.multi-step-llm",
+            "DetailType": "Stage Completed",
+            "Detail": {
+              "stage": 1,
+              "stageName": "ResearchAnalysis",
+              "executionId.$": "$.pipeline.executionId",
+              "duration.$": "$.stage1.duration",
+              "outputSize.$": "States.StringLength(States.JsonToString($.stage1.output))"
+            }
+          }
+        ]
+      },
+      "ResultPath": "$.events.stage1Complete",
+      "Next": "CreateCheckpoint1"
+    },
+
+    "CreateCheckpoint1": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::dynamodb:putItem",
+      "Comment": "Create checkpoint for Stage 1 completion",
+      "Parameters": {
+        "TableName": "${CheckpointTable}",
+        "Item": {
+          "executionId": {
+            "S.$": "$.pipeline.executionId"
+          },
+          "stage": {
+            "N": "1"
+          },
+          "completedAt": {
+            "S.$": "$$.State.EnteredTime"
+          },
+          "output": {
+            "S.$": "States.JsonToString($.stage1.output)"
+          },
+          "ttl": {
+            "N.$": "States.StringToJson(States.Format('{}', States.MathAdd(States.StringToJson($$.State.EnteredTime), 2592000)))"
+          }
+        }
+      },
+      "ResultPath": "$.checkpoint1",
+      "Next": "Stage2_JTBDResearch",
+      "Retry": [
+        {
+          "ErrorEquals": ["DynamoDB.ServiceException"],
+          "IntervalSeconds": 2,
+          "MaxAttempts": 3,
+          "BackoffRate": 2.0
+        }
+      ]
+    },
+
+    "Stage2_JTBDResearch": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::lambda:invoke",
+      "Comment": "Stage 2: Jobs-to-be-Done Research with EXA API",
+      "Parameters": {
+        "FunctionName": "${JTBDResearcherFunction}",
+        "Payload": {
+          "stage": 2,
+          "stageName": "JTBDResearch",
+          "executionId.$": "$.pipeline.executionId",
+          "input.$": "$.stage1.output",
+          "config": {
+            "searchSources": ["reddit", "reviews", "interviews", "news", "tutorials"],
+            "maxResults": 50,
+            "timeout": 240
+          }
+        }
+      },
+      "ResultPath": "$.stage2",
+      "TimeoutSeconds": 480,
+      "Retry": [
+        {
+          "ErrorEquals": ["Lambda.ServiceException", "Lambda.AWSLambdaException"],
+          "IntervalSeconds": 5,
+          "MaxAttempts": 3,
+          "BackoffRate": 2.0
+        },
+        {
+          "ErrorEquals": ["States.TaskFailed"],
+          "IntervalSeconds": 15,
+          "MaxAttempts": 2,
+          "BackoffRate": 2.0
+        }
+      ],
+      "Catch": [
+        {
+          "ErrorEquals": ["States.ALL"],
+          "Next": "HandleStage2Error",
+          "ResultPath": "$.error"
+        }
+      ],
+      "Next": "ParallelStage2Extensions"
+    },
+
+    "ParallelStage2Extensions": {
+      "Type": "Parallel",
+      "Comment": "Run Stage 2.5 extensions in parallel for enhanced analysis",
+      "Branches": [
+        {
+          "StartAt": "Stage2_5_JTBDExtraction",
+          "States": {
+            "Stage2_5_JTBDExtraction": {
+              "Type": "Task",
+              "Resource": "arn:aws:states:::lambda:invoke",
+              "Parameters": {
+                "FunctionName": "${JTBDExtractionFunction}",
+                "Payload": {
+                  "stage": 2.5,
+                  "stageName": "JTBDExtraction",
+                  "executionId.$": "$.pipeline.executionId",
+                  "input.$": "$.stage2.output"
+                }
+              },
+              "End": true,
+              "Retry": [
+                {
+                  "ErrorEquals": ["Lambda.ServiceException"],
+                  "IntervalSeconds": 3,
+                  "MaxAttempts": 2
+                }
+              ]
+            }
+          }
+        },
+        {
+          "StartAt": "Stage2_5_RedditDiscovery",
+          "States": {
+            "Stage2_5_RedditDiscovery": {
+              "Type": "Task",
+              "Resource": "arn:aws:states:::lambda:invoke",
+              "Parameters": {
+                "FunctionName": "${RedditDiscoveryFunction}",
+                "Payload": {
+                  "stage": 2.5,
+                  "stageName": "RedditDiscovery",
+                  "executionId.$": "$.pipeline.executionId",
+                  "input.$": "$.stage2.output"
+                }
+              },
+              "End": true,
+              "Retry": [
+                {
+                  "ErrorEquals": ["Lambda.ServiceException"],
+                  "IntervalSeconds": 3,
+                  "MaxAttempts": 2
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "ResultPath": "$.stage2_5",
+      "Next": "PublishStage2Complete",
+      "Catch": [
+        {
+          "ErrorEquals": ["States.ALL"],
+          "Next": "Stage2_5_ContinueWithBasic",
+          "ResultPath": "$.stage2_5_error"
+        }
+      ]
+    },
+
+    "Stage2_5_ContinueWithBasic": {
+      "Type": "Pass",
+      "Comment": "Continue with basic Stage 2 output if extensions fail",
+      "Parameters": {
+        "message": "Stage 2.5 extensions failed, continuing with basic analysis",
+        "basicOutput.$": "$.stage2.output"
+      },
+      "ResultPath": "$.stage2_5",
+      "Next": "PublishStage2Complete"
+    },
+
+    "HandleStage2Error": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::events:putEvents",
+      "Parameters": {
+        "Entries": [
+          {
+            "Source": "pipeline.multi-step-llm",
+            "DetailType": "Stage Failed",
+            "Detail": {
+              "stage": 2,
+              "stageName": "JTBDResearch",
+              "executionId.$": "$.pipeline.executionId",
+              "error.$": "$.error"
+            }
+          }
+        ]
+      },
+      "Next": "PipelineFailure"
+    },
+
+    "PublishStage2Complete": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::events:putEvents",
+      "Parameters": {
+        "Entries": [
+          {
+            "Source": "pipeline.multi-step-llm",
+            "DetailType": "Stage Completed",
+            "Detail": {
+              "stage": 2,
+              "stageName": "JTBDResearch",
+              "executionId.$": "$.pipeline.executionId",
+              "duration.$": "$.stage2.duration",
+              "extensionsSucceeded": true
+            }
+          }
+        ]
+      },
+      "ResultPath": "$.events.stage2Complete",
+      "Next": "CreateCheckpoint2"
+    },
+
+    "CreateCheckpoint2": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::dynamodb:putItem",
+      "Parameters": {
+        "TableName": "${CheckpointTable}",
+        "Item": {
+          "executionId": {
+            "S.$": "$.pipeline.executionId"
+          },
+          "stage": {
+            "N": "2"
+          },
+          "completedAt": {
+            "S.$": "$$.State.EnteredTime"
+          },
+          "output": {
+            "S.$": "States.JsonToString($.stage2.output)"
+          },
+          "extensions": {
+            "S.$": "States.JsonToString($.stage2_5)"
+          },
+          "ttl": {
+            "N.$": "States.StringToJson(States.Format('{}', States.MathAdd(States.StringToJson($$.State.EnteredTime), 2592000)))"
+          }
+        }
+      },
+      "ResultPath": "$.checkpoint2",
+      "Next": "Stage3_Clustering"
+    },
+
+    "Stage3_Clustering": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::lambda:invoke",
+      "Comment": "Stage 3: JTBD Clustering with Cohere embeddings and HDBSCAN",
+      "Parameters": {
+        "FunctionName": "${ClusteringFunction}",
+        "Payload": {
+          "stage": 3,
+          "stageName": "JTBDClustering",
+          "executionId.$": "$.pipeline.executionId",
+          "input.$": "$.stage2.output",
+          "extensions.$": "$.stage2_5",
+          "config": {
+            "embeddingModel": "cohere-embed-v3",
+            "clusteringAlgorithm": "hdbscan",
+            "labelingModel": "gpt-4o",
+            "minClusterSize": 3,
+            "timeout": 180
+          }
+        }
+      },
+      "ResultPath": "$.stage3",
+      "TimeoutSeconds": 360,
+      "Retry": [
+        {
+          "ErrorEquals": ["Lambda.ServiceException"],
+          "IntervalSeconds": 5,
+          "MaxAttempts": 3,
+          "BackoffRate": 2.0
+        },
+        {
+          "ErrorEquals": ["States.TaskFailed"],
+          "IntervalSeconds": 10,
+          "MaxAttempts": 2,
+          "BackoffRate": 2.0
+        }
+      ],
+      "Catch": [
+        {
+          "ErrorEquals": ["States.ALL"],
+          "Next": "HandleStage3Error",
+          "ResultPath": "$.error"
+        }
+      ],
+      "Next": "Stage3_5_OpportunityAnalysis"
+    },
+
+    "Stage3_5_OpportunityAnalysis": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::lambda:invoke",
+      "Comment": "Stage 3.5: Advanced Opportunity Zone Discovery",
+      "Parameters": {
+        "FunctionName": "${OpportunityAnalyzerFunction}",
+        "Payload": {
+          "stage": 3.5,
+          "stageName": "OpportunityZoneAnalysis",
+          "executionId.$": "$.pipeline.executionId",
+          "clusters.$": "$.stage3.output",
+          "jtbdData.$": "$.stage2.output",
+          "redditData.$": "$.stage2_5[1].output",
+          "config": {
+            "nZones": 7,
+            "maxDiscussions": 3,
+            "analysisDepth": "comprehensive"
+          }
+        }
+      },
+      "ResultPath": "$.stage3_5",
+      "TimeoutSeconds": 300,
+      "Retry": [
+        {
+          "ErrorEquals": ["Lambda.ServiceException"],
+          "IntervalSeconds": 3,
+          "MaxAttempts": 2
+        }
+      ],
+      "Catch": [
+        {
+          "ErrorEquals": ["States.ALL"],
+          "Next": "Stage3_5_UseBasicClusters",
+          "ResultPath": "$.stage3_5_error"
+        }
+      ],
+      "Next": "PublishStage3Complete"
+    },
+
+    "Stage3_5_UseBasicClusters": {
+      "Type": "Pass",
+      "Comment": "Fallback to basic clustering if advanced analysis fails",
+      "Parameters": {
+        "message": "Advanced opportunity analysis failed, using basic clusters",
+        "output.$": "$.stage3.output"
+      },
+      "ResultPath": "$.stage3_5",
+      "Next": "PublishStage3Complete"
+    },
+
+    "HandleStage3Error": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::events:putEvents",
+      "Parameters": {
+        "Entries": [
+          {
+            "Source": "pipeline.multi-step-llm",
+            "DetailType": "Stage Failed",
+            "Detail": {
+              "stage": 3,
+              "stageName": "JTBDClustering",
+              "executionId.$": "$.pipeline.executionId",
+              "error.$": "$.error"
+            }
+          }
+        ]
+      },
+      "Next": "PipelineFailure"
+    },
+
+    "PublishStage3Complete": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::events:putEvents",
+      "Parameters": {
+        "Entries": [
+          {
+            "Source": "pipeline.multi-step-llm",
+            "DetailType": "Stage Completed",
+            "Detail": {
+              "stage": 3,
+              "stageName": "JTBDClustering",
+              "executionId.$": "$.pipeline.executionId",
+              "clusterCount.$": "$.stage3.output.clusterCount",
+              "opportunityZones.$": "$.stage3_5.output.zoneCount"
+            }
+          }
+        ]
+      },
+      "ResultPath": "$.events.stage3Complete",
+      "Next": "CreateCheckpoint3"
+    },
+
+    "CreateCheckpoint3": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::dynamodb:putItem",
+      "Parameters": {
+        "TableName": "${CheckpointTable}",
+        "Item": {
+          "executionId": {
+            "S.$": "$.pipeline.executionId"
+          },
+          "stage": {
+            "N": "3"
+          },
+          "completedAt": {
+            "S.$": "$$.State.EnteredTime"
+          },
+          "clusters": {
+            "S.$": "States.JsonToString($.stage3.output)"
+          },
+          "opportunityZones": {
+            "S.$": "States.JsonToString($.stage3_5.output)"
+          },
+          "ttl": {
+            "N.$": "States.StringToJson(States.Format('{}', States.MathAdd(States.StringToJson($$.State.EnteredTime), 2592000)))"
+          }
+        }
+      },
+      "ResultPath": "$.checkpoint3",
+      "Next": "Stage4_ValueCurveMapping"
+    },
+
+    "Stage4_ValueCurveMapping": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::lambda:invoke",
+      "Comment": "Stage 4: Value Curve Mapping with parallel Claude Opus analysis",
+      "Parameters": {
+        "FunctionName": "${ValueCurveMapperFunction}",
+        "Payload": {
+          "stage": 4,
+          "stageName": "ValueCurveMapping",
+          "executionId.$": "$.pipeline.executionId",
+          "opportunityZones.$": "$.stage3_5.output",
+          "config": {
+            "model": "claude-3-opus-20240229",
+            "parallelAnalysis": true,
+            "exaSearchEnabled": true,
+            "timeout": 360
+          }
+        }
+      },
+      "ResultPath": "$.stage4",
+      "TimeoutSeconds": 720,
+      "Retry": [
+        {
+          "ErrorEquals": ["Lambda.ServiceException"],
+          "IntervalSeconds": 10,
+          "MaxAttempts": 3,
+          "BackoffRate": 2.0
+        },
+        {
+          "ErrorEquals": ["States.TaskFailed"],
+          "IntervalSeconds": 20,
+          "MaxAttempts": 2,
+          "BackoffRate": 2.0
+        }
+      ],
+      "Catch": [
+        {
+          "ErrorEquals": ["States.ALL"],
+          "Next": "HandleStage4Error",
+          "ResultPath": "$.error"
+        }
+      ],
+      "Next": "PublishStage4Complete"
+    },
+
+    "HandleStage4Error": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::events:putEvents",
+      "Parameters": {
+        "Entries": [
+          {
+            "Source": "pipeline.multi-step-llm",
+            "DetailType": "Stage Failed",
+            "Detail": {
+              "stage": 4,
+              "stageName": "ValueCurveMapping",
+              "executionId.$": "$.pipeline.executionId",
+              "error.$": "$.error"
+            }
+          }
+        ]
+      },
+      "Next": "PipelineFailure"
+    },
+
+    "PublishStage4Complete": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::events:putEvents",
+      "Parameters": {
+        "Entries": [
+          {
+            "Source": "pipeline.multi-step-llm",
+            "DetailType": "Stage Completed",
+            "Detail": {
+              "stage": 4,
+              "stageName": "ValueCurveMapping",
+              "executionId.$": "$.pipeline.executionId",
+              "valueCurveCount.$": "$.stage4.output.curveCount"
+            }
+          }
+        ]
+      },
+      "ResultPath": "$.events.stage4Complete",
+      "Next": "CreateCheckpoint4"
+    },
+
+    "CreateCheckpoint4": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::dynamodb:putItem",
+      "Parameters": {
+        "TableName": "${CheckpointTable}",
+        "Item": {
+          "executionId": {
+            "S.$": "$.pipeline.executionId"
+          },
+          "stage": {
+            "N": "4"
+          },
+          "completedAt": {
+            "S.$": "$$.State.EnteredTime"
+          },
+          "valueCurves": {
+            "S.$": "States.JsonToString($.stage4.output)"
+          },
+          "ttl": {
+            "N.$": "States.StringToJson(States.Format('{}', States.MathAdd(States.StringToJson($$.State.EnteredTime), 2592000)))"
+          }
+        }
+      },
+      "ResultPath": "$.checkpoint4",
+      "Next": "Stage5_ProductIdeaGeneration"
+    },
+
+    "Stage5_ProductIdeaGeneration": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::lambda:invoke",
+      "Comment": "Stage 5: Product Idea Generation with OpenAI o1 and Claude Opus",
+      "Parameters": {
+        "FunctionName": "${ProductIdeaGeneratorFunction}",
+        "Payload": {
+          "stage": 5,
+          "stageName": "ProductIdeaGeneration",
+          "executionId.$": "$.pipeline.executionId",
+          "valueCurves.$": "$.stage4.output",
+          "config": {
+            "models": ["o1-preview", "claude-3-opus-20240229"],
+            "ideaCount": 20,
+            "diversityThreshold": 0.7,
+            "timeout": 480
+          }
+        }
+      },
+      "ResultPath": "$.stage5",
+      "TimeoutSeconds": 960,
+      "Retry": [
+        {
+          "ErrorEquals": ["Lambda.ServiceException"],
+          "IntervalSeconds": 15,
+          "MaxAttempts": 3,
+          "BackoffRate": 2.0
+        },
+        {
+          "ErrorEquals": ["States.TaskFailed"],
+          "IntervalSeconds": 30,
+          "MaxAttempts": 2,
+          "BackoffRate": 2.0
+        }
+      ],
+      "Catch": [
+        {
+          "ErrorEquals": ["States.ALL"],
+          "Next": "HandleStage5Error",
+          "ResultPath": "$.error"
+        }
+      ],
+      "Next": "PublishStage5Complete"
+    },
+
+    "HandleStage5Error": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::events:putEvents",
+      "Parameters": {
+        "Entries": [
+          {
+            "Source": "pipeline.multi-step-llm",
+            "DetailType": "Stage Failed",
+            "Detail": {
+              "stage": 5,
+              "stageName": "ProductIdeaGeneration",
+              "executionId.$": "$.pipeline.executionId",
+              "error.$": "$.error"
+            }
+          }
+        ]
+      },
+      "Next": "PipelineFailure"
+    },
+
+    "PublishStage5Complete": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::events:putEvents",
+      "Parameters": {
+        "Entries": [
+          {
+            "Source": "pipeline.multi-step-llm",
+            "DetailType": "Stage Completed",
+            "Detail": {
+              "stage": 5,
+              "stageName": "ProductIdeaGeneration",
+              "executionId.$": "$.pipeline.executionId",
+              "ideaCount.$": "$.stage5.output.ideaCount"
+            }
+          }
+        ]
+      },
+      "ResultPath": "$.events.stage5Complete",
+      "Next": "CreateCheckpoint5"
+    },
+
+    "CreateCheckpoint5": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::dynamodb:putItem",
+      "Parameters": {
+        "TableName": "${CheckpointTable}",
+        "Item": {
+          "executionId": {
+            "S.$": "$.pipeline.executionId"
+          },
+          "stage": {
+            "N": "5"
+          },
+          "completedAt": {
+            "S.$": "$$.State.EnteredTime"
+          },
+          "productIdeas": {
+            "S.$": "States.JsonToString($.stage5.output)"
+          },
+          "ttl": {
+            "N.$": "States.StringToJson(States.Format('{}', States.MathAdd(States.StringToJson($$.State.EnteredTime), 2592000)))"
+          }
+        }
+      },
+      "ResultPath": "$.checkpoint5",
+      "Next": "Stage6_IdeaConsolidation"
+    },
+
+    "Stage6_IdeaConsolidation": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::lambda:invoke",
+      "Comment": "Stage 6: Idea Consolidation and Portfolio Creation",
+      "Parameters": {
+        "FunctionName": "${IdeaConsolidatorFunction}",
+        "Payload": {
+          "stage": 6,
+          "stageName": "IdeaConsolidation",
+          "executionId.$": "$.pipeline.executionId",
+          "productIdeas.$": "$.stage5.output",
+          "config": {
+            "consolidationStrategy": "smart_merge",
+            "portfolioSize": 10,
+            "diversityOptimization": true,
+            "timeout": 240
+          }
+        }
+      },
+      "ResultPath": "$.stage6",
+      "TimeoutSeconds": 480,
+      "Retry": [
+        {
+          "ErrorEquals": ["Lambda.ServiceException"],
+          "IntervalSeconds": 10,
+          "MaxAttempts": 3,
+          "BackoffRate": 2.0
+        }
+      ],
+      "Catch": [
+        {
+          "ErrorEquals": ["States.ALL"],
+          "Next": "HandleStage6Error",
+          "ResultPath": "$.error"
+        }
+      ],
+      "Next": "PublishStage6Complete"
+    },
+
+    "HandleStage6Error": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::events:putEvents",
+      "Parameters": {
+        "Entries": [
+          {
+            "Source": "pipeline.multi-step-llm",
+            "DetailType": "Stage Failed",
+            "Detail": {
+              "stage": 6,
+              "stageName": "IdeaConsolidation",
+              "executionId.$": "$.pipeline.executionId",
+              "error.$": "$.error"
+            }
+          }
+        ]
+      },
+      "Next": "PipelineFailure"
+    },
+
+    "PublishStage6Complete": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::events:putEvents",
+      "Parameters": {
+        "Entries": [
+          {
+            "Source": "pipeline.multi-step-llm",
+            "DetailType": "Stage Completed",
+            "Detail": {
+              "stage": 6,
+              "stageName": "IdeaConsolidation",
+              "executionId.$": "$.pipeline.executionId",
+              "portfolioSize.$": "$.stage6.output.portfolioSize"
+            }
+          }
+        ]
+      },
+      "ResultPath": "$.events.stage6Complete",
+      "Next": "CreateCheckpoint6"
+    },
+
+    "CreateCheckpoint6": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::dynamodb:putItem",
+      "Parameters": {
+        "TableName": "${CheckpointTable}",
+        "Item": {
+          "executionId": {
+            "S.$": "$.pipeline.executionId"
+          },
+          "stage": {
+            "N": "6"
+          },
+          "completedAt": {
+            "S.$": "$$.State.EnteredTime"
+          },
+          "consolidatedPortfolio": {
+            "S.$": "States.JsonToString($.stage6.output)"
+          },
+          "ttl": {
+            "N.$": "States.StringToJson(States.Format('{}', States.MathAdd(States.StringToJson($$.State.EnteredTime), 2592000)))"
+          }
+        }
+      },
+      "ResultPath": "$.checkpoint6",
+      "Next": "CheckGitHubIntegrationEnabled"
+    },
+
+    "CheckGitHubIntegrationEnabled": {
+      "Type": "Choice",
+      "Comment": "Check if GitHub integration is requested",
+      "Choices": [
+        {
+          "Variable": "$.input.createGitHubRepo",
+          "BooleanEquals": false,
+          "Next": "SkipGitHubIntegration"
+        }
+      ],
+      "Default": "Stage7_GitHubIntegration"
+    },
+
+    "SkipGitHubIntegration": {
+      "Type": "Pass",
+      "Comment": "Skip GitHub integration if not requested",
+      "Parameters": {
+        "message": "GitHub integration skipped per user request",
+        "output": {
+          "portfolioData.$": "$.stage6.output"
+        }
+      },
+      "ResultPath": "$.stage7",
+      "Next": "PublishStage7Complete"
+    },
+
+    "Stage7_GitHubIntegration": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::lambda:invoke",
+      "Comment": "Stage 7: GitHub Repository Creation (MANDATORY FINAL STEP)",
+      "Parameters": {
+        "FunctionName": "${GitHubIntegrationFunction}",
+        "Payload": {
+          "stage": 7,
+          "stageName": "GitHubIntegration",
+          "executionId.$": "$.pipeline.executionId",
+          "consolidatedPortfolio.$": "$.stage6.output",
+          "allStagesData": {
+            "stage1.$": "$.stage1.output",
+            "stage2.$": "$.stage2.output",
+            "stage3.$": "$.stage3.output",
+            "stage4.$": "$.stage4.output",
+            "stage5.$": "$.stage5.output",
+            "stage6.$": "$.stage6.output"
+          },
+          "config": {
+            "organization": "ocean-studio-repos",
+            "repoVisibility": "public",
+            "createIssues": true,
+            "labelingSystem": true,
+            "timeout": 180
+          }
+        }
+      },
+      "ResultPath": "$.stage7",
+      "TimeoutSeconds": 360,
+      "Retry": [
+        {
+          "ErrorEquals": ["Lambda.ServiceException"],
+          "IntervalSeconds": 5,
+          "MaxAttempts": 3,
+          "BackoffRate": 2.0
+        },
+        {
+          "ErrorEquals": ["States.TaskFailed"],
+          "IntervalSeconds": 10,
+          "MaxAttempts": 2,
+          "BackoffRate": 1.5
+        }
+      ],
+      "Catch": [
+        {
+          "ErrorEquals": ["States.ALL"],
+          "Next": "HandleStage7Error",
+          "ResultPath": "$.error"
+        }
+      ],
+      "Next": "PublishStage7Complete"
+    },
+
+    "HandleStage7Error": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::events:putEvents",
+      "Parameters": {
+        "Entries": [
+          {
+            "Source": "pipeline.multi-step-llm",
+            "DetailType": "Stage Failed",
+            "Detail": {
+              "stage": 7,
+              "stageName": "GitHubIntegration",
+              "executionId.$": "$.pipeline.executionId",
+              "error.$": "$.error",
+              "criticalFailure": true
+            }
+          }
+        ]
+      },
+      "Next": "GitHubIntegrationFailure"
+    },
+
+    "PublishStage7Complete": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::events:putEvents",
+      "Parameters": {
+        "Entries": [
+          {
+            "Source": "pipeline.multi-step-llm",
+            "DetailType": "Stage Completed",
+            "Detail": {
+              "stage": 7,
+              "stageName": "GitHubIntegration",
+              "executionId.$": "$.pipeline.executionId",
+              "repositoryUrl.$": "$.stage7.output.repositoryUrl",
+              "issuesCreated.$": "$.stage7.output.issuesCreated"
+            }
+          }
+        ]
+      },
+      "ResultPath": "$.events.stage7Complete",
+      "Next": "CreateFinalCheckpoint"
+    },
+
+    "CreateFinalCheckpoint": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::dynamodb:putItem",
+      "Parameters": {
+        "TableName": "${CheckpointTable}",
+        "Item": {
+          "executionId": {
+            "S.$": "$.pipeline.executionId"
+          },
+          "stage": {
+            "N": "7"
+          },
+          "completedAt": {
+            "S.$": "$$.State.EnteredTime"
+          },
+          "finalOutput": {
+            "S.$": "States.JsonToString($.stage7.output)"
+          },
+          "pipelineStatus": {
+            "S": "COMPLETED"
+          },
+          "ttl": {
+            "N.$": "States.StringToJson(States.Format('{}', States.MathAdd(States.StringToJson($$.State.EnteredTime), 2592000)))"
+          }
+        }
+      },
+      "ResultPath": "$.finalCheckpoint",
+      "Next": "PipelineCompleteSuccess"
+    },
+
+    "PipelineCompleteSuccess": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::events:putEvents",
+      "Comment": "Pipeline completed successfully - publish final success event",
+      "Parameters": {
+        "Entries": [
+          {
+            "Source": "pipeline.multi-step-llm",
+            "DetailType": "Pipeline Completed",
+            "Detail": {
+              "executionId.$": "$.pipeline.executionId",
+              "totalDuration.$": "States.MathAdd(States.StringToJson($$.State.EnteredTime), States.MathMultiply(-1, States.StringToJson($.pipeline.startTime)))",
+              "stagesCompleted": 7,
+              "finalRepositoryUrl.$": "$.stage7.output.repositoryUrl",
+              "pipelineVersion": "2.0",
+              "success": true
+            }
+          }
+        ]
+      },
+      "Next": "FinalSuccess"
+    },
+
+    "FinalSuccess": {
+      "Type": "Succeed",
+      "Comment": "Pipeline execution completed successfully",
+      "OutputPath": "$.stage7.output"
+    },
+
+    "PipelineFailure": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::events:putEvents",
+      "Comment": "Pipeline failed - publish failure event and create failure checkpoint",
+      "Parameters": {
+        "Entries": [
+          {
+            "Source": "pipeline.multi-step-llm",
+            "DetailType": "Pipeline Failed",
+            "Detail": {
+              "executionId.$": "$.pipeline.executionId",
+              "failureReason.$": "$.error.Cause",
+              "failedStage.$": "$.error.stage",
+              "pipelineVersion": "2.0"
+            }
+          }
+        ]
+      },
+      "Next": "CreateFailureCheckpoint"
+    },
+
+    "GitHubIntegrationFailure": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::events:putEvents",
+      "Comment": "Critical GitHub integration failure",
+      "Parameters": {
+        "Entries": [
+          {
+            "Source": "pipeline.multi-step-llm",
+            "DetailType": "Pipeline Critical Failure",
+            "Detail": {
+              "executionId.$": "$.pipeline.executionId",
+              "failureReason": "GitHub integration failed - mandatory final step",
+              "failedStage": 7,
+              "criticalFailure": true,
+              "availableData": {
+                "analysisResults.$": "$.stage1.output",
+                "consolidatedPortfolio.$": "$.stage6.output"
+              }
+            }
+          }
+        ]
+      },
+      "Next": "CreateFailureCheckpoint"
+    },
+
+    "CreateFailureCheckpoint": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::dynamodb:putItem",
+      "Parameters": {
+        "TableName": "${CheckpointTable}",
+        "Item": {
+          "executionId": {
+            "S.$": "$.pipeline.executionId"
+          },
+          "stage": {
+            "N": "999"
+          },
+          "failedAt": {
+            "S.$": "$$.State.EnteredTime"
+          },
+          "pipelineStatus": {
+            "S": "FAILED"
+          },
+          "errorDetails": {
+            "S.$": "States.JsonToString($.error)"
+          },
+          "availableData": {
+            "S.$": "States.JsonToString($)"
+          },
+          "ttl": {
+            "N.$": "States.StringToJson(States.Format('{}', States.MathAdd(States.StringToJson($$.State.EnteredTime), 2592000)))"
+          }
+        }
+      },
+      "ResultPath": "$.failureCheckpoint",
+      "Next": "FinalFailure"
+    },
+
+    "FinalFailure": {
+      "Type": "Fail",
+      "Comment": "Pipeline execution failed",
+      "Cause": "Pipeline execution failed. Check error details in checkpoint table.",
+      "Error": "PipelineExecutionFailed"
+    }
+  }
+}
