@@ -35,9 +35,16 @@ import subprocess
 import traceback
 from typing import Optional
 
+# Add the src directory to path for imports
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'src'))
+from pipeline_job_tracker import PipelineJobTracker, get_progress_for_stage
+
 # Initialize AWS clients
 s3_client = boto3.client('s3')
 dynamodb = boto3.resource('dynamodb')
+
+# Initialize job tracker for new tracking system
+job_tracker = PipelineJobTracker()
 
 def download_from_s3(s3_path: str, local_path: str) -> str:
     """
@@ -153,9 +160,25 @@ def main() -> None:
     
     print(f"Starting pipeline for Research ID: {research_id}, Job ID: {job_id}")
     
+    # Create job tracking record in new InnovationPipelineJobs table
+    if research_id and job_id:
+        job_tracker.create_job(
+            job_id=job_id,
+            research_id=research_id,
+            username=os.environ.get('USERNAME', 'batch-user'),
+            job_name=os.environ.get('JOB_NAME', 'Pipeline Run')
+        )
+    
     try:
-        # Update status to RUNNING
+        # Update status to RUNNING in both old and new tables
         update_job_status(job_id, 'RUNNING', 'Pipeline started')
+        if research_id and job_id:
+            job_tracker.update_job_status(
+                job_id=job_id,
+                status='RUNNING',
+                current_stage='Starting pipeline',
+                progress=0
+            )
         
         # Download input from S3 if provided
         local_input = None
@@ -213,14 +236,49 @@ def main() -> None:
                     upload_to_s3(filepath, output_bucket, s3_key)
                     print(f"Uploaded {filepath} to s3://{output_bucket}/{s3_key}")
         
-        # Update status to SUCCEEDED
+        # Check if GitHub repo was created and extract URL
+        github_repo_url = None
+        github_repo_name = None
+        issues_created = 0
+        
+        # Try to extract GitHub info from pipeline output
+        # This would need to be saved by the pipeline or parsed from logs
+        
+        # Update status to SUCCEEDED in both tables
         update_job_status(job_id, 'SUCCEEDED', 'Pipeline completed successfully')
+        if research_id and job_id:
+            job_tracker.update_job_status(
+                job_id=job_id,
+                status='SUCCEEDED',
+                current_stage='Pipeline complete',
+                progress=100
+            )
+            
+            # Update with results if we have them
+            if github_repo_url:
+                job_tracker.update_job_results(
+                    job_id=job_id,
+                    github_repo_url=github_repo_url,
+                    github_repo_name=github_repo_name,
+                    issues_created=issues_created
+                )
+        
         print("Pipeline completed successfully!")
         
     except Exception as e:
         error_msg = f"Pipeline failed: {str(e)}\n{traceback.format_exc()}"
         print(error_msg)
+        
+        # Update failure status in both tables
         update_job_status(job_id, 'FAILED', error_msg[:1000])  # DynamoDB has attribute size limits
+        if research_id and job_id:
+            job_tracker.update_job_status(
+                job_id=job_id,
+                status='FAILED',
+                error=error_msg[:1000],
+                current_stage='Pipeline failed'
+            )
+        
         sys.exit(1)
 
 if __name__ == "__main__":
