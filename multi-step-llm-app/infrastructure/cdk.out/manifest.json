@@ -23,7 +23,7 @@
         "validateOnSynth": false,
         "assumeRoleArn": "arn:${AWS::Partition}:iam::984906149037:role/cdk-hnb659fds-deploy-role-984906149037-us-east-1",
         "cloudFormationExecutionRoleArn": "arn:${AWS::Partition}:iam::984906149037:role/cdk-hnb659fds-cfn-exec-role-984906149037-us-east-1",
-        "stackTemplateAssetObjectUrl": "s3://cdk-hnb659fds-assets-984906149037-us-east-1/39d142c82f5eccb79c45dc1616df7ff3e9f3aa452fe7fa2503d934eb91805f66.json",
+        "stackTemplateAssetObjectUrl": "s3://cdk-hnb659fds-assets-984906149037-us-east-1/ba876db29afeddeb85cdeadf771aafec41ee348c373736f4b0c867c2eaca24b0.json",
         "requiresBootstrapStackVersion": 6,
         "bootstrapStackVersionSsmParameter": "/cdk-bootstrap/hnb659fds/version",
         "additionalDependencies": [
@@ -290,6 +290,24 @@
             "data": "SubmitJobLambda4B842AEF"
           }
         ],
+        "/MultiStepLLMBatch-dev/PipelineStatusLambda/ServiceRole/Resource": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "PipelineStatusLambdaServiceRole583A2AE7"
+          }
+        ],
+        "/MultiStepLLMBatch-dev/PipelineStatusLambda/ServiceRole/DefaultPolicy/Resource": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "PipelineStatusLambdaServiceRoleDefaultPolicy72CB8546"
+          }
+        ],
+        "/MultiStepLLMBatch-dev/PipelineStatusLambda/Resource": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "PipelineStatusLambda80E47189"
+          }
+        ],
         "/MultiStepLLMBatch-dev/MonitorLogsLambda/ServiceRole/Resource": [
           {
             "type": "aws:cdk:logicalId",
@@ -317,7 +335,7 @@
         "/MultiStepLLMBatch-dev/PipelineAPI/Deployment/Resource": [
           {
             "type": "aws:cdk:logicalId",
-            "data": "PipelineAPIDeployment7D46F454fd047348784d1c2e10ef047ff1d71c0b"
+            "data": "PipelineAPIDeployment7D46F45460a8c78627a9b5dd1b5a39cc422992cf"
           }
         ],
         "/MultiStepLLMBatch-dev/PipelineAPI/DeploymentStage.prod/Resource": [
@@ -450,6 +468,126 @@
           {
             "type": "aws:cdk:logicalId",
             "data": "PipelineAPIstatusjobIdGET541C51DE"
+          }
+        ],
+        "/MultiStepLLMBatch-dev/PipelineAPI/Default/api/Resource": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "PipelineAPIapi7048B708"
+          }
+        ],
+        "/MultiStepLLMBatch-dev/PipelineAPI/Default/api/OPTIONS/Resource": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "PipelineAPIapiOPTIONS7033D126"
+          }
+        ],
+        "/MultiStepLLMBatch-dev/PipelineAPI/Default/api/status/Resource": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "PipelineAPIapistatus3167BF64"
+          }
+        ],
+        "/MultiStepLLMBatch-dev/PipelineAPI/Default/api/status/OPTIONS/Resource": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "PipelineAPIapistatusOPTIONSD8829315"
+          }
+        ],
+        "/MultiStepLLMBatch-dev/PipelineAPI/Default/api/status/running/Resource": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "PipelineAPIapistatusrunning61C65452"
+          }
+        ],
+        "/MultiStepLLMBatch-dev/PipelineAPI/Default/api/status/running/OPTIONS/Resource": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "PipelineAPIapistatusrunningOPTIONS89D18AF3"
+          }
+        ],
+        "/MultiStepLLMBatch-dev/PipelineAPI/Default/api/status/running/GET/ApiPermission.MultiStepLLMBatchdevPipelineAPI2A9CA470.GET..api.status.running": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "PipelineAPIapistatusrunningGETApiPermissionMultiStepLLMBatchdevPipelineAPI2A9CA470GETapistatusrunning39768375"
+          }
+        ],
+        "/MultiStepLLMBatch-dev/PipelineAPI/Default/api/status/running/GET/ApiPermission.Test.MultiStepLLMBatchdevPipelineAPI2A9CA470.GET..api.status.running": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "PipelineAPIapistatusrunningGETApiPermissionTestMultiStepLLMBatchdevPipelineAPI2A9CA470GETapistatusrunning16FC6D71"
+          }
+        ],
+        "/MultiStepLLMBatch-dev/PipelineAPI/Default/api/status/running/GET/Resource": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "PipelineAPIapistatusrunningGET4A333D91"
+          }
+        ],
+        "/MultiStepLLMBatch-dev/PipelineAPI/Default/api/plan/Resource": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "PipelineAPIapiplan740E8132"
+          }
+        ],
+        "/MultiStepLLMBatch-dev/PipelineAPI/Default/api/plan/OPTIONS/Resource": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "PipelineAPIapiplanOPTIONS4471F674"
+          }
+        ],
+        "/MultiStepLLMBatch-dev/PipelineAPI/Default/api/plan/async/Resource": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "PipelineAPIapiplanasync1823E8D4"
+          }
+        ],
+        "/MultiStepLLMBatch-dev/PipelineAPI/Default/api/plan/async/OPTIONS/Resource": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "PipelineAPIapiplanasyncOPTIONSE3881DE6"
+          }
+        ],
+        "/MultiStepLLMBatch-dev/PipelineAPI/Default/api/plan/async/status/Resource": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "PipelineAPIapiplanasyncstatus15968745"
+          }
+        ],
+        "/MultiStepLLMBatch-dev/PipelineAPI/Default/api/plan/async/status/OPTIONS/Resource": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "PipelineAPIapiplanasyncstatusOPTIONS27ACBF13"
+          }
+        ],
+        "/MultiStepLLMBatch-dev/PipelineAPI/Default/api/plan/async/status/{jobId}/Resource": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "PipelineAPIapiplanasyncstatusjobId0E272258"
+          }
+        ],
+        "/MultiStepLLMBatch-dev/PipelineAPI/Default/api/plan/async/status/{jobId}/OPTIONS/Resource": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "PipelineAPIapiplanasyncstatusjobIdOPTIONS5236C1E1"
+          }
+        ],
+        "/MultiStepLLMBatch-dev/PipelineAPI/Default/api/plan/async/status/{jobId}/GET/ApiPermission.MultiStepLLMBatchdevPipelineAPI2A9CA470.GET..api.plan.async.status.{jobId}": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "PipelineAPIapiplanasyncstatusjobIdGETApiPermissionMultiStepLLMBatchdevPipelineAPI2A9CA470GETapiplanasyncstatusjobId81FF8940"
+          }
+        ],
+        "/MultiStepLLMBatch-dev/PipelineAPI/Default/api/plan/async/status/{jobId}/GET/ApiPermission.Test.MultiStepLLMBatchdevPipelineAPI2A9CA470.GET..api.plan.async.status.{jobId}": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "PipelineAPIapiplanasyncstatusjobIdGETApiPermissionTestMultiStepLLMBatchdevPipelineAPI2A9CA470GETapiplanasyncstatusjobIdCC89008D"
+          }
+        ],
+        "/MultiStepLLMBatch-dev/PipelineAPI/Default/api/plan/async/status/{jobId}/GET/Resource": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "PipelineAPIapiplanasyncstatusjobIdGETD0539693"
           }
         ],
         "/MultiStepLLMBatch-dev/CDKMetadata/Default": [

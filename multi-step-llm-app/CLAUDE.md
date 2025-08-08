@@ -3,6 +3,18 @@
 ## 🎯 Project Mission
 This is a sophisticated 7-stage market research pipeline that transforms raw research into GitHub repositories with actionable product ideas. The pipeline uses weighted distribution to allocate exactly 10 high-quality ideas across opportunity zones based on market potential.
 
+## 🚫 CRITICAL DEVELOPMENT PRINCIPLES
+
+### NO FALLBACK LOGIC
+**NEVER ADD FALLBACK LOGIC UNLESS EXPLICITLY REQUESTED**
+- Fallbacks mask real problems and create confusion
+- The ONLY acceptable fallback is for API rate limiting (429 errors)
+- If something fails, it should fail loudly and clearly
+- Don't add "graceful degradation" - fix the actual problem
+- Don't add try/catch blocks that swallow errors
+- Don't add alternative paths "just in case"
+- If an API call fails, let it fail (except for rate limits)
+
 ## 🚨 ABSOLUTELY CRITICAL: NEVER WATER DOWN REQUIREMENTS
 
 **NEVER EVER EVER EVER:**

@@ -1350,6 +1350,136 @@
     "aws:cdk:path": "MultiStepLLMBatch-dev/SubmitJobLambda/Resource"
    }
   },
+  "PipelineStatusLambdaServiceRole583A2AE7": {
+   "Type": "AWS::IAM::Role",
+   "Properties": {
+    "AssumeRolePolicyDocument": {
+     "Statement": [
+      {
+       "Action": "sts:AssumeRole",
+       "Effect": "Allow",
+       "Principal": {
+        "Service": "lambda.amazonaws.com"
+       }
+      }
+     ],
+     "Version": "2012-10-17"
+    },
+    "ManagedPolicyArns": [
+     {
+      "Fn::Join": [
+       "",
+       [
+        "arn:",
+        {
+         "Ref": "AWS::Partition"
+        },
+        ":iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
+       ]
+      ]
+     }
+    ],
+    "Tags": [
+     {
+      "Key": "Environment",
+      "Value": "dev"
+     },
+     {
+      "Key": "ManagedBy",
+      "Value": "CDK"
+     },
+     {
+      "Key": "Project",
+      "Value": "MultiStepLLM"
+     }
+    ]
+   },
+   "Metadata": {
+    "aws:cdk:path": "MultiStepLLMBatch-dev/PipelineStatusLambda/ServiceRole/Resource"
+   }
+  },
+  "PipelineStatusLambdaServiceRoleDefaultPolicy72CB8546": {
+   "Type": "AWS::IAM::Policy",
+   "Properties": {
+    "PolicyDocument": {
+     "Statement": [
+      {
+       "Action": [
+        "dynamodb:GetItem",
+        "dynamodb:Query",
+        "dynamodb:Scan"
+       ],
+       "Effect": "Allow",
+       "Resource": [
+        "arn:aws:dynamodb:us-east-1:984906149037:table/InnovationPipelineJobs",
+        "arn:aws:dynamodb:us-east-1:984906149037:table/InnovationPipelineJobs/index/*"
+       ]
+      },
+      {
+       "Action": "batch:DescribeJobs",
+       "Effect": "Allow",
+       "Resource": "*"
+      }
+     ],
+     "Version": "2012-10-17"
+    },
+    "PolicyName": "PipelineStatusLambdaServiceRoleDefaultPolicy72CB8546",
+    "Roles": [
+     {
+      "Ref": "PipelineStatusLambdaServiceRole583A2AE7"
+     }
+    ]
+   },
+   "Metadata": {
+    "aws:cdk:path": "MultiStepLLMBatch-dev/PipelineStatusLambda/ServiceRole/DefaultPolicy/Resource"
+   }
+  },
+  "PipelineStatusLambda80E47189": {
+   "Type": "AWS::Lambda::Function",
+   "Properties": {
+    "Code": {
+     "ZipFile": "#!/usr/bin/env python3\n\"\"\"\nLambda function for Innovation Pipeline Status API\nProvides exact compatibility with frontend expectations\n\nAuthor: Multi-Step LLM Pipeline Team\nDate: January 2025\n\"\"\"\n\nimport json\nimport boto3\nfrom datetime import datetime, timedelta\nfrom decimal import Decimal\nfrom typing import Dict, Any, List, Optional\n\n# Initialize AWS clients\ndynamodb = boto3.resource('dynamodb')\ntable = dynamodb.Table('InnovationPipelineJobs')\nbatch_client = boto3.client('batch')\n\n\ndef decimal_default(obj):\n    \"\"\"Helper to handle Decimal types in JSON serialization\"\"\"\n    if isinstance(obj, Decimal):\n        return float(obj)\n    raise TypeError\n\n\n# Status value mapping (backend -> frontend)\nSTATUS_MAP = {\n    'SUBMITTED': 'QUEUED',\n    'PENDING': 'QUEUED',\n    'RUNNABLE': 'QUEUED',\n    'STARTING': 'QUEUED',\n    'RUNNING': 'RUNNING',\n    'SUCCEEDED': 'COMPLETED',\n    'FAILED': 'FAILED'\n}\n\n# Stage information mapping\nSTAGE_INFO = {\n    'Starting pipeline': {'number': 0, 'name': 'Initialization', 'estimatedMinutes': 1},\n    'Stage 1: Research Analysis': {'number': 1, 'name': 'Research Analysis', 'estimatedMinutes': 3},\n    'Stage 2: JTBD Extraction': {'number': 2, 'name': 'Innovation Ideation', 'estimatedMinutes': 5},\n    'Stage 3: Opportunity Zones': {'number': 3, 'name': 'Opportunity Mapping', 'estimatedMinutes': 4},\n    'Stage 4: Product Ideas': {'number': 4, 'name': 'Product Generation', 'estimatedMinutes': 6},\n    'Stage 5: Consolidation': {'number': 5, 'name': 'Portfolio Assembly', 'estimatedMinutes': 2},\n    'Stage 6: GitHub Integration': {'number': 6, 'name': 'Repository Creation', 'estimatedMinutes': 2},\n    'Pipeline complete': {'number': 7, 'name': 'Complete', 'estimatedMinutes': 0}\n}\n\n# Progress mapping for stages\nSTAGE_PROGRESS = {\n    0: 0,\n    1: 10,\n    2: 25,\n    3: 40,\n    4: 60,\n    5: 75,\n    6: 90,\n    7: 100\n}\n\n\ndef get_stage_info(current_stage: str) -> Dict[str, Any]:\n    \"\"\"Get stage number and info from stage string\"\"\"\n    if not current_stage:\n        return STAGE_INFO['Starting pipeline']\n    \n    # Try exact match first\n    if current_stage in STAGE_INFO:\n        return STAGE_INFO[current_stage]\n    \n    # Try partial match\n    for key, value in STAGE_INFO.items():\n        if key.lower() in current_stage.lower() or current_stage.lower() in key.lower():\n            return value\n    \n    # Default to first stage\n    return STAGE_INFO['Starting pipeline']\n\n\ndef calculate_time_estimates(elapsed_minutes: float, overall_progress: int) -> Dict[str, int]:\n    \"\"\"Calculate time estimates based on progress\"\"\"\n    AVERAGE_TOTAL = 20  # Average pipeline takes 20 minutes\n    \n    if overall_progress > 0 and elapsed_minutes > 0:\n        # Estimate based on current progress rate\n        estimated_total = (elapsed_minutes / overall_progress) * 100\n        estimated_remaining = estimated_total - elapsed_minutes\n    else:\n        # Use average estimates\n        estimated_total = AVERAGE_TOTAL\n        estimated_remaining = AVERAGE_TOTAL\n    \n    return {\n        'estimatedRemainingMinutes': max(0, round(estimated_remaining)),\n        'estimatedTotalMinutes': round(estimated_total)\n    }\n\n\ndef format_job_for_status_endpoint(job: Dict[str, Any]) -> Dict[str, Any]:\n    \"\"\"Format job data for /api/plan/async/status/{jobId} endpoint\"\"\"\n    \n    # Get current stage info\n    current_stage_str = job.get('currentStage', 'Starting pipeline')\n    stage_info = get_stage_info(current_stage_str)\n    \n    # Map status\n    backend_status = job.get('status', 'SUBMITTED')\n    frontend_status = STATUS_MAP.get(backend_status, backend_status)\n    \n    # Calculate elapsed time\n    elapsed_minutes = 0\n    if 'startTime' in job:\n        start = datetime.fromisoformat(job['startTime'].replace('Z', '+00:00'))\n        if 'endTime' in job:\n            end = datetime.fromisoformat(job['endTime'].replace('Z', '+00:00'))\n            elapsed_minutes = (end - start).total_seconds() / 60\n        else:\n            elapsed_minutes = (datetime.utcnow() - start.replace(tzinfo=None)).total_seconds() / 60\n    \n    # Calculate progress (handle Decimal type from DynamoDB)\n    overall_progress = float(job.get('overallProgress', 0))\n    stage_number = stage_info['number']\n    \n    # Calculate stage progress (0-100 within current stage)\n    if stage_number < 7:\n        stage_start_progress = STAGE_PROGRESS.get(stage_number, 0)\n        stage_end_progress = STAGE_PROGRESS.get(stage_number + 1, 100)\n        stage_range = stage_end_progress - stage_start_progress\n        stage_progress = min(100, ((overall_progress - stage_start_progress) / stage_range * 100)) if stage_range > 0 else 0\n    else:\n        stage_progress = 100\n    \n    # Calculate time estimates\n    time_estimates = calculate_time_estimates(elapsed_minutes, overall_progress)\n    \n    # Build stages array\n    stages = []\n    for key, info in STAGE_INFO.items():\n        if info['number'] < 7:  # Don't include \"Complete\" as a stage\n            stage_status = 'pending'\n            if info['number'] < stage_number:\n                stage_status = 'completed'\n            elif info['number'] == stage_number:\n                stage_status = 'running'\n            \n            stages.append({\n                'name': info['name'],\n                'status': stage_status,\n                'estimatedMinutes': info['estimatedMinutes']\n            })\n    \n    # Build response\n    response = {\n        'jobId': job.get('jobId'),\n        'status': frontend_status,\n        'currentStage': stage_number,\n        'stageName': stage_info['name'],\n        'stageProgress': round(stage_progress),\n        'overallProgress': overall_progress,\n        'elapsedMinutes': round(elapsed_minutes, 1),\n        'estimatedRemainingMinutes': time_estimates['estimatedRemainingMinutes'],\n        'estimatedTotalMinutes': time_estimates['estimatedTotalMinutes'],\n        'metadata': {\n            'researchDocId': job.get('researchId'),\n            'startedAt': job.get('startTime'),\n            'username': job.get('username', 'unknown'),\n            'jobId': job.get('jobId')\n        },\n        'stages': stages,\n        'results': {\n            'githubRepoUrl': job.get('githubRepoUrl'),\n            'githubRepoName': job.get('githubRepoName'),\n            'issuesCreated': job.get('issuesCreated', 0),\n            'analysisResults': None  # Could add S3 links here\n        }\n    }\n    \n    # Add completion time if finished\n    if frontend_status == 'COMPLETED':\n        response['completedAt'] = job.get('endTime')\n        response['actualDurationMinutes'] = round(elapsed_minutes, 1)\n    \n    # Add error if failed\n    if frontend_status == 'FAILED':\n        response['error'] = job.get('error', 'Pipeline failed')\n    \n    return response\n\n\ndef format_job_for_running_endpoint(job: Dict[str, Any]) -> Dict[str, Any]:\n    \"\"\"Format job data for /api/status/running endpoint\"\"\"\n    \n    # Calculate elapsed time\n    elapsed_minutes = 0\n    if 'startTime' in job:\n        start = datetime.fromisoformat(job['startTime'].replace('Z', '+00:00'))\n        if 'endTime' in job:\n            end = datetime.fromisoformat(job['endTime'].replace('Z', '+00:00'))\n            elapsed_minutes = (end - start).total_seconds() / 60\n        else:\n            elapsed_minutes = (datetime.utcnow() - start.replace(tzinfo=None)).total_seconds() / 60\n    \n    return {\n        'jobId': job.get('jobId'),\n        'researchId': job.get('researchId'),\n        'username': job.get('username'),\n        'startTime': job.get('startTime'),\n        'endTime': job.get('endTime'),\n        'status': job.get('status'),  # Keep backend status for this endpoint\n        'currentStage': job.get('currentStage'),\n        'overallProgress': job.get('overallProgress', 0),\n        'elapsedMinutes': round(elapsed_minutes, 1),\n        'githubRepoUrl': job.get('githubRepoUrl'),\n        'issuesCreated': job.get('issuesCreated', 0),\n        'error': job.get('error')\n    }\n\n\ndef lambda_handler(event, context):\n    \"\"\"\n    Main Lambda handler for pipeline status API\n    \n    Endpoints:\n    - GET /api/status/running - Get all recent jobs (last 48 hours)\n    - GET /api/plan/async/status/{jobId} - Get detailed status for a job\n    \"\"\"\n    \n    # CORS headers for all responses\n    headers = {\n        'Content-Type': 'application/json',\n        'Access-Control-Allow-Origin': '*',\n        'Access-Control-Allow-Headers': 'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token',\n        'Access-Control-Allow-Methods': 'GET,POST,OPTIONS'\n    }\n    \n    # Handle OPTIONS request for CORS\n    if event.get('httpMethod') == 'OPTIONS':\n        return {\n            'statusCode': 200,\n            'headers': headers,\n            'body': ''\n        }\n    \n    try:\n        path = event.get('path', '')\n        path_params = event.get('pathParameters', {})\n        \n        # Route: GET /api/status/running\n        if path == '/api/status/running' or path == '/status/running':\n            # Get jobs from last 48 hours\n            cutoff_time = (datetime.utcnow() - timedelta(hours=48)).isoformat() + 'Z'\n            \n            # Query multiple statuses to get recent jobs\n            all_jobs = []\n            \n            # We need to scan the table since we can't query by time alone\n            # In production, you might want to add a GSI on startTime\n            response = table.scan(\n                FilterExpression='startTime > :cutoff',\n                ExpressionAttributeValues={':cutoff': cutoff_time}\n            )\n            \n            all_jobs = response.get('Items', [])\n            \n            # Sort by startTime descending (newest first)\n            all_jobs.sort(key=lambda x: x.get('startTime', ''), reverse=True)\n            \n            # Format jobs for frontend\n            formatted_jobs = [format_job_for_running_endpoint(job) for job in all_jobs[:50]]\n            \n            return {\n                'statusCode': 200,\n                'headers': headers,\n                'body': json.dumps({'jobs': formatted_jobs}, default=decimal_default)\n            }\n        \n        # Route: GET /api/plan/async/status/{jobId}\n        elif path.startswith('/api/plan/async/status/') or path.startswith('/plan/async/status/'):\n            # Extract jobId from path\n            job_id = path.split('/')[-1]\n            \n            if not job_id:\n                return {\n                    'statusCode': 400,\n                    'headers': headers,\n                    'body': json.dumps({'error': 'Job ID required'})\n                }\n            \n            # Get job from DynamoDB\n            response = table.get_item(Key={'jobId': job_id})\n            job = response.get('Item')\n            \n            if not job:\n                # Try to get from AWS Batch directly\n                try:\n                    batch_response = batch_client.describe_jobs(jobs=[job_id])\n                    if batch_response['jobs']:\n                        batch_job = batch_response['jobs'][0]\n                        # Create a minimal response from Batch data\n                        return {\n                            'statusCode': 200,\n                            'headers': headers,\n                            'body': json.dumps({\n                                'jobId': job_id,\n                                'status': STATUS_MAP.get(batch_job['status'], batch_job['status']),\n                                'currentStage': 0,\n                                'stageName': 'Initializing',\n                                'stageProgress': 0,\n                                'overallProgress': 0,\n                                'elapsedMinutes': 0,\n                                'estimatedRemainingMinutes': 20,\n                                'estimatedTotalMinutes': 20,\n                                'metadata': {\n                                    'jobId': job_id,\n                                    'startedAt': batch_job.get('startedAt', 0)\n                                },\n                                'stages': [{'name': s['name'], 'status': 'pending', 'estimatedMinutes': s['estimatedMinutes']} \n                                          for s in STAGE_INFO.values() if s['number'] < 7],\n                                'results': {\n                                    'githubRepoUrl': None,\n                                    'githubRepoName': None,\n                                    'issuesCreated': 0,\n                                    'analysisResults': None\n                                }\n                            }, default=decimal_default)\n                        }\n                except:\n                    pass\n                \n                return {\n                    'statusCode': 404,\n                    'headers': headers,\n                    'body': json.dumps({'error': f'Job {job_id} not found'})\n                }\n            \n            # Format job for frontend\n            formatted_job = format_job_for_status_endpoint(job)\n            \n            return {\n                'statusCode': 200,\n                'headers': headers,\n                'body': json.dumps(formatted_job, default=decimal_default)\n            }\n        \n        else:\n            return {\n                'statusCode': 404,\n                'headers': headers,\n                'body': json.dumps({'error': 'Endpoint not found', 'path': path})\n            }\n            \n    except Exception as e:\n        print(f\"Error: {str(e)}\")\n        import traceback\n        traceback.print_exc()\n        return {\n            'statusCode': 500,\n            'headers': headers,\n            'body': json.dumps({\n                'error': 'Internal server error',\n                'message': str(e)\n            })\n        }"
+    },
+    "Environment": {
+     "Variables": {
+      "DYNAMODB_TABLE": "InnovationPipelineJobs",
+      "BATCH_JOB_QUEUE": "multi-step-llm-queue",
+      "BATCH_JOB_DEFINITION": "multi-step-llm-pipeline"
+     }
+    },
+    "Handler": "index.lambda_handler",
+    "MemorySize": 256,
+    "Role": {
+     "Fn::GetAtt": [
+      "PipelineStatusLambdaServiceRole583A2AE7",
+      "Arn"
+     ]
+    },
+    "Runtime": "python3.11",
+    "Tags": [
+     {
+      "Key": "Environment",
+      "Value": "dev"
+     },
+     {
+      "Key": "ManagedBy",
+      "Value": "CDK"
+     },
+     {
+      "Key": "Project",
+      "Value": "MultiStepLLM"
+     }
+    ],
+    "Timeout": 30
+   },
+   "DependsOn": [
+    "PipelineStatusLambdaServiceRoleDefaultPolicy72CB8546",
+    "PipelineStatusLambdaServiceRole583A2AE7"
+   ],
+   "Metadata": {
+    "aws:cdk:path": "MultiStepLLMBatch-dev/PipelineStatusLambda/Resource"
+   }
+  },
   "MonitorLogsLambdaServiceRole43D9F2C5": {
    "Type": "AWS::IAM::Role",
    "Properties": {
@@ -1548,7 +1678,7 @@
     "aws:cdk:path": "MultiStepLLMBatch-dev/PipelineAPI/Resource"
    }
   },
-  "PipelineAPIDeployment7D46F454fd047348784d1c2e10ef047ff1d71c0b": {
+  "PipelineAPIDeployment7D46F45460a8c78627a9b5dd1b5a39cc422992cf": {
    "Type": "AWS::ApiGateway::Deployment",
    "Properties": {
     "Description": "API for Multi-Step LLM Pipeline",
@@ -1557,6 +1687,22 @@
     }
    },
    "DependsOn": [
+    "PipelineAPIapiOPTIONS7033D126",
+    "PipelineAPIapiplanasyncOPTIONSE3881DE6",
+    "PipelineAPIapiplanasync1823E8D4",
+    "PipelineAPIapiplanasyncstatusjobIdGETD0539693",
+    "PipelineAPIapiplanasyncstatusjobIdOPTIONS5236C1E1",
+    "PipelineAPIapiplanasyncstatusjobId0E272258",
+    "PipelineAPIapiplanasyncstatusOPTIONS27ACBF13",
+    "PipelineAPIapiplanasyncstatus15968745",
+    "PipelineAPIapiplanOPTIONS4471F674",
+    "PipelineAPIapiplan740E8132",
+    "PipelineAPIapi7048B708",
+    "PipelineAPIapistatusOPTIONSD8829315",
+    "PipelineAPIapistatus3167BF64",
+    "PipelineAPIapistatusrunningGET4A333D91",
+    "PipelineAPIapistatusrunningOPTIONS89D18AF3",
+    "PipelineAPIapistatusrunning61C65452",
     "PipelineAPIlogsresearchIdGET4E0E89F8",
     "PipelineAPIlogsresearchIdOPTIONSAF680AB2",
     "PipelineAPIlogsresearchId9221803D",
@@ -1580,7 +1726,7 @@
    "Type": "AWS::ApiGateway::Stage",
    "Properties": {
     "DeploymentId": {
-     "Ref": "PipelineAPIDeployment7D46F454fd047348784d1c2e10ef047ff1d71c0b"
+     "Ref": "PipelineAPIDeployment7D46F45460a8c78627a9b5dd1b5a39cc422992cf"
     },
     "RestApiId": {
      "Ref": "PipelineAPI0A3BBAB3"
@@ -2233,6 +2379,605 @@
    },
    "Metadata": {
     "aws:cdk:path": "MultiStepLLMBatch-dev/PipelineAPI/Default/status/{jobId}/GET/Resource"
+   }
+  },
+  "PipelineAPIapi7048B708": {
+   "Type": "AWS::ApiGateway::Resource",
+   "Properties": {
+    "ParentId": {
+     "Fn::GetAtt": [
+      "PipelineAPI0A3BBAB3",
+      "RootResourceId"
+     ]
+    },
+    "PathPart": "api",
+    "RestApiId": {
+     "Ref": "PipelineAPI0A3BBAB3"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "MultiStepLLMBatch-dev/PipelineAPI/Default/api/Resource"
+   }
+  },
+  "PipelineAPIapiOPTIONS7033D126": {
+   "Type": "AWS::ApiGateway::Method",
+   "Properties": {
+    "ApiKeyRequired": false,
+    "AuthorizationType": "NONE",
+    "HttpMethod": "OPTIONS",
+    "Integration": {
+     "IntegrationResponses": [
+      {
+       "ResponseParameters": {
+        "method.response.header.Access-Control-Allow-Headers": "'Content-Type,Authorization'",
+        "method.response.header.Access-Control-Allow-Origin": "'*'",
+        "method.response.header.Access-Control-Allow-Methods": "'GET,POST,OPTIONS'"
+       },
+       "StatusCode": "204"
+      }
+     ],
+     "RequestTemplates": {
+      "application/json": "{ statusCode: 200 }"
+     },
+     "Type": "MOCK"
+    },
+    "MethodResponses": [
+     {
+      "ResponseParameters": {
+       "method.response.header.Access-Control-Allow-Headers": true,
+       "method.response.header.Access-Control-Allow-Origin": true,
+       "method.response.header.Access-Control-Allow-Methods": true
+      },
+      "StatusCode": "204"
+     }
+    ],
+    "ResourceId": {
+     "Ref": "PipelineAPIapi7048B708"
+    },
+    "RestApiId": {
+     "Ref": "PipelineAPI0A3BBAB3"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "MultiStepLLMBatch-dev/PipelineAPI/Default/api/OPTIONS/Resource"
+   }
+  },
+  "PipelineAPIapistatus3167BF64": {
+   "Type": "AWS::ApiGateway::Resource",
+   "Properties": {
+    "ParentId": {
+     "Ref": "PipelineAPIapi7048B708"
+    },
+    "PathPart": "status",
+    "RestApiId": {
+     "Ref": "PipelineAPI0A3BBAB3"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "MultiStepLLMBatch-dev/PipelineAPI/Default/api/status/Resource"
+   }
+  },
+  "PipelineAPIapistatusOPTIONSD8829315": {
+   "Type": "AWS::ApiGateway::Method",
+   "Properties": {
+    "ApiKeyRequired": false,
+    "AuthorizationType": "NONE",
+    "HttpMethod": "OPTIONS",
+    "Integration": {
+     "IntegrationResponses": [
+      {
+       "ResponseParameters": {
+        "method.response.header.Access-Control-Allow-Headers": "'Content-Type,Authorization'",
+        "method.response.header.Access-Control-Allow-Origin": "'*'",
+        "method.response.header.Access-Control-Allow-Methods": "'GET,POST,OPTIONS'"
+       },
+       "StatusCode": "204"
+      }
+     ],
+     "RequestTemplates": {
+      "application/json": "{ statusCode: 200 }"
+     },
+     "Type": "MOCK"
+    },
+    "MethodResponses": [
+     {
+      "ResponseParameters": {
+       "method.response.header.Access-Control-Allow-Headers": true,
+       "method.response.header.Access-Control-Allow-Origin": true,
+       "method.response.header.Access-Control-Allow-Methods": true
+      },
+      "StatusCode": "204"
+     }
+    ],
+    "ResourceId": {
+     "Ref": "PipelineAPIapistatus3167BF64"
+    },
+    "RestApiId": {
+     "Ref": "PipelineAPI0A3BBAB3"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "MultiStepLLMBatch-dev/PipelineAPI/Default/api/status/OPTIONS/Resource"
+   }
+  },
+  "PipelineAPIapistatusrunning61C65452": {
+   "Type": "AWS::ApiGateway::Resource",
+   "Properties": {
+    "ParentId": {
+     "Ref": "PipelineAPIapistatus3167BF64"
+    },
+    "PathPart": "running",
+    "RestApiId": {
+     "Ref": "PipelineAPI0A3BBAB3"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "MultiStepLLMBatch-dev/PipelineAPI/Default/api/status/running/Resource"
+   }
+  },
+  "PipelineAPIapistatusrunningOPTIONS89D18AF3": {
+   "Type": "AWS::ApiGateway::Method",
+   "Properties": {
+    "ApiKeyRequired": false,
+    "AuthorizationType": "NONE",
+    "HttpMethod": "OPTIONS",
+    "Integration": {
+     "IntegrationResponses": [
+      {
+       "ResponseParameters": {
+        "method.response.header.Access-Control-Allow-Headers": "'Content-Type,Authorization'",
+        "method.response.header.Access-Control-Allow-Origin": "'*'",
+        "method.response.header.Access-Control-Allow-Methods": "'GET,POST,OPTIONS'"
+       },
+       "StatusCode": "204"
+      }
+     ],
+     "RequestTemplates": {
+      "application/json": "{ statusCode: 200 }"
+     },
+     "Type": "MOCK"
+    },
+    "MethodResponses": [
+     {
+      "ResponseParameters": {
+       "method.response.header.Access-Control-Allow-Headers": true,
+       "method.response.header.Access-Control-Allow-Origin": true,
+       "method.response.header.Access-Control-Allow-Methods": true
+      },
+      "StatusCode": "204"
+     }
+    ],
+    "ResourceId": {
+     "Ref": "PipelineAPIapistatusrunning61C65452"
+    },
+    "RestApiId": {
+     "Ref": "PipelineAPI0A3BBAB3"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "MultiStepLLMBatch-dev/PipelineAPI/Default/api/status/running/OPTIONS/Resource"
+   }
+  },
+  "PipelineAPIapistatusrunningGETApiPermissionMultiStepLLMBatchdevPipelineAPI2A9CA470GETapistatusrunning39768375": {
+   "Type": "AWS::Lambda::Permission",
+   "Properties": {
+    "Action": "lambda:InvokeFunction",
+    "FunctionName": {
+     "Fn::GetAtt": [
+      "PipelineStatusLambda80E47189",
+      "Arn"
+     ]
+    },
+    "Principal": "apigateway.amazonaws.com",
+    "SourceArn": {
+     "Fn::Join": [
+      "",
+      [
+       "arn:aws:execute-api:us-east-1:984906149037:",
+       {
+        "Ref": "PipelineAPI0A3BBAB3"
+       },
+       "/",
+       {
+        "Ref": "PipelineAPIDeploymentStageprodDC5F287C"
+       },
+       "/GET/api/status/running"
+      ]
+     ]
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "MultiStepLLMBatch-dev/PipelineAPI/Default/api/status/running/GET/ApiPermission.MultiStepLLMBatchdevPipelineAPI2A9CA470.GET..api.status.running"
+   }
+  },
+  "PipelineAPIapistatusrunningGETApiPermissionTestMultiStepLLMBatchdevPipelineAPI2A9CA470GETapistatusrunning16FC6D71": {
+   "Type": "AWS::Lambda::Permission",
+   "Properties": {
+    "Action": "lambda:InvokeFunction",
+    "FunctionName": {
+     "Fn::GetAtt": [
+      "PipelineStatusLambda80E47189",
+      "Arn"
+     ]
+    },
+    "Principal": "apigateway.amazonaws.com",
+    "SourceArn": {
+     "Fn::Join": [
+      "",
+      [
+       "arn:aws:execute-api:us-east-1:984906149037:",
+       {
+        "Ref": "PipelineAPI0A3BBAB3"
+       },
+       "/test-invoke-stage/GET/api/status/running"
+      ]
+     ]
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "MultiStepLLMBatch-dev/PipelineAPI/Default/api/status/running/GET/ApiPermission.Test.MultiStepLLMBatchdevPipelineAPI2A9CA470.GET..api.status.running"
+   }
+  },
+  "PipelineAPIapistatusrunningGET4A333D91": {
+   "Type": "AWS::ApiGateway::Method",
+   "Properties": {
+    "AuthorizationType": "NONE",
+    "HttpMethod": "GET",
+    "Integration": {
+     "IntegrationHttpMethod": "POST",
+     "Type": "AWS_PROXY",
+     "Uri": {
+      "Fn::Join": [
+       "",
+       [
+        "arn:aws:apigateway:us-east-1:lambda:path/2015-03-31/functions/",
+        {
+         "Fn::GetAtt": [
+          "PipelineStatusLambda80E47189",
+          "Arn"
+         ]
+        },
+        "/invocations"
+       ]
+      ]
+     }
+    },
+    "ResourceId": {
+     "Ref": "PipelineAPIapistatusrunning61C65452"
+    },
+    "RestApiId": {
+     "Ref": "PipelineAPI0A3BBAB3"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "MultiStepLLMBatch-dev/PipelineAPI/Default/api/status/running/GET/Resource"
+   }
+  },
+  "PipelineAPIapiplan740E8132": {
+   "Type": "AWS::ApiGateway::Resource",
+   "Properties": {
+    "ParentId": {
+     "Ref": "PipelineAPIapi7048B708"
+    },
+    "PathPart": "plan",
+    "RestApiId": {
+     "Ref": "PipelineAPI0A3BBAB3"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "MultiStepLLMBatch-dev/PipelineAPI/Default/api/plan/Resource"
+   }
+  },
+  "PipelineAPIapiplanOPTIONS4471F674": {
+   "Type": "AWS::ApiGateway::Method",
+   "Properties": {
+    "ApiKeyRequired": false,
+    "AuthorizationType": "NONE",
+    "HttpMethod": "OPTIONS",
+    "Integration": {
+     "IntegrationResponses": [
+      {
+       "ResponseParameters": {
+        "method.response.header.Access-Control-Allow-Headers": "'Content-Type,Authorization'",
+        "method.response.header.Access-Control-Allow-Origin": "'*'",
+        "method.response.header.Access-Control-Allow-Methods": "'GET,POST,OPTIONS'"
+       },
+       "StatusCode": "204"
+      }
+     ],
+     "RequestTemplates": {
+      "application/json": "{ statusCode: 200 }"
+     },
+     "Type": "MOCK"
+    },
+    "MethodResponses": [
+     {
+      "ResponseParameters": {
+       "method.response.header.Access-Control-Allow-Headers": true,
+       "method.response.header.Access-Control-Allow-Origin": true,
+       "method.response.header.Access-Control-Allow-Methods": true
+      },
+      "StatusCode": "204"
+     }
+    ],
+    "ResourceId": {
+     "Ref": "PipelineAPIapiplan740E8132"
+    },
+    "RestApiId": {
+     "Ref": "PipelineAPI0A3BBAB3"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "MultiStepLLMBatch-dev/PipelineAPI/Default/api/plan/OPTIONS/Resource"
+   }
+  },
+  "PipelineAPIapiplanasync1823E8D4": {
+   "Type": "AWS::ApiGateway::Resource",
+   "Properties": {
+    "ParentId": {
+     "Ref": "PipelineAPIapiplan740E8132"
+    },
+    "PathPart": "async",
+    "RestApiId": {
+     "Ref": "PipelineAPI0A3BBAB3"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "MultiStepLLMBatch-dev/PipelineAPI/Default/api/plan/async/Resource"
+   }
+  },
+  "PipelineAPIapiplanasyncOPTIONSE3881DE6": {
+   "Type": "AWS::ApiGateway::Method",
+   "Properties": {
+    "ApiKeyRequired": false,
+    "AuthorizationType": "NONE",
+    "HttpMethod": "OPTIONS",
+    "Integration": {
+     "IntegrationResponses": [
+      {
+       "ResponseParameters": {
+        "method.response.header.Access-Control-Allow-Headers": "'Content-Type,Authorization'",
+        "method.response.header.Access-Control-Allow-Origin": "'*'",
+        "method.response.header.Access-Control-Allow-Methods": "'GET,POST,OPTIONS'"
+       },
+       "StatusCode": "204"
+      }
+     ],
+     "RequestTemplates": {
+      "application/json": "{ statusCode: 200 }"
+     },
+     "Type": "MOCK"
+    },
+    "MethodResponses": [
+     {
+      "ResponseParameters": {
+       "method.response.header.Access-Control-Allow-Headers": true,
+       "method.response.header.Access-Control-Allow-Origin": true,
+       "method.response.header.Access-Control-Allow-Methods": true
+      },
+      "StatusCode": "204"
+     }
+    ],
+    "ResourceId": {
+     "Ref": "PipelineAPIapiplanasync1823E8D4"
+    },
+    "RestApiId": {
+     "Ref": "PipelineAPI0A3BBAB3"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "MultiStepLLMBatch-dev/PipelineAPI/Default/api/plan/async/OPTIONS/Resource"
+   }
+  },
+  "PipelineAPIapiplanasyncstatus15968745": {
+   "Type": "AWS::ApiGateway::Resource",
+   "Properties": {
+    "ParentId": {
+     "Ref": "PipelineAPIapiplanasync1823E8D4"
+    },
+    "PathPart": "status",
+    "RestApiId": {
+     "Ref": "PipelineAPI0A3BBAB3"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "MultiStepLLMBatch-dev/PipelineAPI/Default/api/plan/async/status/Resource"
+   }
+  },
+  "PipelineAPIapiplanasyncstatusOPTIONS27ACBF13": {
+   "Type": "AWS::ApiGateway::Method",
+   "Properties": {
+    "ApiKeyRequired": false,
+    "AuthorizationType": "NONE",
+    "HttpMethod": "OPTIONS",
+    "Integration": {
+     "IntegrationResponses": [
+      {
+       "ResponseParameters": {
+        "method.response.header.Access-Control-Allow-Headers": "'Content-Type,Authorization'",
+        "method.response.header.Access-Control-Allow-Origin": "'*'",
+        "method.response.header.Access-Control-Allow-Methods": "'GET,POST,OPTIONS'"
+       },
+       "StatusCode": "204"
+      }
+     ],
+     "RequestTemplates": {
+      "application/json": "{ statusCode: 200 }"
+     },
+     "Type": "MOCK"
+    },
+    "MethodResponses": [
+     {
+      "ResponseParameters": {
+       "method.response.header.Access-Control-Allow-Headers": true,
+       "method.response.header.Access-Control-Allow-Origin": true,
+       "method.response.header.Access-Control-Allow-Methods": true
+      },
+      "StatusCode": "204"
+     }
+    ],
+    "ResourceId": {
+     "Ref": "PipelineAPIapiplanasyncstatus15968745"
+    },
+    "RestApiId": {
+     "Ref": "PipelineAPI0A3BBAB3"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "MultiStepLLMBatch-dev/PipelineAPI/Default/api/plan/async/status/OPTIONS/Resource"
+   }
+  },
+  "PipelineAPIapiplanasyncstatusjobId0E272258": {
+   "Type": "AWS::ApiGateway::Resource",
+   "Properties": {
+    "ParentId": {
+     "Ref": "PipelineAPIapiplanasyncstatus15968745"
+    },
+    "PathPart": "{jobId}",
+    "RestApiId": {
+     "Ref": "PipelineAPI0A3BBAB3"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "MultiStepLLMBatch-dev/PipelineAPI/Default/api/plan/async/status/{jobId}/Resource"
+   }
+  },
+  "PipelineAPIapiplanasyncstatusjobIdOPTIONS5236C1E1": {
+   "Type": "AWS::ApiGateway::Method",
+   "Properties": {
+    "ApiKeyRequired": false,
+    "AuthorizationType": "NONE",
+    "HttpMethod": "OPTIONS",
+    "Integration": {
+     "IntegrationResponses": [
+      {
+       "ResponseParameters": {
+        "method.response.header.Access-Control-Allow-Headers": "'Content-Type,Authorization'",
+        "method.response.header.Access-Control-Allow-Origin": "'*'",
+        "method.response.header.Access-Control-Allow-Methods": "'GET,POST,OPTIONS'"
+       },
+       "StatusCode": "204"
+      }
+     ],
+     "RequestTemplates": {
+      "application/json": "{ statusCode: 200 }"
+     },
+     "Type": "MOCK"
+    },
+    "MethodResponses": [
+     {
+      "ResponseParameters": {
+       "method.response.header.Access-Control-Allow-Headers": true,
+       "method.response.header.Access-Control-Allow-Origin": true,
+       "method.response.header.Access-Control-Allow-Methods": true
+      },
+      "StatusCode": "204"
+     }
+    ],
+    "ResourceId": {
+     "Ref": "PipelineAPIapiplanasyncstatusjobId0E272258"
+    },
+    "RestApiId": {
+     "Ref": "PipelineAPI0A3BBAB3"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "MultiStepLLMBatch-dev/PipelineAPI/Default/api/plan/async/status/{jobId}/OPTIONS/Resource"
+   }
+  },
+  "PipelineAPIapiplanasyncstatusjobIdGETApiPermissionMultiStepLLMBatchdevPipelineAPI2A9CA470GETapiplanasyncstatusjobId81FF8940": {
+   "Type": "AWS::Lambda::Permission",
+   "Properties": {
+    "Action": "lambda:InvokeFunction",
+    "FunctionName": {
+     "Fn::GetAtt": [
+      "PipelineStatusLambda80E47189",
+      "Arn"
+     ]
+    },
+    "Principal": "apigateway.amazonaws.com",
+    "SourceArn": {
+     "Fn::Join": [
+      "",
+      [
+       "arn:aws:execute-api:us-east-1:984906149037:",
+       {
+        "Ref": "PipelineAPI0A3BBAB3"
+       },
+       "/",
+       {
+        "Ref": "PipelineAPIDeploymentStageprodDC5F287C"
+       },
+       "/GET/api/plan/async/status/*"
+      ]
+     ]
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "MultiStepLLMBatch-dev/PipelineAPI/Default/api/plan/async/status/{jobId}/GET/ApiPermission.MultiStepLLMBatchdevPipelineAPI2A9CA470.GET..api.plan.async.status.{jobId}"
+   }
+  },
+  "PipelineAPIapiplanasyncstatusjobIdGETApiPermissionTestMultiStepLLMBatchdevPipelineAPI2A9CA470GETapiplanasyncstatusjobIdCC89008D": {
+   "Type": "AWS::Lambda::Permission",
+   "Properties": {
+    "Action": "lambda:InvokeFunction",
+    "FunctionName": {
+     "Fn::GetAtt": [
+      "PipelineStatusLambda80E47189",
+      "Arn"
+     ]
+    },
+    "Principal": "apigateway.amazonaws.com",
+    "SourceArn": {
+     "Fn::Join": [
+      "",
+      [
+       "arn:aws:execute-api:us-east-1:984906149037:",
+       {
+        "Ref": "PipelineAPI0A3BBAB3"
+       },
+       "/test-invoke-stage/GET/api/plan/async/status/*"
+      ]
+     ]
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "MultiStepLLMBatch-dev/PipelineAPI/Default/api/plan/async/status/{jobId}/GET/ApiPermission.Test.MultiStepLLMBatchdevPipelineAPI2A9CA470.GET..api.plan.async.status.{jobId}"
+   }
+  },
+  "PipelineAPIapiplanasyncstatusjobIdGETD0539693": {
+   "Type": "AWS::ApiGateway::Method",
+   "Properties": {
+    "AuthorizationType": "NONE",
+    "HttpMethod": "GET",
+    "Integration": {
+     "IntegrationHttpMethod": "POST",
+     "Type": "AWS_PROXY",
+     "Uri": {
+      "Fn::Join": [
+       "",
+       [
+        "arn:aws:apigateway:us-east-1:lambda:path/2015-03-31/functions/",
+        {
+         "Fn::GetAtt": [
+          "PipelineStatusLambda80E47189",
+          "Arn"
+         ]
+        },
+        "/invocations"
+       ]
+      ]
+     }
+    },
+    "ResourceId": {
+     "Ref": "PipelineAPIapiplanasyncstatusjobId0E272258"
+    },
+    "RestApiId": {
+     "Ref": "PipelineAPI0A3BBAB3"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "MultiStepLLMBatch-dev/PipelineAPI/Default/api/plan/async/status/{jobId}/GET/Resource"
    }
   },
   "CDKMetadata": {

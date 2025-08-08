@@ -494,6 +494,44 @@ def handler(event, context):
         )
         jobs_table.grant_write_data(submit_job_lambda)
         
+        # Lambda for pipeline status API (frontend compatibility)
+        pipeline_status_lambda = lambda_.Function(
+            self, "PipelineStatusLambda",
+            runtime=lambda_.Runtime.PYTHON_3_11,
+            handler="index.lambda_handler",
+            timeout=Duration.seconds(30),
+            memory_size=256,
+            environment={
+                "DYNAMODB_TABLE": "InnovationPipelineJobs",
+                "BATCH_JOB_QUEUE": job_queue.job_queue_name,
+                "BATCH_JOB_DEFINITION": job_definition.job_definition_name
+            },
+            code=lambda_.Code.from_inline(open("lambda_pipeline_status.py").read())
+        )
+        
+        # Grant permissions to read from InnovationPipelineJobs table
+        pipeline_status_lambda.add_to_role_policy(
+            iam.PolicyStatement(
+                actions=[
+                    "dynamodb:GetItem",
+                    "dynamodb:Query",
+                    "dynamodb:Scan"
+                ],
+                resources=[
+                    f"arn:aws:dynamodb:{region}:{account}:table/InnovationPipelineJobs",
+                    f"arn:aws:dynamodb:{region}:{account}:table/InnovationPipelineJobs/index/*"
+                ]
+            )
+        )
+        
+        # Grant permissions to describe Batch jobs
+        pipeline_status_lambda.add_to_role_policy(
+            iam.PolicyStatement(
+                actions=["batch:DescribeJobs"],
+                resources=["*"]
+            )
+        )
+        
         # Lambda for monitoring job logs
         monitor_logs_lambda = lambda_.Function(
             self, "MonitorLogsLambda",
@@ -704,6 +742,29 @@ def handler(event, context):
         status_id_resource.add_method(
             "GET",
             apigw.LambdaIntegration(monitor_logs_lambda)  # Reuse the same Lambda for now
+        )
+        
+        # =========================
+        # New Frontend API Endpoints
+        # =========================
+        
+        # /api/status/running endpoint - Get all recent jobs
+        api_resource = api.root.add_resource("api")
+        api_status_resource = api_resource.add_resource("status")
+        api_status_running_resource = api_status_resource.add_resource("running")
+        api_status_running_resource.add_method(
+            "GET",
+            apigw.LambdaIntegration(pipeline_status_lambda)
+        )
+        
+        # /api/plan/async/status/{jobId} endpoint - Get detailed job status
+        api_plan_resource = api_resource.add_resource("plan")
+        api_plan_async_resource = api_plan_resource.add_resource("async")
+        api_plan_async_status_resource = api_plan_async_resource.add_resource("status")
+        api_plan_async_status_id_resource = api_plan_async_status_resource.add_resource("{jobId}")
+        api_plan_async_status_id_resource.add_method(
+            "GET",
+            apigw.LambdaIntegration(pipeline_status_lambda)
         )
         
         # Output important values

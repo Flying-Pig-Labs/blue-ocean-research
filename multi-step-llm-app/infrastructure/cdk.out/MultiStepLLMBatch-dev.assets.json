@@ -1,7 +1,7 @@
 {
   "version": "36.0.0",
   "files": {
-    "39d142c82f5eccb79c45dc1616df7ff3e9f3aa452fe7fa2503d934eb91805f66": {
+    "ba876db29afeddeb85cdeadf771aafec41ee348c373736f4b0c867c2eaca24b0": {
       "source": {
         "path": "MultiStepLLMBatch-dev.template.json",
         "packaging": "file"
@@ -9,7 +9,7 @@
       "destinations": {
         "984906149037-us-east-1": {
           "bucketName": "cdk-hnb659fds-assets-984906149037-us-east-1",
-          "objectKey": "39d142c82f5eccb79c45dc1616df7ff3e9f3aa452fe7fa2503d934eb91805f66.json",
+          "objectKey": "ba876db29afeddeb85cdeadf771aafec41ee348c373736f4b0c867c2eaca24b0.json",
           "region": "us-east-1",
           "assumeRoleArn": "arn:${AWS::Partition}:iam::984906149037:role/cdk-hnb659fds-file-publishing-role-984906149037-us-east-1"
         }
