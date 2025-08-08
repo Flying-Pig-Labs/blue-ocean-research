@@ -1,0 +1,18 @@
+# Core AWS
+boto3>=1.34.0
+
+# ML/Scientific stack - ALL requirements intact
+numpy==1.26.4
+scipy==1.13.0
+scikit-learn==1.5.0
+hdbscan==0.8.38.post1
+joblib==1.4.0
+threadpoolctl==3.5.0
+
+# For embeddings
+cohere>=5.0.0
+openai>=1.56.0
+
+# Additional utilities
+requests>=2.31.0
+python-dotenv>=1.0.1

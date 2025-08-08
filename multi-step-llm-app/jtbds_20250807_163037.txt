@@ -1,0 +1,27 @@
+# Jobs-to-be-Done extracted from analysis
+
+1. When I'm searching for my first home, I want to understand complex real estate terminology and processes, so I can make confident decisions without feeling overwhelmed.
+2. When I'm relocating my family, I want to coordinate the sale of my current home with the purchase of a new one, so I can minimize disruption to my children's schooling.
+3. Track property values and market trends without spending hours manually researching comparable sales.
+4. When I'm managing multiple investment properties, I want to automate tenant screening and rent collection, so I can scale my portfolio efficiently.
+5. Generate accurate property valuations while considering real-time market conditions and neighborhood-specific factors.
+6. When I'm downsizing for retirement, I want to understand my equity options, so I can maintain my lifestyle while reducing maintenance burden.
+7. Coordinate multiple service providers (inspectors, appraisers, title agents) without endless phone calls and email chains.
+8. When I'm buying in a competitive market, I want to receive instant notifications about new listings, so I can make quick offers on desirable properties.
+9. Complete mortgage applications and documentation while minimizing back-and-forth with lenders.
+10. When I'm selling my home, I want to track all ongoing marketing activities, so I can ensure maximum market exposure.
+11. Schedule and manage property showings without conflicting with my family's daily routine.
+12. When I'm investing in real estate, I want to analyze potential cash flow and ROI, so I can make data-driven purchase decisions.
+13. Process real estate transactions while maintaining compliance with current regulations.
+14. When I'm moving to a new school district, I want to verify school boundaries and ratings, so I can ensure quality education for my children.
+15. Manage property documentation without losing important papers or missing deadlines.
+16. When I'm buying a luxury home, I want to verify property history and ownership, so I can avoid future legal issues.
+17. Market properties to qualified buyers while minimizing time wasted on unqualified leads.
+18. When I'm handling multiple transactions, I want to automate status updates to all parties, so I can maintain clear communication without constant interruptions.
+19. Generate comprehensive market analysis reports without manual data compilation.
+20. When I'm selling my first home, I want to understand pricing strategies, so I can maximize my return without overpricing the market.
+21. Manage property showings while maintaining security and privacy of current occupants.
+22. When I'm buying an investment property, I want to estimate renovation costs, so I can accurately calculate potential returns.
+23. Close real estate transactions while minimizing in-person meetings and paper documentation.
+24. When I'm expanding to new markets, I want to understand local trends and regulations, so I can replicate success in different locations.
+25. Handle multiple offers on properties while ensuring fair consideration and optimal selection.

@@ -32,12 +32,13 @@ from dotenv import load_dotenv
 # Load environment variables
 load_dotenv()
 
-# Import AWS secrets if available
-try:
-    from src.utils.secrets_manager import load_aws_secrets
-    load_aws_secrets(profile="mvp")
-except ImportError:
-    pass
+# Note: AWS secrets should already be loaded by run_pipeline.py
+# If running standalone, uncomment the following:
+# try:
+#     from src.utils.secrets_manager import load_aws_secrets
+#     load_aws_secrets(profile="mvp")
+# except ImportError:
+#     pass
 
 console = Console()
 

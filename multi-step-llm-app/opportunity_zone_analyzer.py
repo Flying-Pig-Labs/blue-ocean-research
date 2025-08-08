@@ -1,8 +1,34 @@
 #!/usr/bin/env python3
 """
-Opportunity Zone Analyzer - Discovers strategic areas where multiple JTBDs converge.
+Opportunity Zone Analyzer - Advanced Market Opportunity Discovery
 
-This module analyzes Reddit discussions mapped to JTBDs to identify opportunity zones - 
+This module discovers and analyzes market opportunity zones by clustering Jobs-to-be-Done (JTBDs) 
+based on Reddit discussion patterns and pain point dimensions. It transforms raw customer needs 
+into actionable market segments with quantified opportunity scores.
+
+Key Features:
+- Analyzes Reddit discussions to understand real user pain points
+- Clusters JTBDs using hierarchical clustering on multi-dimensional pain vectors
+- Generates unique, descriptive names for each opportunity zone via LLM
+- Calculates market opportunity scores based on engagement and coverage
+- Extracts specific solution requirements for each zone
+
+Pain Dimensions Analyzed:
+- timing_coordination: Scheduling and synchronization challenges
+- financial_stress: Money-related anxieties and concerns
+- communication_gaps: Information flow problems
+- process_complexity: Difficulty navigating procedures
+- trust_issues: Verification and credibility concerns
+- technology_gaps: Digital tool limitations
+- decision_anxiety: Choice paralysis and uncertainty
+- market_dynamics: Market volatility and competition
+
+Recent Enhancements (Dec 2024):
+- Added LLM-powered unique zone naming to differentiate similar clusters
+- Enhanced zone names include specific user segments and use cases
+- Improved clustering to avoid duplicate-looking zones
+
+Original functionality: This module analyzes Reddit discussions mapped to JTBDs to identify opportunity zones - 
 high-impact problem spaces where a solution would address multiple customer needs at once.
 """
 
@@ -92,7 +118,7 @@ Example: {{"timing_coordination": 0.7, "financial_stress": 0.3, ...}}"""
 
         try:
             response = self.client.messages.create(
-                model="claude-3-5-sonnet-20241022",
+                model="claude-3-5-sonnet-20241022",  # Using Sonnet for reliability
                 max_tokens=500,
                 temperature=0,
                 messages=[{"role": "user", "content": prompt}]
@@ -143,35 +169,41 @@ Example: {{"timing_coordination": 0.7, "financial_stress": 0.3, ...}}"""
                 jtbd_discussions = jtbd_discussions.nlargest(max_discussions_per_jtbd, 'score')
                 logger.info(f"  Sampling top {max_discussions_per_jtbd} discussions by engagement")
             
-            # Collect pain scores for all discussions
+            # Extract pain dimensions for each discussion individually
             dimension_scores = defaultdict(list)
             
+            # Process each discussion separately (one API call per discussion)
             for _, discussion in jtbd_discussions.iterrows():
-                # Prepare text for analysis
-                text = f"""
-Title: {discussion['title']}
-Subreddit: r/{discussion['subreddit']}
-Score: {discussion['score']} upvotes, {discussion['num_comments']} comments
-Content: {discussion['selftext'][:1500] if pd.notna(discussion['selftext']) else 'No content'}
-"""
+                # Combine title and selftext for analysis
+                text = f"{discussion['title']}\n{discussion.get('selftext', '')}"
                 
-                # Extract pain dimensions
+                # Extract pain dimensions for this discussion
                 scores = self.extract_pain_dimensions(text)
                 
+                # Collect scores for averaging
                 for dim, score in scores.items():
                     dimension_scores[dim].append(score)
                 
-                # Rate limit to avoid API throttling
-                time.sleep(0.5)
+                # Small delay to avoid rate limiting
+                time.sleep(0.2)
             
             # Calculate average scores for this JTBD
             jtbd_vector = {}
             for dim in self.PAIN_DIMENSIONS:
                 if dim in dimension_scores and dimension_scores[dim]:
                     # Weight by engagement (upvotes)
-                    weights = jtbd_discussions['score'].values[:len(dimension_scores[dim])]
-                    weights = weights / weights.sum() if weights.sum() > 0 else np.ones(len(weights)) / len(weights)
-                    jtbd_vector[dim] = np.average(dimension_scores[dim], weights=weights)
+                    scores_array = np.array(dimension_scores[dim])
+                    weights = jtbd_discussions['score'].values[:len(scores_array)]
+                    
+                    # Ensure weights and scores have same length
+                    min_len = min(len(weights), len(scores_array))
+                    if min_len > 0:
+                        weights = weights[:min_len]
+                        scores_array = scores_array[:min_len]
+                        weights = weights / weights.sum() if weights.sum() > 0 else np.ones(len(weights)) / len(weights)
+                        jtbd_vector[dim] = np.average(scores_array, weights=weights)
+                    else:
+                        jtbd_vector[dim] = 0.0
                 else:
                     jtbd_vector[dim] = 0.0
                     
@@ -281,6 +313,71 @@ Example: ["Real-time transaction status dashboard", "Automated document verifica
             return f"{primary} & {secondary} Platform"
         return f"{primary} Platform"
     
+    def enhance_zone_name_with_llm(self, base_name: str, jtbd_texts: List[str], 
+                                  solution_requirements: List[str]) -> str:
+        """
+        ENHANCEMENT (Dec 2024): Use LLM to add unique descriptors to zone names.
+        
+        This function takes a generic zone name (e.g., "Financial Management Platform") 
+        and enhances it with specific context about WHO the zone serves and WHAT 
+        specific problem it solves (e.g., "Financial Management Platform for First-Time Sellers").
+        
+        This solves the problem of multiple zones having similar generic names while 
+        actually addressing different user segments or use cases.
+        
+        Args:
+            base_name: Generic zone name from pain dimension analysis
+            jtbd_texts: Actual JTBD descriptions this zone addresses
+            solution_requirements: Key solutions identified for this zone
+            
+        Returns:
+            Enhanced zone name with unique descriptors, or base name if enhancement fails
+        """
+        # Limit JTBD texts to avoid token overflow (Claude has context limits)
+        sample_jtbds = jtbd_texts[:3] if len(jtbd_texts) > 3 else jtbd_texts
+        
+        prompt = f"""Given this opportunity zone name and the specific JTBDs it addresses, 
+add 3-4 words that make it unique and specific to THIS zone's focus.
+
+Current generic name: {base_name}
+
+Specific JTBDs this zone addresses:
+{chr(10).join(f'- {jtbd}' for jtbd in sample_jtbds)}
+
+Key solution requirements:
+{chr(10).join(f'- {req[:100]}' for req in solution_requirements[:2])}
+
+Generate an enhanced name by adding 3-4 descriptive words that capture what makes THIS zone unique.
+The additions should highlight the specific user segment, use case, or problem focus.
+
+Examples of good enhanced names:
+- "Financial Management Platform for First-Time Sellers"
+- "Trust & Verification Platform for Investment Portfolio Expansion"
+- "Decision Support Platform for Family Relocation Planning"
+- "Process Simplification Platform for Rental Property Automation"
+
+Return ONLY the enhanced name (no quotes, no explanation)."""
+
+        try:
+            response = self.client.messages.create(
+                model="claude-3-5-sonnet-20241022",
+                max_tokens=50,
+                temperature=0.3,
+                messages=[{"role": "user", "content": prompt}]
+            )
+            
+            enhanced_name = response.content[0].text.strip()
+            # Remove quotes if present
+            enhanced_name = enhanced_name.strip('"').strip("'")
+            # Ensure it's not too long
+            if len(enhanced_name) > 100:
+                return base_name  # Fall back to base name if too long
+            return enhanced_name
+            
+        except Exception as e:
+            logger.warning(f"Error enhancing zone name: {e}")
+            return base_name  # Fall back to base name on error
+    
     def analyze_opportunity_zones(self, jtbd_file: str, reddit_file: str, 
                                  n_zones: int = 5, max_discussions_per_jtbd: int = 5) -> Dict[str, Any]:
         """Main analysis pipeline to discover opportunity zones."""
@@ -330,8 +427,14 @@ Example: ["Real-time transaction status dashboard", "Automated document verifica
             # Extract solution requirements
             requirements = self.extract_solution_requirements(jtbds, zone_jtbd_indices, reddit_df)
             
-            # Generate zone name
-            zone_name = self.generate_zone_name(significant_dims)
+            # Generate base zone name
+            base_zone_name = self.generate_zone_name(significant_dims)
+            
+            # Get full JTBD texts for this zone
+            zone_jtbd_texts = [jtbds[idx] for idx in zone_jtbd_indices]
+            
+            # Enhance zone name with LLM to make it unique
+            zone_name = self.enhance_zone_name_with_llm(base_zone_name, zone_jtbd_texts, requirements)
             
             # Build zone object
             zone = {

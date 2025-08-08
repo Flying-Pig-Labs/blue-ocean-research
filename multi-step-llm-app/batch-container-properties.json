@@ -1,0 +1,57 @@
+{
+  "image": "984906149037.dkr.ecr.us-east-1.amazonaws.com/multi-step-llm-pipeline:latest",
+  "resourceRequirements": [
+    {
+      "type": "VCPU",
+      "value": "4"
+    },
+    {
+      "type": "MEMORY",
+      "value": "16384"
+    }
+  ],
+  "jobRoleArn": "arn:aws:iam::984906149037:role/BatchJobRole",
+  "executionRoleArn": "arn:aws:iam::984906149037:role/BatchExecutionRole",
+  "environment": [
+    {
+      "name": "AWS_DEFAULT_REGION",
+      "value": "us-east-1"
+    }
+  ],
+  "secrets": [
+    {
+      "name": "ANTHROPIC_API_KEY",
+      "valueFrom": "arn:aws:secretsmanager:us-east-1:984906149037:secret:anthropic_key-47iAE6"
+    },
+    {
+      "name": "OPENAI_API_KEY",
+      "valueFrom": "arn:aws:secretsmanager:us-east-1:984906149037:secret:openai_key-PkoBXY"
+    },
+    {
+      "name": "EXA_API_KEY",
+      "valueFrom": "arn:aws:secretsmanager:us-east-1:984906149037:secret:exa-key-N7ylem"
+    },
+    {
+      "name": "COHERE_API_KEY",
+      "valueFrom": "arn:aws:secretsmanager:us-east-1:984906149037:secret:cohere-key-MxBx6j"
+    },
+    {
+      "name": "GITHUB_TOKEN",
+      "valueFrom": "arn:aws:secretsmanager:us-east-1:984906149037:secret:github_token-sIuriy"
+    }
+  ],
+  "logConfiguration": {
+    "logDriver": "awslogs",
+    "options": {
+      "awslogs-group": "/aws/batch/job",
+      "awslogs-region": "us-east-1",
+      "awslogs-stream-prefix": "multi-step-llm"
+    }
+  },
+  "fargatePlatformConfiguration": {
+    "platformVersion": "LATEST"
+  },
+  "ephemeralStorage": {
+    "sizeInGiB": 50
+  }
+}

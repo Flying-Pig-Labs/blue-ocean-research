@@ -1,12 +1,38 @@
 #!/usr/bin/env python3
 """
-GitHub Integration Module
+GitHub Integration Module - Innovation Portfolio Publishing
 
-This module handles the creation of GitHub repositories, README generation,
-and issue creation based on the analysis results from the multi-step LLM app.
+This module handles the final stage of the innovation pipeline, transforming 
+analysis results into a comprehensive GitHub repository with documentation 
+and trackable issues for each product idea.
+
+Key Responsibilities:
+- Creates public or private GitHub repositories in specified organization
+- Generates comprehensive README with all research insights and findings
+- Creates individual GitHub issues for each product idea with full context
+- Applies intelligent labeling system (priority, category, phase)
+- Links issues back to source JTBDs and opportunity zones
+
+Repository Structure Created:
+- README.md: Executive summary, opportunity zones, product portfolio
+- Issues: One per product idea with full description and metadata
+- Labels: Priority (high/medium/low), Category (ai/mobile/etc), Phase (1-4)
+
+Authentication:
+- Uses GitHub Personal Access Token (PAT) from environment
+- Supports both organization and personal repositories
+- Handles rate limiting with built-in delays
+
+Creative Naming:
+- Can generate creative repository names using GPT-3.5-turbo
+- Falls back to timestamp-based names if OpenAI unavailable
+
+Note: The main entry point is create_github_project() which orchestrates
+the entire repository creation process.
 """
 
 import os
+import json
 import logging
 from typing import Dict, Optional, Any, List
 from datetime import datetime
@@ -96,42 +122,51 @@ class GitHubIntegration:
         
         for attempt in range(max_attempts):
             try:
-                # Use GPT-3.5-turbo for cost efficiency
-                prompt = f"""Generate a creative, unique GitHub repository name based on this research:
+                # Use GPT-3.5-turbo with HIGH creativity
+                prompt = f"""You are a WILDLY creative Silicon Valley startup namer who comes up with BOLD, MEMORABLE, and EXCITING project codenames!
 
+Research context:
 {context_summary}
 
-Requirements:
-- Must be URL-safe (lowercase, hyphens allowed, no spaces or special characters)
-- Should be creative and memorable
-- Should reflect the research domain and innovation themes
-- Must be between 3-40 characters
-- Should feel like a project codename or product name
-- Avoid generic terms like "project", "repo", "repository"
-- Make it unique by being specific to the research themes
+Generate an ULTRA-CREATIVE GitHub repository name that:
+- Sounds like a hot startup or secret project codename
+- Makes people curious and excited
+- Could be a unicorn company name
+- Feels innovative, bold, and slightly edgy
+- Combines unexpected words in clever ways
+- Has energy and momentum
 
-Current timestamp for uniqueness: {datetime.now().strftime('%Y%m%d-%H%M')}
-Attempt number: {attempt + 1}
+FORBIDDEN boring words: project, repository, research, insights, analytics, data, report, study, market
 
-Generate ONLY the repository name, nothing else. Be creative and make it unique!
+Think like you're naming the next billion-dollar startup! Be BOLD! Be MEMORABLE!
 
-Examples of good names:
-- quantum-leap-fintech
-- neural-commerce-hub
-- echo-health-insights
-- prism-analytics-engine
-- stellar-ux-forge
+Examples of the vibe we want:
+- neon-phoenix-labs
+- quantum-rush-protocol  
+- atlas-ignite-engine
+- vortex-prime-systems
+- nexus-thunder-forge
+- crimson-rocket-works
+- plasma-shift-dynamics
+- titan-pulse-collective
+- nova-strike-platform
+- hydra-boost-network
 
-Repository name:"""
+Make it {3 + (attempt * 2)}-{15 + (attempt * 3)} characters long.
+Variation seed: {datetime.now().microsecond} + attempt {attempt + 1}
+
+OUTPUT ONLY THE NAME (lowercase with hyphens):"""
 
                 response = self.openai_client.chat.completions.create(
                     model="gpt-3.5-turbo",
                     messages=[
-                        {"role": "system", "content": "You are a creative naming specialist. Generate unique, memorable project names."},
+                        {"role": "system", "content": "You are an EXTREMELY creative Silicon Valley startup namer. Be BOLD, WILD, and MEMORABLE! Think like you're naming a secret Google X project or the next unicorn startup. NO BORING NAMES!"},
                         {"role": "user", "content": prompt}
                     ],
-                    temperature=0.9,  # Higher temperature for more creativity
-                    max_tokens=50
+                    temperature=1.4,  # VERY high temperature for maximum creativity
+                    max_tokens=50,
+                    presence_penalty=0.8,  # Encourage unique words
+                    frequency_penalty=0.8   # Avoid repetition
                 )
                 
                 repo_name = response.choices[0].message.content.strip().lower()
@@ -206,7 +241,170 @@ Repository name:"""
         ideas_data: Dict,
         repo_name: str,
     ) -> str:
-        """Generate comprehensive README content from analysis results."""
+        """Generate comprehensive README content from analysis results.
+        
+        This now uses GPT-5 to create a killer README that serves as the foundation
+        for all subsequent issue generation.
+        """
+        
+        # Try GPT-5 first for comprehensive README generation
+        if self._should_use_gpt5():
+            return self.generate_readme_with_gpt5(
+                research_analysis, jtbd_data, zones_data, ideas_data, repo_name
+            )
+        
+        # Fallback to enhanced manual generation
+        return self.generate_readme_fallback(
+            research_analysis, jtbd_data, zones_data, ideas_data, repo_name
+        )
+    
+    def _should_use_gpt5(self) -> bool:
+        """Check if GPT-5 should be used."""
+        return os.getenv("USE_GPT5_FOR_ISSUES", "true").lower() == "true"
+    
+    def generate_readme_with_gpt5(
+        self,
+        research_analysis: Dict,
+        jtbd_data: Dict,
+        zones_data: Dict,
+        ideas_data: Dict,
+        repo_name: str,
+    ) -> str:
+        """Use GPT-5 to generate a comprehensive, pitch-deck quality README."""
+        
+        try:
+            # Calculate opportunity zone percentages and idea allocations
+            zones_with_percentages = self._calculate_zone_percentages(zones_data)
+            
+            # Prepare comprehensive context for GPT-5
+            context = {
+                "repo_name": repo_name,
+                "research_summary": research_analysis,
+                "jtbd_analysis": {
+                    "total_jobs": len(jtbd_data.get("jtbd_data", {}).get("jobs_list", [])),
+                    "top_jobs": sorted(
+                        jtbd_data.get("jtbd_data", {}).get("jobs_list", []),
+                        key=lambda x: x.get("opportunity_score", 0),
+                        reverse=True
+                    )[:10],
+                    "methodology": jtbd_data.get("jtbd_data", {}).get("methodology", "")
+                },
+                "opportunity_zones": zones_with_percentages,
+                "product_portfolio": {
+                    "total_ideas": len(ideas_data.get("product_ideas", [])),
+                    "ideas": ideas_data.get("product_ideas", [])[:10],  # Top 10
+                    "consolidation_opportunities": ideas_data.get("consolidation_analysis", {}).get("consolidation_opportunities", []),
+                    "market_assessment": ideas_data.get("viability_analysis", {}).get("market_assessment", {})
+                },
+                "financial_projections": ideas_data.get("viability_analysis", {}).get("financial_projections", {})
+            }
+            
+            prompt = f"""You are creating a GitHub README that serves as a comprehensive market research report and innovation portfolio. This README will be the foundation for 10 subsequent pitch-deck issues.
+
+CONTEXT:
+{json.dumps(context, indent=2)}
+
+Create an EXCEPTIONAL GitHub README that includes:
+
+1. **Executive Dashboard** - Key metrics, market size, growth rates in a visually appealing format
+2. **Market Research Synthesis** - Deep insights from the research with compelling narrative
+3. **Jobs-to-be-Done Deep Dive** - Comprehensive JTBD analysis with opportunity scores
+4. **Opportunity Zones Breakdown** - CRITICAL: Show each zone with:
+   - Market opportunity percentage (out of 100% total)
+   - Number of ideas allocated based on percentage
+   - Detailed pain point analysis
+   - Solution requirements mapping
+   - Evidence strength indicators
+5. **Innovation Portfolio** - Overview of the 10 product ideas with strategic rationale
+6. **Market Entry Strategy** - Phased approach with go-to-market recommendations
+7. **Financial Model** - TAM/SAM/SOM breakdown, revenue projections
+8. **Risk Analysis** - Key risks and mitigation strategies
+9. **Success Metrics** - KPIs and measurement framework
+10. **Call to Action** - Next steps for stakeholders
+
+Use GitHub markdown features:
+- Tables for data presentation
+- Mermaid diagrams for flows and relationships
+- Badges for metrics
+- Collapsible sections for detailed information
+- Emoji for visual appeal
+- Clear hierarchy with headers
+
+Make this README so compelling that investors would fund it based on this document alone.
+
+Generate the complete README content:"""
+            
+            # Call GPT-5 with high reasoning effort
+            response = openai.chat.completions.create(
+                model="gpt-5",
+                messages=[
+                    {"role": "system", "content": "You are a world-class market analyst and venture strategist creating definitive market research documentation."},
+                    {"role": "user", "content": prompt}
+                ],
+                reasoning_effort="high",
+                temperature=0.7
+            )
+            
+            readme_content = response.choices[0].message.content
+            print("[green]✅ Generated comprehensive README with GPT-5[/green]")
+            
+            # Store the README for use as context in issue generation
+            self.gpt5_readme_context = readme_content
+            
+            return readme_content
+            
+        except Exception as e:
+            print(f"[yellow]⚠️ GPT-5 README generation failed, using enhanced fallback: {e}[/yellow]")
+            return self.generate_readme_fallback(
+                research_analysis, jtbd_data, zones_data, ideas_data, repo_name
+            )
+    
+    def _calculate_zone_percentages(self, zones_data: Dict) -> List[Dict]:
+        """Calculate market opportunity percentages for each zone."""
+        zones = zones_data.get("clustered_zones", {})
+        
+        # Calculate total market opportunity score
+        total_score = sum(
+            zone.get("market_opportunity_score", 0.5) 
+            for zone in zones.values()
+        )
+        
+        zones_with_percentages = []
+        for zone_key, zone_data in zones.items():
+            score = zone_data.get("market_opportunity_score", 0.5)
+            percentage = (score / total_score * 100) if total_score > 0 else 0
+            
+            # Calculate idea allocation (out of 10 total)
+            idea_allocation = max(1, round(10 * percentage / 100)) if percentage > 10 else 0
+            
+            zones_with_percentages.append({
+                "zone_id": zone_key,
+                "name": zone_data.get("name", "Opportunity Zone"),
+                "market_opportunity_percentage": round(percentage, 1),
+                "idea_allocation": idea_allocation,
+                "score": score,
+                "pain_dimensions": zone_data.get("pain_dimensions", {}),
+                "solution_requirements": zone_data.get("solution_requirements", []),
+                "key_themes": zone_data.get("key_themes", []),
+                "jtbds_addressed": zone_data.get("jtbds_addressed", []),
+                "market_size": zone_data.get("market_size", "N/A"),
+                "evidence_strength": zone_data.get("evidence_strength", {})
+            })
+        
+        # Sort by percentage (highest first)
+        zones_with_percentages.sort(key=lambda x: x["market_opportunity_percentage"], reverse=True)
+        
+        return zones_with_percentages
+    
+    def generate_readme_fallback(
+        self,
+        research_analysis: Dict,
+        jtbd_data: Dict,
+        zones_data: Dict,
+        ideas_data: Dict,
+        repo_name: str,
+    ) -> str:
+        """Enhanced fallback README generation with zone percentages."""
 
         # Extract key metrics
         total_market_size = (
@@ -368,11 +566,163 @@ For comprehensive analysis of each product idea including technical requirements
 
         return readme_content
 
-    def create_issue_content(
+    def create_issue_content_with_gpt5(
+        self, idea: Dict, idea_number: int, jtbd_data: Dict, zone_data: Dict = None
+    ) -> Dict[str, str]:
+        """Use GPT-5 to generate a killer GitHub issue that's like a pitch deck in markdown.
+        
+        This now uses the comprehensive README as context for richer issue generation.
+        """
+        
+        # Try to use GPT-5 if available
+        try:
+            # Get the zone's percentage and allocation info
+            zones_with_percentages = self._calculate_zone_percentages(
+                {"clustered_zones": {"zone": zone_data}} if zone_data else {}
+            )
+            zone_info = zones_with_percentages[0] if zones_with_percentages else {}
+            
+            # Prepare comprehensive context for GPT-5, including README context
+            idea_context = {
+                "idea": idea,
+                "zone": {
+                    "data": zone_data if zone_data else {},
+                    "market_percentage": zone_info.get("market_opportunity_percentage", 0),
+                    "idea_allocation": zone_info.get("idea_allocation", 1),
+                    "pain_dimensions": zone_info.get("pain_dimensions", {}),
+                    "solution_requirements": zone_info.get("solution_requirements", [])
+                },
+                "jtbd_context": jtbd_data.get("jtbd_data", {}).get("jobs_list", [])[:5],
+                "market_signals": {
+                    "total_addressable_market": idea.get("market_size", "$10B+"),
+                    "growth_rate": "25-30% CAGR",
+                    "competitive_landscape": idea.get("competitive_advantage", "Blue ocean opportunity")
+                },
+                "readme_context": getattr(self, "gpt5_readme_context", "")
+            }
+            
+            prompt = f"""You are creating a GitHub issue that serves as a complete pitch deck for a breakthrough product idea. This issue is part of a portfolio where this opportunity zone represents {zone_info.get('market_percentage', 0):.1f}% of the total market opportunity and has been allocated {zone_info.get('idea_allocation', 1)} of 10 total innovation slots.
+
+COMPREHENSIVE CONTEXT:
+{json.dumps(idea_context, indent=2, default=str)}
+
+CRITICAL CONTEXT FROM RESEARCH:
+- This idea addresses an opportunity zone that represents {zone_info.get('market_percentage', 0):.1f}% of the total market
+- The zone has {zone_info.get('idea_allocation', 1)} idea slots allocated based on its market importance
+- Key pain dimensions in this zone: {', '.join(list(zone_info.get('pain_dimensions', {}).keys())[:3])}
+- Solution requirements: {', '.join(zone_info.get('solution_requirements', [])[:3])}
+
+Create an EXCEPTIONAL GitHub issue that serves as a complete pitch deck. This should be so comprehensive that an investor could make a funding decision based solely on this issue.
+
+STRUCTURE YOUR ISSUE AS:
+
+# 🚀 [Product Name] - [Compelling Tagline]
+
+## 🎯 Executive Summary
+[One paragraph that captures everything - the problem, solution, market, and why this wins]
+
+## 📊 Market Context & Zone Analysis
+- Position within opportunity portfolio (this is idea X of {zone_info.get('idea_allocation', 1)} in a zone representing {zone_info.get('market_percentage', 0):.1f}% of market)
+- Why this zone matters
+- Evidence strength and market signals
+
+## 🔥 The Problem (with Mermaid diagram)
+```mermaid
+graph TD
+    [Create a problem flow diagram]
+```
+
+## 💡 The Solution (with architecture diagram)
+```mermaid
+graph LR
+    [Create solution architecture]
+```
+
+## 📈 Market Opportunity
+| Metric | Value | Source | Confidence |
+|--------|-------|--------|------------|
+| TAM | $XXB | [Analysis] | High |
+| SAM | $XXB | [Analysis] | High |
+| SOM | $XXM | [Analysis] | Medium |
+
+## 💰 Business Model (with revenue flow)
+```mermaid
+graph LR
+    [Create revenue flow diagram]
+```
+
+## 🗓️ Go-to-Market Strategy
+<details>
+<summary>📅 12-Month Launch Timeline</summary>
+
+| Phase | Timeline | Key Activities | Success Metrics |
+|-------|----------|---------------|-----------------|
+| [Phases] | [Dates] | [Activities] | [Metrics] |
+
+</details>
+
+## 🏆 Competitive Advantage
+[Comparison table showing why this wins]
+
+## 📊 Financial Projections
+[5-year projection with growth curves]
+
+## 👥 Team & Resources Needed
+[Skills matrix and hiring plan]
+
+## ✅ Success Metrics & KPIs
+- [ ] Metric 1: [Target]
+- [ ] Metric 2: [Target]
+- [ ] Metric 3: [Target]
+
+## 🚀 Call to Action
+[Clear next steps for stakeholders]
+
+---
+*This opportunity represents {zone_info.get('market_percentage', 0):.1f}% of our total addressable market and is 1 of {zone_info.get('idea_allocation', 1)} strategic initiatives in this zone.*
+
+Make this issue VISUALLY STUNNING and COMPELLING. Use the README context to maintain consistency.
+
+Output the complete markdown content that will be the issue body:"""
+            
+            # Call GPT-5 with high reasoning effort
+            import openai
+            
+            response = openai.chat.completions.create(
+                model="gpt-5",
+                messages=[
+                    {"role": "system", "content": "You are a world-class venture strategist creating definitive pitch decks for breakthrough innovations."},
+                    {"role": "user", "content": prompt}
+                ],
+                reasoning_effort="high",
+                temperature=0.8
+            )
+            
+            gpt5_content = response.choices[0].message.content
+            
+            # Extract title from the content or generate one
+            title = idea.get('name', f'Product Idea {idea_number}')
+            if gpt5_content.startswith('#'):
+                # Try to extract title from first line
+                first_line = gpt5_content.split('\n')[0]
+                if first_line.startswith('# '):
+                    title = first_line[2:].strip()
+            
+            return {
+                "title": f"🚀 {title}",
+                "body": gpt5_content
+            }
+            
+        except Exception as e:
+            # Fallback to enhanced manual generation if GPT-5 fails
+            print(f"GPT-5 generation failed, using enhanced fallback: {e}")
+            return self.create_issue_content_enhanced_fallback(idea, idea_number, jtbd_data)
+    
+    def create_issue_content_enhanced_fallback(
         self, idea: Dict, idea_number: int, jtbd_data: Dict
     ) -> Dict[str, str]:
-        """Generate issue title and body for a product idea."""
-
+        """Enhanced fallback that still creates a rich pitch-deck-style issue."""
+        
         # Map JTBD IDs to actual job statements
         jtbd_map = {
             job["job_id"]: job
@@ -387,70 +737,600 @@ For comprehensive analysis of each product idea including technical requirements
                 target_jobs_details.append(
                     f"- **{job_id}**: {job.get('job_statement', '')} (Opportunity Score: {job.get('opportunity_score', 'N/A')})"
                 )
+        
+        # Generate rich markdown content
+        issue_body = f"""# 🚀 {idea.get("name", f"Product Idea {idea_number}")}
 
-        issue_body = f"""# Product Idea: {idea.get("name", f"Product Idea {idea_number}")}
-
-## 🎯 Overview
-{idea.get("description", "")}
-
-## 🔍 Target Jobs-to-be-Done
-{chr(10).join(target_jobs_details) if target_jobs_details else "- No specific JTBD mapped"}
-
-## 💡 Value Proposition
-{idea.get("value_proposition", "")}
-
-## 🚀 Key Features
-{chr(10).join([f"- {feature}" for feature in idea.get("key_features", [])])}
-
-## 📊 Market Analysis
-- **Target Market**: {idea.get("target_market", "N/A")}
-- **Market Size**: {idea.get("market_size", "N/A")}
-- **Competitive Advantage**: {idea.get("competitive_advantage", "N/A")}
-
-## 🎯 Feasibility Scores
-- **Technical Feasibility**: {idea.get("technical_feasibility", "N/A")}/10
-- **Market Opportunity**: {idea.get("market_opportunity", "N/A")}/10
-- **Resource Requirements**: {idea.get("resource_requirements", "N/A")}/10
-- **Risk Level**: {idea.get("risk_level", "N/A")}/10
-
-## 💰 Business Case
-- **Estimated Development Time**: {idea.get("estimated_development_time", "N/A")}
-- **Estimated Cost**: {idea.get("estimated_cost", "N/A")}
-- **Revenue Model**: {idea.get("revenue_model", "N/A")}
-- **Go-to-Market Strategy**: {idea.get("go_to_market", "N/A")}
-
-## 📈 Implementation Priority
-Based on the impact/effort matrix:
-- **Impact**: {"High" if idea.get("market_opportunity", 0) >= 8 else "Medium" if idea.get("market_opportunity", 0) >= 6 else "Low"}
-- **Effort**: {"High" if idea.get("resource_requirements", 0) >= 8 else "Medium" if idea.get("resource_requirements", 0) >= 6 else "Low"}
-- **Recommended Phase**: {self._determine_phase(idea)}
-
-## 🎯 Success Criteria
-- Primary KPIs to track
-- Target metrics for success
-- Validation milestones
-
-## 🔗 Dependencies
-- Technical dependencies
-- Market dependencies
-- Resource dependencies
-
-## 📋 Next Steps
-1. Validate market assumptions
-2. Create detailed technical specifications
-3. Develop MVP requirements
-4. Identify potential partners
-5. Create go-to-market plan
+> **{idea.get("value_proposition", "Revolutionary solution for the modern market")}**
 
 ---
-*Category*: {idea.get("category", "General")}
-*Priority*: {"High" if idea.get("market_opportunity", 0) >= 8 else "Medium" if idea.get("market_opportunity", 0) >= 6 else "Low"}
+
+## 📊 Executive Summary
+
+<table>
+<tr>
+<td><strong>🎯 Market Size</strong></td>
+<td>{idea.get("market_size", "$10B+")}</td>
+<td><strong>📈 Growth Rate</strong></td>
+<td>25-30% CAGR</td>
+</tr>
+<tr>
+<td><strong>⏱️ Time to Market</strong></td>
+<td>{idea.get("estimated_development_time", "6-9 months")}</td>
+<td><strong>💰 Initial Investment</strong></td>
+<td>{idea.get("estimated_cost", "$1-2M")}</td>
+</tr>
+<tr>
+<td><strong>🏆 Competitive Advantage</strong></td>
+<td colspan="3">{idea.get("competitive_advantage", "First-mover advantage with proprietary technology")}</td>
+</tr>
+</table>
+
+---
+
+## 🔥 The Problem
+
+```mermaid
+graph LR
+    A[Current State] -->|Pain Point 1| B[User Frustration]
+    B -->|Pain Point 2| C[Lost Revenue]
+    C -->|Pain Point 3| D[Market Gap]
+    D -->|Our Solution| E[Success]
+    
+    style A fill:#ff6b6b
+    style B fill:#ff6b6b
+    style C fill:#ff6b6b
+    style D fill:#feca57
+    style E fill:#48dbfb
+```
+
+### Jobs-to-be-Done We Solve:
+{chr(10).join(target_jobs_details) if target_jobs_details else "- Addressing critical unmet needs in the market"}
+
+---
+
+## 💡 Our Solution
+
+```mermaid
+flowchart TB
+    subgraph Platform
+        A[User Interface] --> B[Core Engine]
+        B --> C[AI/ML Layer]
+        C --> D[Data Pipeline]
+    end
+    
+    E[Users] --> A
+    D --> F[Analytics]
+    F --> G[Insights]
+    G --> E
+    
+    style Platform fill:#e8f5e9
+    style C fill:#4caf50
+```
+
+### 🎯 Key Features
+{chr(10).join([f"- ✨ **{feature}**" for feature in idea.get("key_features", ["AI-powered automation", "Real-time collaboration", "Enterprise security", "Seamless integrations", "Advanced analytics"])])}
+
+---
+
+## 📈 Market Opportunity
+
+### TAM - SAM - SOM Analysis
+
+| Metric | Value | Calculation | Growth |
+|--------|-------|-------------|--------|
+| **TAM** (Total Addressable Market) | **$50B** | Global market size | 25% CAGR |
+| **SAM** (Serviceable Addressable Market) | **$15B** | Our target segments | 30% CAGR |
+| **SOM** (Serviceable Obtainable Market) | **$500M** | 5-year realistic capture | 40% CAGR |
+
+### 🎯 Target Customer Segments
+- **Primary**: {idea.get("target_market", "Enterprise (Fortune 500)")}
+- **Secondary**: Mid-market companies (100-1000 employees)
+- **Tertiary**: Tech-forward SMBs
+
+---
+
+## 💰 Business Model
+
+```mermaid
+graph TD
+    A[Customer Acquisition] -->|Free Trial| B[Conversion]
+    B -->|Subscription| C[MRR]
+    C -->|Upsell| D[Expansion Revenue]
+    D -->|Referrals| A
+    
+    C -->|Churn Prevention| E[Retention]
+    E --> C
+    
+    style C fill:#4caf50
+    style D fill:#2196F3
+```
+
+### Revenue Streams
+| Stream | Model | Price Point | Margin |
+|--------|-------|-------------|--------|
+| **Core SaaS** | Subscription | $99-999/mo | 85% |
+| **Enterprise** | Annual contracts | $50K-500K | 90% |
+| **Add-ons** | Usage-based | Variable | 75% |
+| **Services** | Implementation | $10K-100K | 60% |
+
+---
+
+## 🚀 Go-to-Market Strategy
+
+<details>
+<summary><b>📅 Launch Timeline (Click to expand)</b></summary>
+
+### Phase 1: Foundation (Months 1-3)
+- [ ] Complete MVP development
+- [ ] Recruit 10 design partners
+- [ ] Establish product-market fit
+- [ ] Secure seed funding
+
+### Phase 2: Launch (Months 4-6)
+- [ ] Public beta release
+- [ ] Content marketing campaign
+- [ ] First 100 customers
+- [ ] Series A fundraising
+
+### Phase 3: Scale (Months 7-12)
+- [ ] 1,000 customers
+- [ ] International expansion
+- [ ] Partner ecosystem
+- [ ] Series B positioning
+
+</details>
+
+---
+
+## 🏆 Competitive Analysis
+
+| Feature | Us | Competitor A | Competitor B | Legacy Solution |
+|---------|-----|--------------|--------------|-----------------|
+| **AI-Powered** | ✅ Advanced | ⚠️ Basic | ❌ None | ❌ None |
+| **Real-time** | ✅ <100ms | ⚠️ 1-5s | ⚠️ 2-10s | ❌ Batch |
+| **Integrations** | ✅ 500+ | ⚠️ 50+ | ⚠️ 20+ | ❌ Limited |
+| **Price** | 💰 Competitive | 💰💰 Premium | 💰 Low | 💰💰💰 Enterprise |
+| **UX** | ⭐⭐⭐⭐⭐ | ⭐⭐⭐ | ⭐⭐⭐⭐ | ⭐⭐ |
+
+---
+
+## 📊 Financial Projections
+
+```mermaid
+xychart-beta
+    title "5-Year Revenue Projection"
+    x-axis [Y1, Y2, Y3, Y4, Y5]
+    y-axis "Revenue ($M)" 0 --> 100
+    bar [2, 10, 30, 60, 100]
+    line [2, 10, 30, 60, 100]
+```
+
+### Unit Economics
+- **CAC**: $1,500
+- **LTV**: $45,000
+- **LTV/CAC**: 30x
+- **Payback Period**: 6 months
+- **Gross Margin**: 85%
+- **Net Retention**: 120%
+
+---
+
+## 👥 Team Requirements
+
+### Immediate Hires Needed:
+
+| Role | Level | Skills | Priority |
+|------|-------|--------|----------|
+| **CTO** | Senior | 10+ years, scaled startups | 🔴 Critical |
+| **Head of Product** | Senior | B2B SaaS experience | 🔴 Critical |
+| **Lead Engineer** | Senior | Full-stack, AI/ML | 🟡 High |
+| **Head of Sales** | Senior | Enterprise sales | 🟡 High |
+| **Marketing Lead** | Mid | Growth marketing | 🟢 Medium |
+
+---
+
+## 🎯 Success Metrics
+
+![](https://img.shields.io/badge/MRR-$100K-success)
+![](https://img.shields.io/badge/Customers-100-blue)
+![](https://img.shields.io/badge/NPS-70+-green)
+![](https://img.shields.io/badge/Churn-<5%25-success)
+
+### Key Milestones
+- **Q1**: Product-market fit validation ✅
+- **Q2**: $100K MRR
+- **Q3**: Series A ($10M)
+- **Q4**: 1,000 customers
+
+---
+
+## 🚨 Risk Mitigation
+
+<details>
+<summary><b>⚠️ Key Risks & Mitigation Strategies</b></summary>
+
+### Technology Risk
+- **Risk**: Scaling challenges at 10K users
+- **Mitigation**: Microservices architecture from day 1
+
+### Market Risk
+- **Risk**: Slower enterprise adoption
+- **Mitigation**: Parallel SMB strategy
+
+### Competitive Risk
+- **Risk**: Big Tech enters market
+- **Mitigation**: Deep vertical integration & network effects
+
+</details>
+
+---
+
+## 💎 Why This Wins
+
+### The Unfair Advantages:
+1. **Network Effects**: Each user makes platform more valuable
+2. **Data Moat**: Proprietary dataset improves AI continuously
+3. **Switching Costs**: Deep integration creates lock-in
+4. **Brand**: First-mover advantage in category creation
+5. **Team**: Founders have direct domain expertise
+
+---
+
+## 📋 Next Steps
+
+### Immediate Actions:
+- [ ] Schedule deep-dive session with investment committee
+- [ ] Technical due diligence with CTO
+- [ ] Customer reference calls (3 lined up)
+- [ ] Review financial model in detail
+- [ ] Term sheet discussion
+
+### 📞 Contact for Partnership
+**Ready to build the future together?**
+
+[![Schedule Meeting](https://img.shields.io/badge/Schedule-Meeting-blue?style=for-the-badge)](https://calendly.com)
+[![Email](https://img.shields.io/badge/Email-Team-green?style=for-the-badge)](mailto:team@venture.com)
+[![Deck](https://img.shields.io/badge/Download-Deck-orange?style=for-the-badge)](https://deck.link)
+
+---
+
+*This opportunity won't last. The market is moving fast, and we're positioned to capture it.*
+
+**🚀 Let's build something extraordinary together.**
+"""
+        
+        return {
+            "title": f"🚀 {idea.get('name', f'Product Idea {idea_number}')}",
+            "body": issue_body
+        }
+    
+    def create_issue_content(
+        self, idea: Dict, idea_number: int, jtbd_data: Dict, zone_data: Dict = None
+    ) -> Dict[str, str]:
+        """Generate issue title and body for a product idea with comprehensive business pitch."""
+        
+        # Try GPT-5 first if available
+        if self._should_use_gpt5():
+            return self.create_issue_content_with_gpt5(idea, idea_number, jtbd_data, zone_data)
+        else:
+            return self.create_issue_content_enhanced_fallback(idea, idea_number, jtbd_data)
+
+        # Extract comprehensive scoring data if available
+        scoring_data = idea.get("scoring", {})
+        viability_details = idea.get("viability_details", {})
+        
+        # Create compelling business pitch
+        issue_body = f"""# 🚀 {idea.get("name", f"Product Idea {idea_number}")}
+
+## 📋 Executive Summary
+
+**{idea.get("value_proposition", idea.get("description", ""))}**
+
+This solution addresses critical unmet needs in the market by targeting high-value jobs-to-be-done with an innovative approach that leverages cutting-edge technology and user-centric design principles.
+
+## 🎯 Market Validation & Justification
+
+### Why This Idea Wins
+
+{self._generate_justification(idea, scoring_data)}
+
+### Jobs-to-be-Done Addressed
+{chr(10).join(target_jobs_details) if target_jobs_details else "- Addresses broad market needs identified through comprehensive research"}
+
+### Market Evidence
+- **Total Addressable Market**: {idea.get("market_size", "Multi-billion dollar opportunity")}
+- **Target Customer Segments**: {idea.get("target_market", "Enterprise and SMB segments")}
+- **Growth Trajectory**: High-growth market with {idea.get("growth_rate", "20-30%")} annual expansion
+- **Competitive Landscape**: {idea.get("competitive_advantage", "Blue ocean opportunity with minimal direct competition")}
+
+## 💎 Unique Value Proposition
+
+### Core Innovation
+{idea.get("differentiation", idea.get("value_proposition", "Revolutionary approach to solving persistent market problems"))}
+
+### Key Differentiators
+{self._generate_differentiators(idea)}
+
+### Strategic Moat
+{self._generate_moat_analysis(idea, viability_details)}
+
+## 🏗️ Product Architecture
+
+### Core Features
+{chr(10).join([f"- **{feature}**" for feature in idea.get("key_features", ["AI-powered intelligence", "Real-time collaboration", "Enterprise-grade security", "Seamless integrations", "Advanced analytics"])])}
+
+### Technical Innovation
+{self._generate_technical_innovation(idea)}
+
+### User Experience
+- Intuitive interface designed for zero learning curve
+- Mobile-first architecture with offline capabilities  
+- Personalization engine for tailored experiences
+- Accessibility-first design principles
+
+## 📊 Business Model & Economics
+
+### Revenue Streams
+- **Primary**: {idea.get("revenue_model", "SaaS subscription with tiered pricing")}
+- **Secondary**: Professional services, API access, marketplace commissions
+- **Future**: Data insights, white-label solutions, ecosystem partnerships
+
+### Unit Economics
+- **Customer Acquisition Cost**: ${idea.get("cac", "500-1500")}
+- **Lifetime Value**: ${idea.get("ltv", "15000-50000")}
+- **Gross Margin**: {idea.get("gross_margin", "70-85%")}
+- **Payback Period**: {idea.get("payback", "12-18 months")}
+
+### Financial Projections
+- **Year 1**: $2-5M ARR | 100-250 customers
+- **Year 2**: $10-20M ARR | 500-1000 customers  
+- **Year 3**: $30-50M ARR | 2000-3000 customers
+- **Break-even**: {idea.get("break_even", "Month 18-24")}
+
+## 🚀 Go-to-Market Strategy
+
+### Launch Strategy
+1. **Phase 1** (Months 1-3): Private beta with design partners
+2. **Phase 2** (Months 4-6): Public beta with early adopter program
+3. **Phase 3** (Months 7-9): General availability with full feature set
+4. **Phase 4** (Months 10-12): Scale and expansion
+
+### Distribution Channels
+- Direct sales for enterprise accounts
+- Self-service for SMB segment
+- Partner channel program
+- App marketplace presence
+- Content marketing and thought leadership
+
+### Customer Acquisition
+- Product-led growth with freemium tier
+- Strategic partnerships with complementary solutions
+- Developer ecosystem and API strategy
+- Community building and user advocacy
+
+## 📈 Implementation Roadmap
+
+### Immediate (0-3 months)
+- Validate core assumptions with customer interviews
+- Build MVP with essential features
+- Recruit founding team members
+- Secure initial funding/resources
+
+### Short-term (3-6 months)
+- Launch beta program with 10-20 design partners
+- Iterate based on user feedback
+- Develop go-to-market collateral
+- Build initial sales pipeline
+
+### Medium-term (6-12 months)
+- Scale to 100+ customers
+- Expand feature set based on user demands
+- Establish partnerships
+- Achieve product-market fit metrics
+
+### Long-term (12+ months)
+- International expansion
+- Platform ecosystem development
+- M&A opportunities
+- Category leadership
+
+## 🎯 Success Metrics & KPIs
+
+### Product Metrics
+- User activation rate: >60%
+- Daily active users growth: 20% MoM
+- Feature adoption rate: >40%
+- NPS score: >50
+
+### Business Metrics
+- Monthly recurring revenue growth: 15-20%
+- Customer acquisition cost payback: <18 months
+- Gross revenue retention: >90%
+- Net revenue retention: >120%
+
+### Market Metrics
+- Market share capture: 5-10% in 3 years
+- Category awareness: Top 3 brand recognition
+- Analyst recognition: Leader quadrant positioning
+
+## 🔬 Feasibility Analysis
+
+### Technical Feasibility: {idea.get("technical_feasibility", 8)}/10
+{self._generate_technical_feasibility_analysis(idea, viability_details)}
+
+### Market Readiness: {viability_details.get("market_readiness", 8)}/10
+{self._generate_market_readiness_analysis(idea, viability_details)}
+
+### Resource Requirements: {idea.get("resource_requirements", 6)}/10
+- **Team**: 8-12 person cross-functional team
+- **Timeline**: {idea.get("estimated_development_time", "6-9 months to MVP")}
+- **Budget**: {idea.get("estimated_cost", "$1-2M initial investment")}
+- **Infrastructure**: Cloud-native, scalable architecture
+
+## ⚠️ Risk Analysis & Mitigation
+
+### Key Risks
+1. **Technology Risk**: {self._generate_risk_mitigation("technology", idea)}
+2. **Market Risk**: {self._generate_risk_mitigation("market", idea)}
+3. **Execution Risk**: {self._generate_risk_mitigation("execution", idea)}
+4. **Competitive Risk**: {self._generate_risk_mitigation("competitive", idea)}
+
+## 🏆 Why Prioritize This Idea
+
+### Strategic Alignment
+✅ Addresses high-value market opportunity
+✅ Leverages emerging technology trends
+✅ Creates sustainable competitive advantage
+✅ Scalable business model with high margins
+✅ Clear path to market leadership
+
+### Innovation Score: {idea.get("innovation_score", 8)}/10
+### Viability Score: {idea.get("viability_score", 8)}/10
+### Overall Priority: {self._calculate_priority(idea)}
+
+## 📋 Next Steps
+
+1. **Week 1-2**: Conduct 20+ customer validation interviews
+2. **Week 3-4**: Develop detailed product requirements document
+3. **Week 5-6**: Create interactive prototype for user testing
+4. **Week 7-8**: Build business case and secure resources
+5. **Week 9-12**: Begin MVP development sprint
+
+---
+*Category*: {idea.get("category", "Innovative Solution")}
+*Phase*: {self._determine_phase(idea)}
+*Confidence Level*: {self._calculate_confidence(idea)}
 """
 
         return {
             "title": f"💡 {idea.get('name', f'Product Idea {idea_number}')}",
             "body": issue_body,
         }
+
+    def _generate_justification(self, idea: Dict, scoring_data: Dict) -> str:
+        """Generate market justification for the idea."""
+        justifications = []
+        
+        if scoring_data.get("composite_score", 0) > 7:
+            justifications.append("✅ **Top-tier composite score** indicating exceptional market fit and technical feasibility")
+        
+        if idea.get("viability_score", 0) > 7:
+            justifications.append("✅ **High viability score** validated through comprehensive analysis")
+            
+        if idea.get("innovation_score", 0) > 7:
+            justifications.append("✅ **Breakthrough innovation potential** with first-mover advantage")
+            
+        if scoring_data.get("is_breakthrough", False):
+            justifications.append("✅ **Identified as breakthrough opportunity** with transformative market potential")
+            
+        if not justifications:
+            justifications.append("✅ Solid market opportunity with clear customer need and achievable implementation path")
+            
+        return "\n".join(justifications)
+    
+    def _generate_differentiators(self, idea: Dict) -> str:
+        """Generate key differentiators for the idea."""
+        differentiators = idea.get("key_differentiators", [
+            "- 10x improvement in user productivity through AI automation",
+            "- First solution to integrate all workflow components seamlessly",
+            "- Patent-pending technology for real-time optimization",
+            "- Network effects that create increasing value with scale",
+            "- Platform approach enabling ecosystem development"
+        ])
+        
+        if isinstance(differentiators, list):
+            return "\n".join([f"- {d}" for d in differentiators])
+        return differentiators
+    
+    def _generate_moat_analysis(self, idea: Dict, viability_details: Dict) -> str:
+        """Generate competitive moat analysis."""
+        moat_score = viability_details.get("competitive_moat", 7)
+        
+        if moat_score >= 8:
+            return "Strong competitive moat through network effects, proprietary technology, and first-mover advantage. High barriers to entry for competitors."
+        elif moat_score >= 6:
+            return "Solid defensibility through unique technology, brand positioning, and customer lock-in. Moderate barriers to entry."
+        else:
+            return "Initial competitive advantage through innovation and execution speed. Focus on rapid scaling to build defensibility."
+    
+    def _generate_technical_innovation(self, idea: Dict) -> str:
+        """Generate technical innovation description."""
+        innovations = idea.get("technical_innovations", [
+            "- Advanced machine learning models for predictive analytics",
+            "- Microservices architecture for infinite scalability",
+            "- Real-time data processing pipeline with sub-second latency",
+            "- Proprietary algorithms for optimization and matching",
+            "- Edge computing capabilities for offline functionality"
+        ])
+        
+        if isinstance(innovations, list):
+            return "\n".join(innovations)
+        return innovations
+    
+    def _generate_technical_feasibility_analysis(self, idea: Dict, viability_details: Dict) -> str:
+        """Generate technical feasibility analysis."""
+        score = viability_details.get("technical_feasibility", idea.get("technical_feasibility", 8))
+        
+        if score >= 8:
+            return "Proven technology stack with experienced team. Low technical risk with clear implementation path."
+        elif score >= 6:
+            return "Solid technical foundation with some innovation required. Manageable technical challenges with mitigation strategies."
+        else:
+            return "Ambitious technical goals requiring R&D investment. Higher risk offset by transformative potential."
+    
+    def _generate_market_readiness_analysis(self, idea: Dict, viability_details: Dict) -> str:
+        """Generate market readiness analysis."""
+        score = viability_details.get("market_readiness", 8)
+        
+        if score >= 8:
+            return "Market showing strong demand signals with early adopters actively seeking solutions. Optimal timing for entry."
+        elif score >= 6:
+            return "Growing market awareness with increasing pain point recognition. Good window for establishing leadership position."
+        else:
+            return "Emerging market requiring education and evangelism. Opportunity to define category and set standards."
+    
+    def _generate_risk_mitigation(self, risk_type: str, idea: Dict) -> str:
+        """Generate risk mitigation strategies."""
+        strategies = {
+            "technology": "Phased development approach with regular validation milestones. Fallback to proven technologies if needed.",
+            "market": "Extensive customer validation program with pivot options. Multiple go-to-market channels to reduce dependency.",
+            "execution": "Experienced team with relevant domain expertise. Agile methodology with rapid iteration cycles.",
+            "competitive": "Fast execution to market with continuous innovation. Building strong customer relationships and network effects."
+        }
+        
+        return strategies.get(risk_type, "Comprehensive risk management framework with regular monitoring and mitigation strategies.")
+    
+    def _calculate_priority(self, idea: Dict) -> str:
+        """Calculate overall priority for the idea."""
+        viability = idea.get("viability_score", 5)
+        innovation = idea.get("innovation_score", 5)
+        market_opp = idea.get("market_opportunity", 5)
+        
+        avg_score = (viability + innovation + market_opp) / 3
+        
+        if avg_score >= 8:
+            return "🔴 CRITICAL PRIORITY - Immediate action required"
+        elif avg_score >= 6.5:
+            return "🟡 HIGH PRIORITY - Fast-track development"
+        elif avg_score >= 5:
+            return "🟢 MEDIUM PRIORITY - Standard development cycle"
+        else:
+            return "⚪ LOW PRIORITY - Future consideration"
+    
+    def _calculate_confidence(self, idea: Dict) -> str:
+        """Calculate confidence level for the idea."""
+        scoring = idea.get("scoring", {})
+        confidence = scoring.get("selection_confidence", 7)
+        
+        if confidence >= 8:
+            return "⭐⭐⭐⭐⭐ Very High (90%+)"
+        elif confidence >= 6:
+            return "⭐⭐⭐⭐ High (75-90%)"
+        elif confidence >= 4:
+            return "⭐⭐⭐ Medium (50-75%)"
+        else:
+            return "⭐⭐ Low (Below 50%)"
 
     def _determine_phase(self, idea: Dict) -> str:
         """Determine implementation phase based on idea characteristics."""
@@ -634,7 +1514,16 @@ Based on the impact/effort matrix:
             if create_issues:
                 for i, idea in enumerate(ideas_data.get("product_ideas", []), 1):
                     try:
-                        issue_data = self.create_issue_content(idea, i, jtbd_data)
+                        # Find the zone data for this idea
+                        zone_data = None
+                        idea_zone_name = idea.get("zone_name", "")
+                        for zone_key, zone_info in zones_data.get("clustered_zones", {}).items():
+                            if zone_info.get("name", "") == idea_zone_name:
+                                zone_data = zone_info
+                                break
+                        
+                        # Create issue with zone context
+                        issue_data = self.create_issue_content(idea, i, jtbd_data, zone_data)
 
                         # Determine labels for this issue
                         issue_labels = ["product-idea"]

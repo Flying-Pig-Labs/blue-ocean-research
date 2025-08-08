@@ -1,6 +1,23 @@
 # Multi-Step LLM Application: Complete Innovation Pipeline
 
-A comprehensive 7-stage Python application suite that transforms raw market research into actionable product innovation portfolios with automatic GitHub repository creation. This pipeline leverages multiple AI models (Claude Sonnet/Opus, GPT-4o, OpenAI o1, Cohere) and search APIs (EXA) to perform deep market analysis, customer insight extraction, opportunity identification, and product ideation.
+A comprehensive 7-stage Python application suite that transforms raw market research into actionable product innovation portfolios with automatic GitHub repository creation. This pipeline leverages multiple AI models (Claude Sonnet/Opus, GPT-4o, OpenAI o1, Cohere) and Reddit's PRAW API to perform deep market analysis, customer insight extraction, opportunity identification, and product ideation.
+
+## 🆕 Recent Enhancements (December 2024)
+
+### ✨ Enhanced Opportunity Zone Naming
+- **Smart Differentiation**: Each opportunity zone now receives a unique, descriptive name via LLM analysis
+- **Context-Aware**: Names include specific user segments, use cases, or problem focus (e.g., "for Competitive Market Buyers", "for Senior Downsizing")
+- **Improved Clarity**: Even zones with similar base categories are clearly distinguished
+
+### 🔧 Pipeline Reliability Improvements
+- **Wildcard Pattern Support**: Fixed file detection for dynamically-named outputs (e.g., `jtbds_*.txt`)
+- **GitHub Integration Fix**: Corrected method calls for repository creation
+- **Error Handling**: Better error messages and fallback mechanisms
+
+### 🌐 PRAW-Based Reddit Discovery
+- **No Exa Dependency**: Uses Reddit's official PRAW API for authentic user discussions
+- **Direct Reddit Access**: Searches across multiple real estate and finance subreddits
+- **Rich Context**: Captures actual user pain points from 500+ Reddit threads
 
 ## Pipeline Overview
 

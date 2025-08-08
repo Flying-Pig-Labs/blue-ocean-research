@@ -1,7 +1,25 @@
 #!/usr/bin/env python3
 """
-THE ONE SCRIPT to run the complete multi-step LLM pipeline from start to finish.
-This script executes all 7 stages sequentially with explicit input/output declarations.
+Multi-Step LLM Pipeline Runner - THE ONE SCRIPT (PRAW-Based, No Exa)
+
+This is THE ONE SCRIPT that orchestrates the entire 7-stage innovation pipeline.
+It coordinates the transformation of raw market research into actionable product 
+innovations with automatic GitHub repository creation.
+
+Key Features:
+- Runs all 7 stages sequentially with proper error handling
+- Supports both headless (automated) and interactive modes  
+- Handles wildcard file patterns for dynamically-named outputs
+- Integrates with AWS Secrets Manager for secure API key management
+- PRAW-based Reddit discovery (no Exa dependency)
+
+Pipeline Stages:
+1. Research Analysis (research_analyzer) - Extracts insights from raw market research
+2. JTBD & Reddit Discovery (jobs_to_reddit) - Identifies jobs-to-be-done with authentic user discussions  
+3. Opportunity Zone Discovery (opportunity_zone_analyzer) - Clusters JTBDs into market opportunities
+4. Product Idea Generation (product_idea_generator) - Creates innovative product concepts
+5. Idea Consolidation (idea_consolidator)
+6. GitHub Repository Creation (product_idea_generator --github)
 
 Usage:
     python run_pipeline.py                    # Headless mode (default)
@@ -21,13 +39,10 @@ from botocore.exceptions import ClientError
 from typing import List, Dict, Any
 import shutil
 
-# Import all pipeline modules
+# Import pipeline modules (PRAW-based flow, no Exa dependencies)
 import research_analyzer
-import jobs_researcher
-import jobs_to_reddit  # NEW: Extract JTBDs and find Reddit discussions
-import cluster_jtbd
-import opportunity_zone_analyzer  # NEW: Advanced opportunity zone discovery
-import value_curve_mapper
+import jobs_to_reddit  # PRAW-based JTBD extraction and Reddit discovery
+import opportunity_zone_analyzer  # Advanced opportunity zone discovery
 import product_idea_generator
 import idea_consolidator
 
@@ -61,10 +76,10 @@ def load_secrets_from_aws():
     secrets_arns = {
         'ANTHROPIC_API_KEY': 'arn:aws:secretsmanager:us-east-1:984906149037:secret:anthropic_key-47iAE6',
         'OPENAI_API_KEY': 'arn:aws:secretsmanager:us-east-1:984906149037:secret:openai_key-PkoBXY',
-        'EXA_API_KEY': 'arn:aws:secretsmanager:us-east-1:984906149037:secret:exa-key-N7ylem',
         'COHERE_API_KEY': 'arn:aws:secretsmanager:us-east-1:984906149037:secret:cohere-key-MxBx6j',
-        'GITHUB_TOKEN': 'arn:aws:secretsmanager:us-east-1:984906149037:secret:github_token-sIuriy',
+        'GITHUB_TOKEN': 'arn:aws:secretsmanager:us-east-1:984906149037:secret:github_token_blue_ocean-uv7Z1l',
         'PERPLEXITY_KEY': 'arn:aws:secretsmanager:us-east-1:984906149037:secret:perplexity-key-rrkmhM'
+        # Removed EXA_API_KEY - no longer needed with PRAW-based flow
     }
     
     # Create session with profile if specified
@@ -149,24 +164,11 @@ def run_module(module_name: str, inputs: Dict[str, str], outputs: List[str],
             research_analyzer.main()
             result = True
             
-        elif module_name == "jobs_researcher":
-            # Call jobs_researcher main function
-            sys.argv = ['jobs_researcher.py']
-            jobs_researcher.main()
-            result = True
-            
         elif module_name == "jobs_to_reddit":
             # Call jobs_to_reddit to extract JTBDs and find Reddit discussions
             input_file = inputs.get("analysis", "analysis_results.md")
             sys.argv = ['jobs_to_reddit.py', '--input', input_file]
             jobs_to_reddit.main()
-            result = True
-            
-        elif module_name == "cluster_jtbd":
-            # Call cluster_jtbd with input file
-            input_file = inputs.get("pain_points", "jtbd_research_pain_points.txt")
-            sys.argv = ['cluster_jtbd.py', input_file]
-            cluster_jtbd.main()
             result = True
             
         elif module_name == "opportunity_zone_analyzer":
@@ -184,16 +186,10 @@ def run_module(module_name: str, inputs: Dict[str, str], outputs: List[str],
             opportunity_zone_analyzer.main()
             result = True
             
-        elif module_name == "value_curve_mapper":
-            # Call value_curve_mapper with input file
-            input_file = inputs.get("zones", "opportunity_zones.json")
-            sys.argv = ['value_curve_mapper.py', input_file]
-            value_curve_mapper.main()
-            result = True
-            
         elif module_name == "product_idea_generator":
-            # Call product_idea_generator
-            sys.argv = ['product_idea_generator.py']
+            # Call product_idea_generator with opportunity zones
+            input_file = inputs.get("opportunity_zones", "opportunity_zones.json")
+            sys.argv = ['product_idea_generator.py', '--input', input_file]
             product_idea_generator.main()
             result = True
             
@@ -219,17 +215,34 @@ def run_module(module_name: str, inputs: Dict[str, str], outputs: List[str],
         # Check outputs exist
         all_outputs_exist = True
         for output_file in outputs:
-            # Special case for GitHub output
+            # Special case for GitHub output (not a file)
             if output_file == "GitHub repository in ocean-studio-repos organization":
                 print(f"  ✅ GitHub repository created")
                 continue
-                
-            if os.path.exists(output_file):
-                size = os.path.getsize(output_file)
-                print(f"  ✅ Created: {output_file} ({size:,} bytes)")
+            
+            # ENHANCEMENT (Dec 2024): Handle wildcard patterns for dynamically-named files
+            # Some modules generate files with timestamps (e.g., jtbds_20241207_123456.txt)
+            # This fix allows the pipeline to correctly detect these files using glob patterns
+            if '*' in output_file:
+                import glob
+                matching_files = glob.glob(output_file)
+                if matching_files:
+                    # Found files matching the pattern - report all of them
+                    for matched_file in matching_files:
+                        size = os.path.getsize(matched_file)
+                        print(f"  ✅ Created: {matched_file} ({size:,} bytes)")
+                else:
+                    # No files found matching the wildcard pattern
+                    print(f"  ❌ No files matching pattern: {output_file}")
+                    all_outputs_exist = False
             else:
-                print(f"  ❌ Missing: {output_file}")
-                all_outputs_exist = False
+                # Regular file check for non-wildcard filenames
+                if os.path.exists(output_file):
+                    size = os.path.getsize(output_file)
+                    print(f"  ✅ Created: {output_file} ({size:,} bytes)")
+                else:
+                    print(f"  ❌ Missing: {output_file}")
+                    all_outputs_exist = False
         
         if all_outputs_exist:
             print(f"  ⏱️  Module completed in {elapsed:.1f} seconds")
@@ -259,15 +272,26 @@ def check_file_exists(filepath, description):
         print(f"❌ {description} not found: {filepath}")
         return False
 
-def main(interactive=False, verbose=False, input_file=None):
-    """Run the complete pipeline with explicit input/output declarations."""
-    print("""
+def main(interactive=False, verbose=False, input_file=None, use_cache=False, skip_github=False):
+    """Run the complete pipeline with PRAW-based flow (no Exa dependency).
+    
+    Args:
+        interactive: Run with user prompts between stages
+        verbose: Show LLM prompts and responses
+        input_file: Custom input research file
+        use_cache: Use existing output files if they exist (default: False - always regenerate)
+        skip_github: Skip GitHub repository creation (useful for testing)
+    """
+    mode_str = "INTERACTIVE" if interactive else "HEADLESS"
+    verbose_str = "YES" if verbose else "NO"
+    cache_str = "ENABLED" if use_cache else "DISABLED"
+    
+    print(f"""
 ╔══════════════════════════════════════════════════════════════╗
-║        Multi-Step LLM Pipeline - Full Integration            ║
+║     Multi-Step LLM Pipeline - PRAW-Based Flow (No Exa)       ║
 ║                    THE ONE SCRIPT                             ║
 ║                                                               ║
-║  Mode: """ + ("INTERACTIVE" if interactive else "HEADLESS   ") + """                                   ║
-║  Verbose: """ + ("YES" if verbose else "NO ") + """                                        ║
+║  Mode: {mode_str:<15}  Verbose: {verbose_str:<5}  Cache: {cache_str:<8} ║
 ╚══════════════════════════════════════════════════════════════╝
     """)
     
@@ -302,38 +326,32 @@ def main(interactive=False, verbose=False, input_file=None):
         print("⚠️  Stage 1 failed")
         return
     
-    # Stage 2: JTBD Research
-    print(f"\n{Colors.BOLD}📌 Stage 2: Jobs-to-be-Done Research{Colors.RESET}")
+    # Stage 2: JTBD Extraction & Reddit Discovery (PRAW-based)
+    print(f"\n{Colors.BOLD}📌 Stage 2: JTBD Extraction & Reddit Discovery (PRAW){Colors.RESET}")
+    print("  🔍 Extracting JTBDs from analysis using Claude...")
+    print("  🌐 Searching Reddit for authentic user discussions...")
     
-    if run_module(
-        module_name="jobs_researcher",
-        inputs={"analysis": "analysis_results.md"},
-        outputs=["jtbd_research.md", "jtbd_research_pain_points.txt"],
-        verbose=verbose,
-        interactive=interactive
-    ):
-        stages_completed += 1
-        if interactive:
-            input("\nPress Enter to continue to Stage 2.5...")
-    else:
-        print("⚠️  Skipping remaining stages due to error")
-        return
-    
-    # Stage 2.5: Extract JTBDs and Find Reddit Discussions
-    print(f"\n{Colors.BOLD}📌 Stage 2.5: JTBD Extraction & Reddit Discovery{Colors.RESET}")
-    
-    # Check if we already have the Reddit data files
+    # Check if we should use cached files
     import glob
-    jtbd_files = glob.glob("jtbds_*.txt")
-    reddit_files = glob.glob("reddit_discussions_*.csv")
+    jtbd_files = glob.glob("jtbds_*.txt") if use_cache else []
+    reddit_files = glob.glob("reddit_discussions_*.csv") if use_cache else []
     
-    if jtbd_files and reddit_files:
-        print(f"  ✅ Using existing JTBD file: {jtbd_files[0]}")
-        print(f"  ✅ Using existing Reddit file: {reddit_files[0]}")
+    if use_cache and jtbd_files and reddit_files:
+        print(f"  📂 Using cached JTBD file: {jtbd_files[0]}")
+        print(f"  📂 Using cached Reddit file: {reddit_files[0]}")
         jtbd_file = jtbd_files[0]
         reddit_file = reddit_files[0]
+        stages_completed += 1
     else:
-        # Run jobs_to_reddit to generate the files
+        # Clean up old files if not using cache
+        if not use_cache:
+            for pattern in ["jtbds_*.txt", "reddit_discussions_*.csv", "reddit_analysis_*.xlsx"]:
+                for file in glob.glob(pattern):
+                    os.remove(file)
+                    print(f"  🗑️  Removed old file: {file}")
+        
+        # Run jobs_to_reddit to generate fresh files
+        print("  🔄 Generating fresh JTBD and Reddit data...")
         if run_module(
             module_name="jobs_to_reddit",
             inputs={"analysis": "analysis_results.md"},
@@ -341,12 +359,15 @@ def main(interactive=False, verbose=False, input_file=None):
             verbose=verbose,
             interactive=interactive
         ):
-            # Find the generated files
+            # Find the newly generated files
             jtbd_files = glob.glob("jtbds_*.txt")
             reddit_files = glob.glob("reddit_discussions_*.csv")
             if jtbd_files and reddit_files:
                 jtbd_file = jtbd_files[0]
                 reddit_file = reddit_files[0]
+                stages_completed += 1
+                print(f"  ✅ Generated: {jtbd_file}")
+                print(f"  ✅ Generated: {reddit_file}")
             else:
                 print("⚠️  Failed to generate JTBD and Reddit files")
                 return
@@ -354,33 +375,23 @@ def main(interactive=False, verbose=False, input_file=None):
             print("⚠️  Skipping remaining stages due to error")
             return
     
-    stages_completed += 0.5  # Half stage
     if interactive:
         input("\nPress Enter to continue to Stage 3...")
     
-    # Stage 3: Clustering (Basic)
-    print(f"\n{Colors.BOLD}📌 Stage 3: Pain Point Clustering (Basic){Colors.RESET}")
+    # Stage 3: Advanced Opportunity Zone Discovery
+    print(f"\n{Colors.BOLD}📌 Stage 3: Advanced Opportunity Zone Discovery{Colors.RESET}")
+    print("  🧠 Analyzing pain dimensions across JTBDs and Reddit discussions...")
+    print("  📊 Creating weighted opportunity zones...")
     
-    if run_module(
-        module_name="cluster_jtbd",
-        inputs={"pain_points": "jtbd_research_pain_points.txt"},
-        outputs=["jtbd_clusters.json"],
-        verbose=verbose,
-        interactive=interactive
-    ):
+    # Check if we should use cached opportunity zones
+    if use_cache and os.path.exists("opportunity_zones.json"):
+        print(f"  📂 Using cached opportunity zones file")
+        print(f"  ✅ Found: opportunity_zones.json ({os.path.getsize('opportunity_zones.json'):,} bytes)")
         stages_completed += 1
         if interactive:
-            input("\nPress Enter to continue to Stage 3.5...")
+            input("\nPress Enter to continue to Stage 4...")
     else:
-        print("⚠️  Skipping remaining stages due to error")
-        return
-    
-    # Stage 3.5: Advanced Opportunity Zone Analysis
-    print(f"\n{Colors.BOLD}📌 Stage 3.5: Advanced Opportunity Zone Discovery{Colors.RESET}")
-    print("  🧠 Analyzing pain dimensions across JTBDs and Reddit discussions...")
-    
-    # Use the files from Stage 2.5
-    if 'jtbd_file' in locals() and 'reddit_file' in locals():
+        # Generate fresh opportunity zones
         if run_module(
             module_name="opportunity_zone_analyzer",
             inputs={"jtbds": jtbd_file, "reddit": reddit_file},
@@ -390,88 +401,91 @@ def main(interactive=False, verbose=False, input_file=None):
             n_zones=7,
             max_discussions=3  # Limit for speed
         ):
-            # Copy to expected name for next stage
+            # Copy to standard name for next stage
             shutil.copy("opportunity_zones_advanced.json", "opportunity_zones.json")
-            print("  📄 Using advanced opportunity zones for value curve mapping")
-            stages_completed += 0.5
+            print("  📄 Created opportunity_zones.json for next stage")
+            stages_completed += 1
+            if interactive:
+                input("\nPress Enter to continue to Stage 4...")
         else:
-            # Fallback to basic clustering
-            print("  ⚠️  Advanced analysis failed, using basic clustering")
-            shutil.copy("jtbd_clusters.json", "opportunity_zones.json")
-            print("  📄 Copied jtbd_clusters.json → opportunity_zones.json")
-    else:
-        # No Reddit data, use basic clustering
-        print("  ℹ️  No Reddit data available, using basic clustering")
-        shutil.copy("jtbd_clusters.json", "opportunity_zones.json")
-        print("  📄 Copied jtbd_clusters.json → opportunity_zones.json")
+            print("⚠️  Skipping remaining stages due to error")
+            return
     
-    if interactive:
-        input("\nPress Enter to continue to Stage 4...")
+    # Stage 4: Product Idea Generation
+    print(f"\n{Colors.BOLD}📌 Stage 4: Product Idea Generation{Colors.RESET}")
+    print("  💡 Generating innovative product ideas from opportunity zones...")
     
-    # Stage 4: Value Curve Mapping
-    print(f"\n{Colors.BOLD}📌 Stage 4: Value Curve Mapping{Colors.RESET}")
-    
-    if run_module(
-        module_name="value_curve_mapper",
-        inputs={"zones": "opportunity_zones.json"},
-        outputs=["value_curves.json", "value_curves_report.md"],
-        verbose=verbose,
-        interactive=interactive
-    ):
+    # Check if we should use cached product ideas
+    if use_cache and os.path.exists("product_ideas.json") and os.path.exists("product_ideas_report.md"):
+        print(f"  📂 Using cached product ideas files")
+        print(f"  ✅ Found: product_ideas.json ({os.path.getsize('product_ideas.json'):,} bytes)")
+        print(f"  ✅ Found: product_ideas_report.md ({os.path.getsize('product_ideas_report.md'):,} bytes)")
         stages_completed += 1
         if interactive:
             input("\nPress Enter to continue to Stage 5...")
     else:
-        print("⚠️  Skipping remaining stages due to error")
-        return
+        # Generate fresh product ideas
+        if run_module(
+            module_name="product_idea_generator",
+            inputs={"opportunity_zones": "opportunity_zones.json"},
+            outputs=["product_ideas.json", "product_ideas_report.md"],
+            verbose=verbose,
+            interactive=interactive
+        ):
+            stages_completed += 1
+            if interactive:
+                input("\nPress Enter to continue to Stage 5...")
+        else:
+            print("⚠️  Skipping remaining stages due to error")
+            return
     
-    # Stage 5: Product Idea Generation
-    print(f"\n{Colors.BOLD}📌 Stage 5: Product Idea Generation{Colors.RESET}")
+    # Stage 5: Idea Consolidation
+    print(f"\n{Colors.BOLD}📌 Stage 5: Idea Consolidation{Colors.RESET}")
+    print("  🎯 Consolidating and enriching product portfolio...")
     
-    if run_module(
-        module_name="product_idea_generator",
-        inputs={"value_curves": "value_curves.json"},
-        outputs=["product_ideas.json", "product_ideas_report.md"],
-        verbose=verbose,
-        interactive=interactive
-    ):
+    # Check if we should use cached portfolio files
+    if use_cache and os.path.exists("final_innovation_portfolio.json") and os.path.exists("final_innovation_portfolio_summary.md"):
+        print(f"  📂 Using cached portfolio files")
+        print(f"  ✅ Found: final_innovation_portfolio.json ({os.path.getsize('final_innovation_portfolio.json'):,} bytes)")
+        print(f"  ✅ Found: final_innovation_portfolio_summary.md ({os.path.getsize('final_innovation_portfolio_summary.md'):,} bytes)")
         stages_completed += 1
         if interactive:
             input("\nPress Enter to continue to Stage 6...")
     else:
-        print("⚠️  Skipping remaining stages due to error")
-        return
+        # Generate fresh portfolio
+        if run_module(
+            module_name="idea_consolidator",
+            inputs={"product_ideas": "product_ideas.json"},
+            outputs=["final_innovation_portfolio.json", "final_innovation_portfolio_summary.md"],
+            verbose=verbose,
+            interactive=interactive
+        ):
+            stages_completed += 1
+            if interactive:
+                input("\nPress Enter to continue to Stage 6...")
+        else:
+            print("⚠️  Skipping remaining stages due to error")
+            return
     
-    # Stage 6: Idea Consolidation
-    print(f"\n{Colors.BOLD}📌 Stage 6: Idea Consolidation{Colors.RESET}")
+    # Stage 6: GitHub Integration
+    print(f"\n{Colors.BOLD}📌 Stage 6: GitHub Repository Creation{Colors.RESET}")
     
-    if run_module(
-        module_name="idea_consolidator",
-        inputs={"product_ideas": "product_ideas.json"},
-        outputs=["final_innovation_portfolio.json", "final_innovation_portfolio_summary.md"],
-        verbose=verbose,
-        interactive=interactive
-    ):
+    if skip_github:
+        print("  ⏭️  Skipping GitHub repository creation (--skip-github flag)")
         stages_completed += 1
-        if interactive:
-            input("\nPress Enter to continue to Stage 7...")
-    else:
-        print("⚠️  Skipping remaining stages due to error")
-        return
-    
-    # Stage 7: GitHub Integration
-    print(f"\n{Colors.BOLD}📌 Stage 7: GitHub Repository Creation{Colors.RESET}")
-    
-    # Let product_idea_generator.py create the creative name based on research content
-    if not interactive:
+    elif use_cache:
+        print("  ⏭️  Skipping GitHub repository creation (using cached files)")
+        print("     To create a GitHub repo, run without --use-cache flag")
+        stages_completed += 1
+    elif not interactive:
         # In headless mode, automatically create the GitHub repo
         if run_module(
             module_name="github_integration",
             inputs={
                 "analysis": "analysis_results.md",
-                "jtbd": "jtbd_research.md",
-                "clusters": "jtbd_clusters.json",
-                "value_curves": "value_curves.json",
+                "jtbds": jtbd_file,
+                "reddit": reddit_file,
+                "opportunity_zones": "opportunity_zones.json",
                 "product_ideas": "product_ideas.json",
                 "portfolio": "final_innovation_portfolio.json"
             },
@@ -492,9 +506,9 @@ def main(interactive=False, verbose=False, input_file=None):
                 module_name="github_integration",
                 inputs={
                     "analysis": "analysis_results.md",
-                    "jtbd": "jtbd_research.md",
-                    "clusters": "jtbd_clusters.json",
-                    "value_curves": "value_curves.json",
+                    "jtbds": jtbd_file,
+                    "reddit": reddit_file,
+                    "opportunity_zones": "opportunity_zones.json",
                     "product_ideas": "product_ideas.json",
                     "portfolio": "final_innovation_portfolio.json"
                 },
@@ -514,29 +528,35 @@ def main(interactive=False, verbose=False, input_file=None):
     print(f"""
 ╔══════════════════════════════════════════════════════════════╗
 ║                    Pipeline Complete!                         ║
+║                  PRAW-Based Flow (No Exa)                     ║
 ╚══════════════════════════════════════════════════════════════╝
 
 📊 Summary:
-   - Stages Completed: {stages_completed}/7
+   - Stages Completed: {stages_completed}/6
    - Total Time: {total_time:.1f} seconds ({total_time/60:.1f} minutes)
    
 📁 Generated Files:
-   - analysis_results.md (mock)
-   - jtbd_research.md
-   - pain_points.txt
-   - opportunity_zones.json
-   - value_curves.json
-   - value_curves_report.md
+   - analysis_results.md
+   - jtbds_*.txt (extracted JTBDs)
+   - reddit_discussions_*.csv (Reddit data via PRAW)
+   - opportunity_zones.json (weighted zones)
    - product_ideas.json
    - product_ideas_report.md
    - final_innovation_portfolio.json
    - final_innovation_portfolio_summary.md
 
+🎯 Pipeline Flow Used:
+   1. Research Analysis → analysis_results.md
+   2. JTBD + Reddit (PRAW) → jtbds & discussions
+   3. Opportunity Zones → weighted zones
+   4. Product Ideas → innovative solutions
+   5. Consolidation → final portfolio
+   6. GitHub → repository created
+
 🧹 To clean up all generated files:
    python cleanup_pipeline.py
 
-🚀 To create GitHub repository:
-   python product_idea_generator.py --github --repo-name 'innovation-{datetime.now().strftime("%Y%m%d")}'
+✅ No Exa API dependency required!
 """)
 
 if __name__ == "__main__":
@@ -547,6 +567,11 @@ if __name__ == "__main__":
                        help='Show all LLM prompts in cyan and responses in salmon')
     parser.add_argument('--input', type=str, 
                        help='Path to input research JSON file (otherwise uses sample)')
+    parser.add_argument('--use-cache', action='store_true',
+                       help='Use existing output files if they exist (default: always regenerate fresh)')
+    parser.add_argument('--skip-github', action='store_true',
+                       help='Skip GitHub repository creation (useful for testing)')
     args = parser.parse_args()
     
-    main(interactive=args.interactive, verbose=args.verbose, input_file=args.input)
+    main(interactive=args.interactive, verbose=args.verbose, input_file=args.input, 
+         use_cache=args.use_cache, skip_github=args.skip_github)

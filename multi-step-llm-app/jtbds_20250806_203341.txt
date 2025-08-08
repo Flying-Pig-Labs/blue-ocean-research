@@ -1,7 +1,0 @@
-# Jobs-to-be-Done extracted from analysis
-
-1. When I'm selling my home, I want to track all transaction steps in real-time, so I can stay informed without constantly calling my agent
-2. When I'm house hunting, I want to receive instant notifications about new listings that match my criteria, so I can be first to view properties
-3. Schedule property viewings without coordinating multiple calendars
-4. When I'm a first-time homebuyer, I want to understand each step of the process, so I can make confident decisions
-5. Generate accurate home valuations while considering real-time market data
