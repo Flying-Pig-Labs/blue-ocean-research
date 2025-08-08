@@ -26,19 +26,28 @@ SECRET_ARNS = {
 class SecretsManager:
     """Manages retrieval of secrets from AWS Secrets Manager"""
     
-    def __init__(self, profile: str = "mvp", region: str = "us-east-1"):
-        """Initialize with AWS profile and region"""
+    def __init__(self, profile: str = None, region: str = "us-east-1"):
+        """Initialize with AWS profile and region
+        
+        Args:
+            profile: AWS profile name. If None, uses IAM role credentials (for ECS/Batch)
+            region: AWS region
+        """
         self.profile = profile
         self.region = region
         self._client = None
         
     @property
     def client(self):
-        """Lazy load boto3 client with profile"""
+        """Lazy load boto3 client with profile or IAM role"""
         if self._client is None:
-            # Set up session with profile
-            session = boto3.Session(profile_name=self.profile)
-            self._client = session.client('secretsmanager', region_name=self.region)
+            if self.profile:
+                # Use profile if specified (for local development)
+                session = boto3.Session(profile_name=self.profile)
+                self._client = session.client('secretsmanager', region_name=self.region)
+            else:
+                # Use IAM role (for ECS/Batch)
+                self._client = boto3.client('secretsmanager', region_name=self.region)
         return self._client
         
     @lru_cache(maxsize=32)
@@ -114,22 +123,35 @@ class SecretsManager:
 _secrets_manager = None
 
 
-def get_secrets_manager(profile: str = "mvp", region: str = "us-east-1") -> SecretsManager:
-    """Get or create the singleton SecretsManager instance"""
+def get_secrets_manager(profile: str = None, region: str = "us-east-1") -> SecretsManager:
+    """Get or create the singleton SecretsManager instance
+    
+    Args:
+        profile: AWS profile name. If None, uses IAM role credentials (for ECS/Batch)
+        region: AWS region
+    """
     global _secrets_manager
     if _secrets_manager is None:
+        # Check environment for AWS_PROFILE if not specified
+        if profile is None:
+            profile = os.environ.get('AWS_PROFILE', None)
         _secrets_manager = SecretsManager(profile=profile, region=region)
     return _secrets_manager
 
 
-def load_aws_secrets(profile: str = "mvp", region: str = "us-east-1") -> None:
+def load_aws_secrets(profile: str = None, region: str = "us-east-1") -> None:
     """Convenience function to load all secrets to environment"""
     manager = get_secrets_manager(profile=profile, region=region)
     manager.load_secrets_to_env()
 
 
-def get_api_key(key_name: str, profile: str = "mvp") -> Optional[str]:
-    """Get a specific API key, first checking env then AWS Secrets Manager"""
+def get_api_key(key_name: str, profile: str = None) -> Optional[str]:
+    """Get a specific API key, first checking env then AWS Secrets Manager
+    
+    Args:
+        key_name: Name of the API key to retrieve
+        profile: AWS profile name. If None, uses IAM role credentials (for ECS/Batch)
+    """
     # First check if already in environment
     existing = os.getenv(key_name)
     if existing:

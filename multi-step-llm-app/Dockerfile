@@ -16,6 +16,10 @@ COPY *.py ./
 COPY src/ ./src/
 COPY prompts/ ./prompts/
 COPY tests/fixtures/sample_research.json tests/fixtures/
+# Copy configuration files
+COPY llm_config.yaml ./
+COPY scoring_config.yaml ./
+COPY debug_config.yaml ./
 
 # Fix permissions
 RUN chown -R jovyan:users /app

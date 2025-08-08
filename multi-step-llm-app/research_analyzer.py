@@ -317,7 +317,11 @@ class ResearchAnalyzer(DebugAwareComponent):
             try:
                 response = self.s3_client.get_object(Bucket=bucket, Key=key)
                 content = response["Body"].read().decode("utf-8")
-                data = json.loads(content)
+                
+                # Just wrap the markdown content
+                data = {
+                    "content": content
+                }
 
                 # Update operation metadata
                 op.output_data_size = len(content)
@@ -378,18 +382,23 @@ class ResearchAnalyzer(DebugAwareComponent):
 
             try:
                 with open(filepath, "r") as f:
-                    data = json.load(f)
+                    file_content = f.read()
 
+                # Just wrap the markdown content
+                data = {
+                    "content": file_content
+                }
+                
                 # Update operation metadata
-                op.output_data_size = len(json.dumps(data))
+                op.output_data_size = len(file_content)
                 op.records_processed = 1
-
+                
                 self.logger.info(
-                    f"Successfully loaded local file ({len(json.dumps(data))} bytes)",
+                    f"Successfully loaded file ({len(file_content)} bytes)",
                     ComponentType.RESEARCH_ANALYZER,
                     "file_load",
                 )
-                console.print("[green]✅ Successfully loaded local file[/green]")
+                console.print("[green]✅ Successfully loaded file[/green]")
                 return data
 
             except FileNotFoundError:
@@ -400,13 +409,13 @@ class ResearchAnalyzer(DebugAwareComponent):
                 )
                 console.print(f"[red]Error: File not found: {filepath}[/red]")
                 sys.exit(1)
-            except json.JSONDecodeError as e:
+            except Exception as e:
                 self.logger.error(
-                    f"JSON parsing error: {e}",
+                    f"Error loading file: {e}",
                     ComponentType.RESEARCH_ANALYZER,
                     "file_load",
                 )
-                console.print(f"[red]Error parsing JSON: {e}[/red]")
+                console.print(f"[red]Error loading file: {e}[/red]")
                 sys.exit(1)
 
     def extract_content(self, data: Dict) -> str:
@@ -426,6 +435,8 @@ class ResearchAnalyzer(DebugAwareComponent):
         Raises:
             SystemExit: If 'content' field cannot be found in the JSON structure
         """
+        # Simple: just look for "content" field
+        # The load_local_file method wraps markdown as {"content": "..."}
         if "content" in data:
             return data["content"]
         elif "research" in data and "content" in data["research"]:

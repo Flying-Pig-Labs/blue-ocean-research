@@ -69,23 +69,18 @@ class MultiStepLLMBatchStack(Stack):
         # - Input research documents
         # - Pipeline output files
         # - Intermediate artifacts
-        research_bucket = s3.Bucket(
+        
+        # Import existing S3 bucket if it exists
+        bucket_name = f"multi-step-llm-research-{account}"
+        research_bucket = s3.Bucket.from_bucket_name(
             self, "ResearchBucket",
-            bucket_name=f"multi-step-llm-research-{account}",
-            versioned=True,
-            removal_policy=RemovalPolicy.RETAIN,
-            lifecycle_rules=[
-                s3.LifecycleRule(
-                    id="DeleteOldFiles",
-                    expiration=Duration.days(90),
-                    prefix="research/"
-                ),
-                s3.LifecycleRule(
-                    id="DeleteTempFiles",
-                    expiration=Duration.days(7),
-                    prefix="temp/"
-                )
-            ]
+            bucket_name=bucket_name
+        )
+        
+        # Import the color-code-research-results bucket for reading research reports
+        color_code_bucket = s3.Bucket.from_bucket_name(
+            self, "ColorCodeBucket",
+            bucket_name=f"color-code-research-results-{account}"
         )
         
         # =========================
@@ -146,11 +141,10 @@ class MultiStepLLMBatchStack(Stack):
         # =========================
         # ECR Repository
         # =========================
-        ecr_repo = ecr.Repository(
+        # Import existing repository (created by 'make docker')
+        ecr_repo = ecr.Repository.from_repository_name(
             self, "PipelineRepository",
-            repository_name="multi-step-llm-pipeline",
-            removal_policy=RemovalPolicy.DESTROY,
-            auto_delete_images=True
+            repository_name="multi-step-llm-pipeline"
         )
         
         # =========================
@@ -241,10 +235,26 @@ class MultiStepLLMBatchStack(Stack):
         
         # Grant S3 permissions
         research_bucket.grant_read_write(task_role)
+        color_code_bucket.grant_read(task_role)  # Read-only access to color-code research results
         
         # Grant DynamoDB permissions
         research_table.grant_read_write_data(task_role)
         jobs_table.grant_read_write_data(task_role)
+        
+        # Grant Secrets Manager permissions to task role
+        # The task needs to read secrets to get API keys
+        task_role.add_to_policy(
+            iam.PolicyStatement(
+                actions=["secretsmanager:GetSecretValue"],
+                resources=[
+                    f"arn:aws:secretsmanager:{region}:{account}:secret:anthropic_key-*",
+                    f"arn:aws:secretsmanager:{region}:{account}:secret:openai_key-*",
+                    f"arn:aws:secretsmanager:{region}:{account}:secret:cohere-key-*",
+                    f"arn:aws:secretsmanager:{region}:{account}:secret:github_token_blue_ocean-*",
+                    f"arn:aws:secretsmanager:{region}:{account}:secret:perplexity-key-*"
+                ]
+            )
+        )
         
         # =========================
         # Batch Job Definition
@@ -261,6 +271,9 @@ class MultiStepLLMBatchStack(Stack):
             removal_policy=RemovalPolicy.DESTROY
         )
         
+        # Force job definition update by adding a timestamp comment
+        # This ensures IAM policy changes are reflected
+        import time
         job_definition = batch.CfnJobDefinition(
             self, "JobDefinition",
             job_definition_name="multi-step-llm-pipeline",
@@ -348,91 +361,137 @@ def handler(event, context):
     Expects 'researchId' in the request body
     '''
     
-    # Parse request
-    body = json.loads(event.get('body', '{}'))
-    research_id = body.get('researchId')
-    
-    if not research_id:
-        return {
-            'statusCode': 400,
-            'headers': {'Content-Type': 'application/json'},
-            'body': json.dumps({'error': 'researchId is required'})
-        }
-    
-    # Look up research in DynamoDB
-    research_table = dynamodb.Table(os.environ['RESEARCH_TABLE'])
-    response = research_table.get_item(Key={'researchId': research_id})
-    
-    if 'Item' not in response:
-        return {
-            'statusCode': 404,
-            'headers': {'Content-Type': 'application/json'},
-            'body': json.dumps({'error': 'Research not found'})
-        }
-    
-    research = response['Item']
-    s3_key = research['s3Key']
-    
-    # Generate job ID and name
-    job_id = str(uuid.uuid4())
-    job_name = f"pipeline-{research_id}-{datetime.now().strftime('%Y%m%d-%H%M%S')}"
-    
-    # Submit batch job
-    batch_response = batch_client.submit_job(
-        jobName=job_name,
-        jobQueue=os.environ['JOB_QUEUE'],
-        jobDefinition=os.environ['JOB_DEFINITION'],
-        containerOverrides={
-            'environment': [
-                {'name': 'S3_INPUT_KEY', 'value': s3_key},
-                {'name': 'RESEARCH_ID', 'value': research_id},
-                {'name': 'JOB_ID', 'value': job_id}
-            ],
-            'command': ['--s3-input', f"s3://{os.environ['RESEARCH_BUCKET']}/{s3_key}"]
-        }
-    )
-    
-    # Store job info in DynamoDB
-    jobs_table = dynamodb.Table(os.environ['JOBS_TABLE'])
-    jobs_table.put_item(
-        Item={
-            'jobId': batch_response['jobId'],
-            'researchId': research_id,
-            'jobName': batch_response['jobName'],
-            'status': 'SUBMITTED',
-            'createdAt': datetime.now().isoformat(),
-            'ttl': int((datetime.now() + timedelta(days=30)).timestamp()),
-            'batchJobId': batch_response['jobId'],
-            'logStreamName': f"pipeline/default/{batch_response['jobId']}"
-        }
-    )
-    
-    return {
-        'statusCode': 200,
-        'headers': {'Content-Type': 'application/json'},
-        'body': json.dumps({
-            'jobId': batch_response['jobId'],
-            'jobName': batch_response['jobName'],
-            'status': 'SUBMITTED',
-            'message': 'Pipeline job submitted successfully'
-        })
+    # Always return CORS headers, even on errors
+    cors_headers = {
+        'Content-Type': 'application/json',
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Headers': 'Content-Type,Authorization',
+        'Access-Control-Allow-Methods': 'GET,POST,OPTIONS'
     }
+    
+    try:
+        # Parse request
+        body = json.loads(event.get('body', '{}'))
+        research_id = body.get('researchId')
+        team = body.get('team', 'red')  # Default to 'red' if not specified
+        
+        if not research_id:
+            return {
+                'statusCode': 400,
+                'headers': cors_headers,
+                'body': json.dumps({'error': 'researchId is required'})
+            }
+        
+        # The research markdown files are stored in color-code-research-results bucket
+        # Path format: users/fprior/research/{team}/{reportId}/report.md
+        source_bucket = 'color-code-research-results-984906149037'
+        source_key = f"users/fprior/research/{team}/{research_id}/report.md"
+        
+        # SIMPLIFIED: Just pass the S3 location directly - no copying!
+        s3_key = f"{source_bucket}/{source_key}"
+        
+        # Verify the file exists
+        try:
+            s3_client.head_object(Bucket=source_bucket, Key=source_key)
+            print(f"Verified research report exists at s3://{source_bucket}/{source_key}")
+            
+        except s3_client.exceptions.NoSuchKey:
+            print(f"Research report not found at s3://{source_bucket}/{source_key}")
+            return {
+                'statusCode': 404,
+                'headers': cors_headers,
+                'body': json.dumps({'error': f'Research report not found at expected location: s3://{source_bucket}/{source_key}'})
+            }
+            
+        except Exception as e:
+            print(f"Error accessing research report: {str(e)}")
+            return {
+                'statusCode': 500,
+                'headers': cors_headers,
+                'body': json.dumps({'error': f'Failed to access research report: {str(e)}'})
+            }
+        
+        # Generate job ID and name
+        job_id = str(uuid.uuid4())
+        job_name = f"pipeline-{research_id}-{datetime.now().strftime('%Y%m%d-%H%M%S')}"
+        
+        # Submit batch job
+        batch_response = batch_client.submit_job(
+            jobName=job_name,
+            jobQueue=os.environ['JOB_QUEUE'],
+            jobDefinition=os.environ['JOB_DEFINITION'],
+            containerOverrides={
+                'environment': [
+                    {'name': 'S3_INPUT_KEY', 'value': s3_key},
+                    {'name': 'RESEARCH_ID', 'value': research_id},
+                    {'name': 'JOB_ID', 'value': job_id}
+                ],
+                'command': ['--s3-input', f"s3://{s3_key}"]  # s3_key already contains bucket/key
+            }
+        )
+        
+        # Store job info in DynamoDB
+        jobs_table = dynamodb.Table(os.environ['JOBS_TABLE'])
+        jobs_table.put_item(
+            Item={
+                'jobId': batch_response['jobId'],
+                'researchId': research_id,
+                'jobName': batch_response['jobName'],
+                'status': 'SUBMITTED',
+                'createdAt': datetime.now().isoformat(),
+                'ttl': int((datetime.now() + timedelta(days=30)).timestamp()),
+                'batchJobId': batch_response['jobId'],
+                'logStreamName': f"pipeline/default/{batch_response['jobId']}"
+            }
+        )
+        
+        return {
+            'statusCode': 200,
+            'headers': cors_headers,
+            'body': json.dumps({
+                'jobId': batch_response['jobId'],
+                'jobName': batch_response['jobName'],
+                'status': 'SUBMITTED',
+                'message': 'Pipeline job submitted successfully'
+            })
+        }
+    except Exception as e:
+        print(f"Error in handler: {str(e)}")
+        # Always return CORS headers even on unexpected errors
+        return {
+            'statusCode': 502,
+            'headers': cors_headers,
+            'body': json.dumps({
+                'error': 'Internal server error',
+                'details': str(e)
+            })
+        }
 """)
         )
         
         # Grant permissions to submit jobs
+        # Use wildcard for all Batch resources to avoid permission issues
         submit_job_lambda.add_to_role_policy(
             iam.PolicyStatement(
-                actions=["batch:SubmitJob"],
-                resources=[
-                    job_definition.ref,
-                    job_queue.ref
-                ]
+                actions=["batch:SubmitJob", "batch:DescribeJobDefinitions"],
+                resources=["*"]  # Temporary broad permission to diagnose issue
             )
         )
         
+        # Grant S3 permissions to upload input data to pipeline bucket
+        research_bucket.grant_read_write(submit_job_lambda)
+        
+        # Grant S3 permissions to read from the color-code-research-results bucket
+        color_code_bucket.grant_read(submit_job_lambda)
+        
         # Grant DynamoDB permissions
-        research_table.grant_read_data(submit_job_lambda)
+        # The Lambda needs to read from ResearchReports table (not PipelineResearch)
+        submit_job_lambda.add_to_role_policy(
+            iam.PolicyStatement(
+                actions=["dynamodb:GetItem"],
+                resources=[f"arn:aws:dynamodb:{region}:{account}:table/ResearchReports"]
+            )
+        )
         jobs_table.grant_write_data(submit_job_lambda)
         
         # Lambda for monitoring job logs
@@ -459,38 +518,71 @@ batch_client = boto3.client('batch')
 
 def handler(event, context):
     '''
-    Get logs for a pipeline job
-    Expects 'researchId' in the path parameters
+    Get logs/status for a pipeline job
+    Expects either 'researchId' or 'jobId' in the path parameters
     '''
     
-    # Get research ID from path
-    research_id = event['pathParameters'].get('researchId')
+    # Get research ID or job ID from path
+    path_params = event.get('pathParameters', {})
+    research_id = path_params.get('researchId')
+    job_id = path_params.get('jobId')
     
-    if not research_id:
+    # Handle CORS preflight
+    if event.get('httpMethod') == 'OPTIONS':
+        return {
+            'statusCode': 200,
+            'headers': {
+                'Content-Type': 'application/json',
+                'Access-Control-Allow-Origin': '*',
+                'Access-Control-Allow-Headers': 'Content-Type,Authorization',
+                'Access-Control-Allow-Methods': 'GET,POST,OPTIONS'
+            },
+            'body': ''
+        }
+    
+    if not research_id and not job_id:
         return {
             'statusCode': 400,
-            'headers': {'Content-Type': 'application/json'},
-            'body': json.dumps({'error': 'researchId is required'})
+            'headers': {
+                'Content-Type': 'application/json',
+                'Access-Control-Allow-Origin': '*',
+                'Access-Control-Allow-Headers': 'Content-Type,Authorization',
+                'Access-Control-Allow-Methods': 'GET,POST,OPTIONS'
+            },
+            'body': json.dumps({'error': 'researchId or jobId is required'})
         }
     
     # Look up job in DynamoDB
     jobs_table = dynamodb.Table(os.environ['JOBS_TABLE'])
-    response = jobs_table.query(
-        IndexName='ResearchIdIndex',
-        KeyConditionExpression='researchId = :rid',
-        ExpressionAttributeValues={':rid': research_id},
-        ScanIndexForward=False,
-        Limit=1
-    )
     
-    if not response['Items']:
+    # If jobId is provided, look up directly
+    if job_id:
+        response = jobs_table.get_item(Key={'jobId': job_id})
+        items = [response['Item']] if 'Item' in response else []
+    else:
+        # Otherwise, query by researchId
+        response = jobs_table.query(
+            IndexName='ResearchIdIndex',
+            KeyConditionExpression='researchId = :rid',
+            ExpressionAttributeValues={':rid': research_id},
+            ScanIndexForward=False,
+            Limit=1
+        )
+        items = response.get('Items', [])
+    
+    if not items:
         return {
             'statusCode': 404,
-            'headers': {'Content-Type': 'application/json'},
-            'body': json.dumps({'error': 'No job found for this research'})
+            'headers': {
+                'Content-Type': 'application/json',
+                'Access-Control-Allow-Origin': '*',
+                'Access-Control-Allow-Headers': 'Content-Type,Authorization',
+                'Access-Control-Allow-Methods': 'GET,POST,OPTIONS'
+            },
+            'body': json.dumps({'error': 'No job found'})
         }
     
-    job = response['Items'][0]
+    job = items[0]
     batch_job_id = job['batchJobId']
     
     # Get current job status from Batch
@@ -535,12 +627,19 @@ def handler(event, context):
     
     return {
         'statusCode': 200,
-        'headers': {'Content-Type': 'application/json'},
+        'headers': {
+            'Content-Type': 'application/json',
+            'Access-Control-Allow-Origin': '*',
+            'Access-Control-Allow-Headers': 'Content-Type,Authorization',
+            'Access-Control-Allow-Methods': 'GET,POST,OPTIONS'
+        },
         'body': json.dumps({
             'jobId': job['jobId'],
-            'researchId': research_id,
+            'researchId': job.get('researchId', research_id),
             'status': job['status'],
             'createdAt': job.get('createdAt'),
+            'currentStage': job.get('currentStage', 'unknown'),
+            'progress_percentage': job.get('progress_percentage', 0),
             'logs': logs,
             'logStreamUrl': f"https://console.aws.amazon.com/cloudwatch/home?region={os.environ['AWS_REGION']}#logsV2:log-groups/log-group/{os.environ['LOG_GROUP']}/log-events/{job.get('logStreamName', '')}"
         })
@@ -597,6 +696,14 @@ def handler(event, context):
         logs_id_resource.add_method(
             "GET",
             apigw.LambdaIntegration(monitor_logs_lambda)
+        )
+        
+        # /status/{jobId} endpoint - for frontend compatibility
+        status_resource = api.root.add_resource("status")
+        status_id_resource = status_resource.add_resource("{jobId}")
+        status_id_resource.add_method(
+            "GET",
+            apigw.LambdaIntegration(monitor_logs_lambda)  # Reuse the same Lambda for now
         )
         
         # Output important values

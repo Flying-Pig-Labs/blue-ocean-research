@@ -1,0 +1,2306 @@
+{
+ "Description": "Multi-Step LLM Pipeline Batch Infrastructure (dev)",
+ "Resources": {
+  "ResearchTable3F847AA9": {
+   "Type": "AWS::DynamoDB::Table",
+   "Properties": {
+    "AttributeDefinitions": [
+     {
+      "AttributeName": "researchId",
+      "AttributeType": "S"
+     }
+    ],
+    "BillingMode": "PAY_PER_REQUEST",
+    "KeySchema": [
+     {
+      "AttributeName": "researchId",
+      "KeyType": "HASH"
+     }
+    ],
+    "TableName": "PipelineResearch",
+    "Tags": [
+     {
+      "Key": "Environment",
+      "Value": "dev"
+     },
+     {
+      "Key": "ManagedBy",
+      "Value": "CDK"
+     },
+     {
+      "Key": "Project",
+      "Value": "MultiStepLLM"
+     }
+    ],
+    "TimeToLiveSpecification": {
+     "AttributeName": "ttl",
+     "Enabled": true
+    }
+   },
+   "UpdateReplacePolicy": "Delete",
+   "DeletionPolicy": "Delete",
+   "Metadata": {
+    "aws:cdk:path": "MultiStepLLMBatch-dev/ResearchTable/Resource"
+   }
+  },
+  "JobsTable1970BC16": {
+   "Type": "AWS::DynamoDB::Table",
+   "Properties": {
+    "AttributeDefinitions": [
+     {
+      "AttributeName": "jobId",
+      "AttributeType": "S"
+     },
+     {
+      "AttributeName": "researchId",
+      "AttributeType": "S"
+     }
+    ],
+    "BillingMode": "PAY_PER_REQUEST",
+    "GlobalSecondaryIndexes": [
+     {
+      "IndexName": "ResearchIdIndex",
+      "KeySchema": [
+       {
+        "AttributeName": "researchId",
+        "KeyType": "HASH"
+       }
+      ],
+      "Projection": {
+       "ProjectionType": "ALL"
+      }
+     }
+    ],
+    "KeySchema": [
+     {
+      "AttributeName": "jobId",
+      "KeyType": "HASH"
+     }
+    ],
+    "StreamSpecification": {
+     "StreamViewType": "NEW_AND_OLD_IMAGES"
+    },
+    "TableName": "PipelineBatchJobs",
+    "Tags": [
+     {
+      "Key": "Environment",
+      "Value": "dev"
+     },
+     {
+      "Key": "ManagedBy",
+      "Value": "CDK"
+     },
+     {
+      "Key": "Project",
+      "Value": "MultiStepLLM"
+     }
+    ],
+    "TimeToLiveSpecification": {
+     "AttributeName": "ttl",
+     "Enabled": true
+    }
+   },
+   "UpdateReplacePolicy": "Delete",
+   "DeletionPolicy": "Delete",
+   "Metadata": {
+    "aws:cdk:path": "MultiStepLLMBatch-dev/JobsTable/Resource"
+   }
+  },
+  "BatchVPCBCF115DF": {
+   "Type": "AWS::EC2::VPC",
+   "Properties": {
+    "CidrBlock": "10.0.0.0/16",
+    "EnableDnsHostnames": true,
+    "EnableDnsSupport": true,
+    "InstanceTenancy": "default",
+    "Tags": [
+     {
+      "Key": "Environment",
+      "Value": "dev"
+     },
+     {
+      "Key": "ManagedBy",
+      "Value": "CDK"
+     },
+     {
+      "Key": "Name",
+      "Value": "MultiStepLLMBatch-dev/BatchVPC"
+     },
+     {
+      "Key": "Project",
+      "Value": "MultiStepLLM"
+     }
+    ]
+   },
+   "Metadata": {
+    "aws:cdk:path": "MultiStepLLMBatch-dev/BatchVPC/Resource"
+   }
+  },
+  "BatchVPCPublicSubnet1Subnet5BAE427C": {
+   "Type": "AWS::EC2::Subnet",
+   "Properties": {
+    "AvailabilityZone": "us-east-1a",
+    "CidrBlock": "10.0.0.0/18",
+    "MapPublicIpOnLaunch": true,
+    "Tags": [
+     {
+      "Key": "aws-cdk:subnet-name",
+      "Value": "Public"
+     },
+     {
+      "Key": "aws-cdk:subnet-type",
+      "Value": "Public"
+     },
+     {
+      "Key": "Environment",
+      "Value": "dev"
+     },
+     {
+      "Key": "ManagedBy",
+      "Value": "CDK"
+     },
+     {
+      "Key": "Name",
+      "Value": "MultiStepLLMBatch-dev/BatchVPC/PublicSubnet1"
+     },
+     {
+      "Key": "Project",
+      "Value": "MultiStepLLM"
+     }
+    ],
+    "VpcId": {
+     "Ref": "BatchVPCBCF115DF"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "MultiStepLLMBatch-dev/BatchVPC/PublicSubnet1/Subnet"
+   }
+  },
+  "BatchVPCPublicSubnet1RouteTable86AB0677": {
+   "Type": "AWS::EC2::RouteTable",
+   "Properties": {
+    "Tags": [
+     {
+      "Key": "Environment",
+      "Value": "dev"
+     },
+     {
+      "Key": "ManagedBy",
+      "Value": "CDK"
+     },
+     {
+      "Key": "Name",
+      "Value": "MultiStepLLMBatch-dev/BatchVPC/PublicSubnet1"
+     },
+     {
+      "Key": "Project",
+      "Value": "MultiStepLLM"
+     }
+    ],
+    "VpcId": {
+     "Ref": "BatchVPCBCF115DF"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "MultiStepLLMBatch-dev/BatchVPC/PublicSubnet1/RouteTable"
+   }
+  },
+  "BatchVPCPublicSubnet1RouteTableAssociation698EA42C": {
+   "Type": "AWS::EC2::SubnetRouteTableAssociation",
+   "Properties": {
+    "RouteTableId": {
+     "Ref": "BatchVPCPublicSubnet1RouteTable86AB0677"
+    },
+    "SubnetId": {
+     "Ref": "BatchVPCPublicSubnet1Subnet5BAE427C"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "MultiStepLLMBatch-dev/BatchVPC/PublicSubnet1/RouteTableAssociation"
+   }
+  },
+  "BatchVPCPublicSubnet1DefaultRouteA192F7AB": {
+   "Type": "AWS::EC2::Route",
+   "Properties": {
+    "DestinationCidrBlock": "0.0.0.0/0",
+    "GatewayId": {
+     "Ref": "BatchVPCIGW191A5E68"
+    },
+    "RouteTableId": {
+     "Ref": "BatchVPCPublicSubnet1RouteTable86AB0677"
+    }
+   },
+   "DependsOn": [
+    "BatchVPCVPCGW9EF913D1"
+   ],
+   "Metadata": {
+    "aws:cdk:path": "MultiStepLLMBatch-dev/BatchVPC/PublicSubnet1/DefaultRoute"
+   }
+  },
+  "BatchVPCPublicSubnet1EIP5436ABA5": {
+   "Type": "AWS::EC2::EIP",
+   "Properties": {
+    "Domain": "vpc",
+    "Tags": [
+     {
+      "Key": "Environment",
+      "Value": "dev"
+     },
+     {
+      "Key": "ManagedBy",
+      "Value": "CDK"
+     },
+     {
+      "Key": "Name",
+      "Value": "MultiStepLLMBatch-dev/BatchVPC/PublicSubnet1"
+     },
+     {
+      "Key": "Project",
+      "Value": "MultiStepLLM"
+     }
+    ]
+   },
+   "Metadata": {
+    "aws:cdk:path": "MultiStepLLMBatch-dev/BatchVPC/PublicSubnet1/EIP"
+   }
+  },
+  "BatchVPCPublicSubnet1NATGateway835D0E0A": {
+   "Type": "AWS::EC2::NatGateway",
+   "Properties": {
+    "AllocationId": {
+     "Fn::GetAtt": [
+      "BatchVPCPublicSubnet1EIP5436ABA5",
+      "AllocationId"
+     ]
+    },
+    "SubnetId": {
+     "Ref": "BatchVPCPublicSubnet1Subnet5BAE427C"
+    },
+    "Tags": [
+     {
+      "Key": "Environment",
+      "Value": "dev"
+     },
+     {
+      "Key": "ManagedBy",
+      "Value": "CDK"
+     },
+     {
+      "Key": "Name",
+      "Value": "MultiStepLLMBatch-dev/BatchVPC/PublicSubnet1"
+     },
+     {
+      "Key": "Project",
+      "Value": "MultiStepLLM"
+     }
+    ]
+   },
+   "DependsOn": [
+    "BatchVPCPublicSubnet1DefaultRouteA192F7AB",
+    "BatchVPCPublicSubnet1RouteTableAssociation698EA42C"
+   ],
+   "Metadata": {
+    "aws:cdk:path": "MultiStepLLMBatch-dev/BatchVPC/PublicSubnet1/NATGateway"
+   }
+  },
+  "BatchVPCPublicSubnet2Subnet1A7FFF1F": {
+   "Type": "AWS::EC2::Subnet",
+   "Properties": {
+    "AvailabilityZone": "us-east-1b",
+    "CidrBlock": "10.0.64.0/18",
+    "MapPublicIpOnLaunch": true,
+    "Tags": [
+     {
+      "Key": "aws-cdk:subnet-name",
+      "Value": "Public"
+     },
+     {
+      "Key": "aws-cdk:subnet-type",
+      "Value": "Public"
+     },
+     {
+      "Key": "Environment",
+      "Value": "dev"
+     },
+     {
+      "Key": "ManagedBy",
+      "Value": "CDK"
+     },
+     {
+      "Key": "Name",
+      "Value": "MultiStepLLMBatch-dev/BatchVPC/PublicSubnet2"
+     },
+     {
+      "Key": "Project",
+      "Value": "MultiStepLLM"
+     }
+    ],
+    "VpcId": {
+     "Ref": "BatchVPCBCF115DF"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "MultiStepLLMBatch-dev/BatchVPC/PublicSubnet2/Subnet"
+   }
+  },
+  "BatchVPCPublicSubnet2RouteTable4FC84E84": {
+   "Type": "AWS::EC2::RouteTable",
+   "Properties": {
+    "Tags": [
+     {
+      "Key": "Environment",
+      "Value": "dev"
+     },
+     {
+      "Key": "ManagedBy",
+      "Value": "CDK"
+     },
+     {
+      "Key": "Name",
+      "Value": "MultiStepLLMBatch-dev/BatchVPC/PublicSubnet2"
+     },
+     {
+      "Key": "Project",
+      "Value": "MultiStepLLM"
+     }
+    ],
+    "VpcId": {
+     "Ref": "BatchVPCBCF115DF"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "MultiStepLLMBatch-dev/BatchVPC/PublicSubnet2/RouteTable"
+   }
+  },
+  "BatchVPCPublicSubnet2RouteTableAssociation8F491EF0": {
+   "Type": "AWS::EC2::SubnetRouteTableAssociation",
+   "Properties": {
+    "RouteTableId": {
+     "Ref": "BatchVPCPublicSubnet2RouteTable4FC84E84"
+    },
+    "SubnetId": {
+     "Ref": "BatchVPCPublicSubnet2Subnet1A7FFF1F"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "MultiStepLLMBatch-dev/BatchVPC/PublicSubnet2/RouteTableAssociation"
+   }
+  },
+  "BatchVPCPublicSubnet2DefaultRoute06D13533": {
+   "Type": "AWS::EC2::Route",
+   "Properties": {
+    "DestinationCidrBlock": "0.0.0.0/0",
+    "GatewayId": {
+     "Ref": "BatchVPCIGW191A5E68"
+    },
+    "RouteTableId": {
+     "Ref": "BatchVPCPublicSubnet2RouteTable4FC84E84"
+    }
+   },
+   "DependsOn": [
+    "BatchVPCVPCGW9EF913D1"
+   ],
+   "Metadata": {
+    "aws:cdk:path": "MultiStepLLMBatch-dev/BatchVPC/PublicSubnet2/DefaultRoute"
+   }
+  },
+  "BatchVPCPrivateSubnet1Subnet9E0B01C6": {
+   "Type": "AWS::EC2::Subnet",
+   "Properties": {
+    "AvailabilityZone": "us-east-1a",
+    "CidrBlock": "10.0.128.0/18",
+    "MapPublicIpOnLaunch": false,
+    "Tags": [
+     {
+      "Key": "aws-cdk:subnet-name",
+      "Value": "Private"
+     },
+     {
+      "Key": "aws-cdk:subnet-type",
+      "Value": "Private"
+     },
+     {
+      "Key": "Environment",
+      "Value": "dev"
+     },
+     {
+      "Key": "ManagedBy",
+      "Value": "CDK"
+     },
+     {
+      "Key": "Name",
+      "Value": "MultiStepLLMBatch-dev/BatchVPC/PrivateSubnet1"
+     },
+     {
+      "Key": "Project",
+      "Value": "MultiStepLLM"
+     }
+    ],
+    "VpcId": {
+     "Ref": "BatchVPCBCF115DF"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "MultiStepLLMBatch-dev/BatchVPC/PrivateSubnet1/Subnet"
+   }
+  },
+  "BatchVPCPrivateSubnet1RouteTable92CB5A44": {
+   "Type": "AWS::EC2::RouteTable",
+   "Properties": {
+    "Tags": [
+     {
+      "Key": "Environment",
+      "Value": "dev"
+     },
+     {
+      "Key": "ManagedBy",
+      "Value": "CDK"
+     },
+     {
+      "Key": "Name",
+      "Value": "MultiStepLLMBatch-dev/BatchVPC/PrivateSubnet1"
+     },
+     {
+      "Key": "Project",
+      "Value": "MultiStepLLM"
+     }
+    ],
+    "VpcId": {
+     "Ref": "BatchVPCBCF115DF"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "MultiStepLLMBatch-dev/BatchVPC/PrivateSubnet1/RouteTable"
+   }
+  },
+  "BatchVPCPrivateSubnet1RouteTableAssociation62063597": {
+   "Type": "AWS::EC2::SubnetRouteTableAssociation",
+   "Properties": {
+    "RouteTableId": {
+     "Ref": "BatchVPCPrivateSubnet1RouteTable92CB5A44"
+    },
+    "SubnetId": {
+     "Ref": "BatchVPCPrivateSubnet1Subnet9E0B01C6"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "MultiStepLLMBatch-dev/BatchVPC/PrivateSubnet1/RouteTableAssociation"
+   }
+  },
+  "BatchVPCPrivateSubnet1DefaultRoute601FB5DC": {
+   "Type": "AWS::EC2::Route",
+   "Properties": {
+    "DestinationCidrBlock": "0.0.0.0/0",
+    "NatGatewayId": {
+     "Ref": "BatchVPCPublicSubnet1NATGateway835D0E0A"
+    },
+    "RouteTableId": {
+     "Ref": "BatchVPCPrivateSubnet1RouteTable92CB5A44"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "MultiStepLLMBatch-dev/BatchVPC/PrivateSubnet1/DefaultRoute"
+   }
+  },
+  "BatchVPCPrivateSubnet2SubnetF8E2E6C8": {
+   "Type": "AWS::EC2::Subnet",
+   "Properties": {
+    "AvailabilityZone": "us-east-1b",
+    "CidrBlock": "10.0.192.0/18",
+    "MapPublicIpOnLaunch": false,
+    "Tags": [
+     {
+      "Key": "aws-cdk:subnet-name",
+      "Value": "Private"
+     },
+     {
+      "Key": "aws-cdk:subnet-type",
+      "Value": "Private"
+     },
+     {
+      "Key": "Environment",
+      "Value": "dev"
+     },
+     {
+      "Key": "ManagedBy",
+      "Value": "CDK"
+     },
+     {
+      "Key": "Name",
+      "Value": "MultiStepLLMBatch-dev/BatchVPC/PrivateSubnet2"
+     },
+     {
+      "Key": "Project",
+      "Value": "MultiStepLLM"
+     }
+    ],
+    "VpcId": {
+     "Ref": "BatchVPCBCF115DF"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "MultiStepLLMBatch-dev/BatchVPC/PrivateSubnet2/Subnet"
+   }
+  },
+  "BatchVPCPrivateSubnet2RouteTable6D5CD5BB": {
+   "Type": "AWS::EC2::RouteTable",
+   "Properties": {
+    "Tags": [
+     {
+      "Key": "Environment",
+      "Value": "dev"
+     },
+     {
+      "Key": "ManagedBy",
+      "Value": "CDK"
+     },
+     {
+      "Key": "Name",
+      "Value": "MultiStepLLMBatch-dev/BatchVPC/PrivateSubnet2"
+     },
+     {
+      "Key": "Project",
+      "Value": "MultiStepLLM"
+     }
+    ],
+    "VpcId": {
+     "Ref": "BatchVPCBCF115DF"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "MultiStepLLMBatch-dev/BatchVPC/PrivateSubnet2/RouteTable"
+   }
+  },
+  "BatchVPCPrivateSubnet2RouteTableAssociation09C29241": {
+   "Type": "AWS::EC2::SubnetRouteTableAssociation",
+   "Properties": {
+    "RouteTableId": {
+     "Ref": "BatchVPCPrivateSubnet2RouteTable6D5CD5BB"
+    },
+    "SubnetId": {
+     "Ref": "BatchVPCPrivateSubnet2SubnetF8E2E6C8"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "MultiStepLLMBatch-dev/BatchVPC/PrivateSubnet2/RouteTableAssociation"
+   }
+  },
+  "BatchVPCPrivateSubnet2DefaultRoute442AD5C5": {
+   "Type": "AWS::EC2::Route",
+   "Properties": {
+    "DestinationCidrBlock": "0.0.0.0/0",
+    "NatGatewayId": {
+     "Ref": "BatchVPCPublicSubnet1NATGateway835D0E0A"
+    },
+    "RouteTableId": {
+     "Ref": "BatchVPCPrivateSubnet2RouteTable6D5CD5BB"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "MultiStepLLMBatch-dev/BatchVPC/PrivateSubnet2/DefaultRoute"
+   }
+  },
+  "BatchVPCIGW191A5E68": {
+   "Type": "AWS::EC2::InternetGateway",
+   "Properties": {
+    "Tags": [
+     {
+      "Key": "Environment",
+      "Value": "dev"
+     },
+     {
+      "Key": "ManagedBy",
+      "Value": "CDK"
+     },
+     {
+      "Key": "Name",
+      "Value": "MultiStepLLMBatch-dev/BatchVPC"
+     },
+     {
+      "Key": "Project",
+      "Value": "MultiStepLLM"
+     }
+    ]
+   },
+   "Metadata": {
+    "aws:cdk:path": "MultiStepLLMBatch-dev/BatchVPC/IGW"
+   }
+  },
+  "BatchVPCVPCGW9EF913D1": {
+   "Type": "AWS::EC2::VPCGatewayAttachment",
+   "Properties": {
+    "InternetGatewayId": {
+     "Ref": "BatchVPCIGW191A5E68"
+    },
+    "VpcId": {
+     "Ref": "BatchVPCBCF115DF"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "MultiStepLLMBatch-dev/BatchVPC/VPCGW"
+   }
+  },
+  "BatchServiceRole57930367": {
+   "Type": "AWS::IAM::Role",
+   "Properties": {
+    "AssumeRolePolicyDocument": {
+     "Statement": [
+      {
+       "Action": "sts:AssumeRole",
+       "Effect": "Allow",
+       "Principal": {
+        "Service": "batch.amazonaws.com"
+       }
+      }
+     ],
+     "Version": "2012-10-17"
+    },
+    "ManagedPolicyArns": [
+     {
+      "Fn::Join": [
+       "",
+       [
+        "arn:",
+        {
+         "Ref": "AWS::Partition"
+        },
+        ":iam::aws:policy/service-role/AWSBatchServiceRole"
+       ]
+      ]
+     }
+    ],
+    "Tags": [
+     {
+      "Key": "Environment",
+      "Value": "dev"
+     },
+     {
+      "Key": "ManagedBy",
+      "Value": "CDK"
+     },
+     {
+      "Key": "Project",
+      "Value": "MultiStepLLM"
+     }
+    ]
+   },
+   "Metadata": {
+    "aws:cdk:path": "MultiStepLLMBatch-dev/BatchServiceRole/Resource"
+   }
+  },
+  "BatchSecurityGroup77EC865F": {
+   "Type": "AWS::EC2::SecurityGroup",
+   "Properties": {
+    "GroupDescription": "MultiStepLLMBatch-dev/BatchSecurityGroup",
+    "SecurityGroupEgress": [
+     {
+      "CidrIp": "0.0.0.0/0",
+      "Description": "Allow all outbound traffic by default",
+      "IpProtocol": "-1"
+     }
+    ],
+    "Tags": [
+     {
+      "Key": "Environment",
+      "Value": "dev"
+     },
+     {
+      "Key": "ManagedBy",
+      "Value": "CDK"
+     },
+     {
+      "Key": "Project",
+      "Value": "MultiStepLLM"
+     }
+    ],
+    "VpcId": {
+     "Ref": "BatchVPCBCF115DF"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "MultiStepLLMBatch-dev/BatchSecurityGroup/Resource"
+   }
+  },
+  "ComputeEnvironment": {
+   "Type": "AWS::Batch::ComputeEnvironment",
+   "Properties": {
+    "ComputeEnvironmentName": "multi-step-llm-compute",
+    "ComputeResources": {
+     "MaxvCpus": 256,
+     "SecurityGroupIds": [
+      {
+       "Fn::GetAtt": [
+        "BatchSecurityGroup77EC865F",
+        "GroupId"
+       ]
+      }
+     ],
+     "Subnets": [
+      {
+       "Ref": "BatchVPCPrivateSubnet1Subnet9E0B01C6"
+      },
+      {
+       "Ref": "BatchVPCPrivateSubnet2SubnetF8E2E6C8"
+      }
+     ],
+     "Type": "FARGATE"
+    },
+    "ServiceRole": {
+     "Fn::GetAtt": [
+      "BatchServiceRole57930367",
+      "Arn"
+     ]
+    },
+    "State": "ENABLED",
+    "Tags": {
+     "Environment": "dev",
+     "ManagedBy": "CDK",
+     "Project": "MultiStepLLM"
+    },
+    "Type": "MANAGED"
+   },
+   "Metadata": {
+    "aws:cdk:path": "MultiStepLLMBatch-dev/ComputeEnvironment"
+   }
+  },
+  "JobQueue": {
+   "Type": "AWS::Batch::JobQueue",
+   "Properties": {
+    "ComputeEnvironmentOrder": [
+     {
+      "ComputeEnvironment": {
+       "Ref": "ComputeEnvironment"
+      },
+      "Order": 1
+     }
+    ],
+    "JobQueueName": "multi-step-llm-queue",
+    "Priority": 1,
+    "State": "ENABLED",
+    "Tags": {
+     "Environment": "dev",
+     "ManagedBy": "CDK",
+     "Project": "MultiStepLLM"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "MultiStepLLMBatch-dev/JobQueue"
+   }
+  },
+  "TaskExecutionRole250D2532": {
+   "Type": "AWS::IAM::Role",
+   "Properties": {
+    "AssumeRolePolicyDocument": {
+     "Statement": [
+      {
+       "Action": "sts:AssumeRole",
+       "Effect": "Allow",
+       "Principal": {
+        "Service": "ecs-tasks.amazonaws.com"
+       }
+      }
+     ],
+     "Version": "2012-10-17"
+    },
+    "ManagedPolicyArns": [
+     {
+      "Fn::Join": [
+       "",
+       [
+        "arn:",
+        {
+         "Ref": "AWS::Partition"
+        },
+        ":iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy"
+       ]
+      ]
+     }
+    ],
+    "Tags": [
+     {
+      "Key": "Environment",
+      "Value": "dev"
+     },
+     {
+      "Key": "ManagedBy",
+      "Value": "CDK"
+     },
+     {
+      "Key": "Project",
+      "Value": "MultiStepLLM"
+     }
+    ]
+   },
+   "Metadata": {
+    "aws:cdk:path": "MultiStepLLMBatch-dev/TaskExecutionRole/Resource"
+   }
+  },
+  "TaskExecutionRoleDefaultPolicyA84DD1B0": {
+   "Type": "AWS::IAM::Policy",
+   "Properties": {
+    "PolicyDocument": {
+     "Statement": [
+      {
+       "Action": "secretsmanager:GetSecretValue",
+       "Effect": "Allow",
+       "Resource": [
+        "arn:aws:secretsmanager:us-east-1:984906149037:secret:anthropic_key-*",
+        "arn:aws:secretsmanager:us-east-1:984906149037:secret:cohere-key-*",
+        "arn:aws:secretsmanager:us-east-1:984906149037:secret:github_token_blue_ocean-*",
+        "arn:aws:secretsmanager:us-east-1:984906149037:secret:openai_key-*",
+        "arn:aws:secretsmanager:us-east-1:984906149037:secret:perplexity-key-*"
+       ]
+      }
+     ],
+     "Version": "2012-10-17"
+    },
+    "PolicyName": "TaskExecutionRoleDefaultPolicyA84DD1B0",
+    "Roles": [
+     {
+      "Ref": "TaskExecutionRole250D2532"
+     }
+    ]
+   },
+   "Metadata": {
+    "aws:cdk:path": "MultiStepLLMBatch-dev/TaskExecutionRole/DefaultPolicy/Resource"
+   }
+  },
+  "TaskRole30FC0FBB": {
+   "Type": "AWS::IAM::Role",
+   "Properties": {
+    "AssumeRolePolicyDocument": {
+     "Statement": [
+      {
+       "Action": "sts:AssumeRole",
+       "Effect": "Allow",
+       "Principal": {
+        "Service": "ecs-tasks.amazonaws.com"
+       }
+      }
+     ],
+     "Version": "2012-10-17"
+    },
+    "Tags": [
+     {
+      "Key": "Environment",
+      "Value": "dev"
+     },
+     {
+      "Key": "ManagedBy",
+      "Value": "CDK"
+     },
+     {
+      "Key": "Project",
+      "Value": "MultiStepLLM"
+     }
+    ]
+   },
+   "Metadata": {
+    "aws:cdk:path": "MultiStepLLMBatch-dev/TaskRole/Resource"
+   }
+  },
+  "TaskRoleDefaultPolicy07FC53DE": {
+   "Type": "AWS::IAM::Policy",
+   "Properties": {
+    "PolicyDocument": {
+     "Statement": [
+      {
+       "Action": [
+        "s3:Abort*",
+        "s3:DeleteObject*",
+        "s3:GetBucket*",
+        "s3:GetObject*",
+        "s3:List*",
+        "s3:PutObject",
+        "s3:PutObjectLegalHold",
+        "s3:PutObjectRetention",
+        "s3:PutObjectTagging",
+        "s3:PutObjectVersionTagging"
+       ],
+       "Effect": "Allow",
+       "Resource": [
+        "arn:aws:s3:::multi-step-llm-research-984906149037",
+        "arn:aws:s3:::multi-step-llm-research-984906149037/*"
+       ]
+      },
+      {
+       "Action": [
+        "s3:GetBucket*",
+        "s3:GetObject*",
+        "s3:List*"
+       ],
+       "Effect": "Allow",
+       "Resource": [
+        "arn:aws:s3:::color-code-research-results-984906149037",
+        "arn:aws:s3:::color-code-research-results-984906149037/*"
+       ]
+      },
+      {
+       "Action": [
+        "dynamodb:BatchGetItem",
+        "dynamodb:BatchWriteItem",
+        "dynamodb:ConditionCheckItem",
+        "dynamodb:DeleteItem",
+        "dynamodb:DescribeTable",
+        "dynamodb:GetItem",
+        "dynamodb:GetRecords",
+        "dynamodb:GetShardIterator",
+        "dynamodb:PutItem",
+        "dynamodb:Query",
+        "dynamodb:Scan",
+        "dynamodb:UpdateItem"
+       ],
+       "Effect": "Allow",
+       "Resource": [
+        {
+         "Fn::GetAtt": [
+          "JobsTable1970BC16",
+          "Arn"
+         ]
+        },
+        {
+         "Fn::GetAtt": [
+          "ResearchTable3F847AA9",
+          "Arn"
+         ]
+        },
+        {
+         "Fn::Join": [
+          "",
+          [
+           {
+            "Fn::GetAtt": [
+             "JobsTable1970BC16",
+             "Arn"
+            ]
+           },
+           "/index/*"
+          ]
+         ]
+        },
+        {
+         "Ref": "AWS::NoValue"
+        }
+       ]
+      },
+      {
+       "Action": "secretsmanager:GetSecretValue",
+       "Effect": "Allow",
+       "Resource": [
+        "arn:aws:secretsmanager:us-east-1:984906149037:secret:anthropic_key-*",
+        "arn:aws:secretsmanager:us-east-1:984906149037:secret:cohere-key-*",
+        "arn:aws:secretsmanager:us-east-1:984906149037:secret:github_token_blue_ocean-*",
+        "arn:aws:secretsmanager:us-east-1:984906149037:secret:openai_key-*",
+        "arn:aws:secretsmanager:us-east-1:984906149037:secret:perplexity-key-*"
+       ]
+      }
+     ],
+     "Version": "2012-10-17"
+    },
+    "PolicyName": "TaskRoleDefaultPolicy07FC53DE",
+    "Roles": [
+     {
+      "Ref": "TaskRole30FC0FBB"
+     }
+    ]
+   },
+   "Metadata": {
+    "aws:cdk:path": "MultiStepLLMBatch-dev/TaskRole/DefaultPolicy/Resource"
+   }
+  },
+  "BatchLogGroupFA0EEAC1": {
+   "Type": "AWS::Logs::LogGroup",
+   "Properties": {
+    "LogGroupName": "/aws/batch/job/multi-step-llm",
+    "RetentionInDays": 30,
+    "Tags": [
+     {
+      "Key": "Environment",
+      "Value": "dev"
+     },
+     {
+      "Key": "ManagedBy",
+      "Value": "CDK"
+     },
+     {
+      "Key": "Project",
+      "Value": "MultiStepLLM"
+     }
+    ]
+   },
+   "UpdateReplacePolicy": "Delete",
+   "DeletionPolicy": "Delete",
+   "Metadata": {
+    "aws:cdk:path": "MultiStepLLMBatch-dev/BatchLogGroup/Resource"
+   }
+  },
+  "JobDefinition": {
+   "Type": "AWS::Batch::JobDefinition",
+   "Properties": {
+    "ContainerProperties": {
+     "Environment": [
+      {
+       "Name": "AWS_DEFAULT_REGION",
+       "Value": "us-east-1"
+      },
+      {
+       "Name": "RESEARCH_BUCKET",
+       "Value": "multi-step-llm-research-984906149037"
+      },
+      {
+       "Name": "RESEARCH_TABLE",
+       "Value": {
+        "Ref": "ResearchTable3F847AA9"
+       }
+      },
+      {
+       "Name": "JOBS_TABLE",
+       "Value": {
+        "Ref": "JobsTable1970BC16"
+       }
+      }
+     ],
+     "EphemeralStorage": {
+      "SizeInGiB": 50
+     },
+     "ExecutionRoleArn": {
+      "Fn::GetAtt": [
+       "TaskExecutionRole250D2532",
+       "Arn"
+      ]
+     },
+     "FargatePlatformConfiguration": {
+      "PlatformVersion": "LATEST"
+     },
+     "Image": {
+      "Fn::Join": [
+       "",
+       [
+        "984906149037.dkr.ecr.us-east-1.",
+        {
+         "Ref": "AWS::URLSuffix"
+        },
+        "/multi-step-llm-pipeline:latest"
+       ]
+      ]
+     },
+     "JobRoleArn": {
+      "Fn::GetAtt": [
+       "TaskRole30FC0FBB",
+       "Arn"
+      ]
+     },
+     "LogConfiguration": {
+      "LogDriver": "awslogs",
+      "Options": {
+       "awslogs-group": {
+        "Ref": "BatchLogGroupFA0EEAC1"
+       },
+       "awslogs-region": "us-east-1",
+       "awslogs-stream-prefix": "pipeline"
+      }
+     },
+     "ResourceRequirements": [
+      {
+       "Type": "VCPU",
+       "Value": "4"
+      },
+      {
+       "Type": "MEMORY",
+       "Value": "16384"
+      }
+     ],
+     "Secrets": [
+      {
+       "Name": "ANTHROPIC_API_KEY",
+       "ValueFrom": "arn:aws:secretsmanager:us-east-1:984906149037:secret:anthropic_key-47iAE6"
+      },
+      {
+       "Name": "OPENAI_API_KEY",
+       "ValueFrom": "arn:aws:secretsmanager:us-east-1:984906149037:secret:openai_key-PkoBXY"
+      },
+      {
+       "Name": "COHERE_API_KEY",
+       "ValueFrom": "arn:aws:secretsmanager:us-east-1:984906149037:secret:cohere-key-MxBx6j"
+      },
+      {
+       "Name": "GITHUB_TOKEN",
+       "ValueFrom": "arn:aws:secretsmanager:us-east-1:984906149037:secret:github_token_blue_ocean-uv7Z1l"
+      },
+      {
+       "Name": "PERPLEXITY_KEY",
+       "ValueFrom": "arn:aws:secretsmanager:us-east-1:984906149037:secret:perplexity-key-rrkmhM"
+      }
+     ]
+    },
+    "JobDefinitionName": "multi-step-llm-pipeline",
+    "PlatformCapabilities": [
+     "FARGATE"
+    ],
+    "RetryStrategy": {
+     "Attempts": 2
+    },
+    "Tags": {
+     "Environment": "dev",
+     "ManagedBy": "CDK",
+     "Project": "MultiStepLLM"
+    },
+    "Timeout": {
+     "AttemptDurationSeconds": 7200
+    },
+    "Type": "container"
+   },
+   "Metadata": {
+    "aws:cdk:path": "MultiStepLLMBatch-dev/JobDefinition"
+   }
+  },
+  "SubmitJobLambdaServiceRoleC8EC1F86": {
+   "Type": "AWS::IAM::Role",
+   "Properties": {
+    "AssumeRolePolicyDocument": {
+     "Statement": [
+      {
+       "Action": "sts:AssumeRole",
+       "Effect": "Allow",
+       "Principal": {
+        "Service": "lambda.amazonaws.com"
+       }
+      }
+     ],
+     "Version": "2012-10-17"
+    },
+    "ManagedPolicyArns": [
+     {
+      "Fn::Join": [
+       "",
+       [
+        "arn:",
+        {
+         "Ref": "AWS::Partition"
+        },
+        ":iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
+       ]
+      ]
+     }
+    ],
+    "Tags": [
+     {
+      "Key": "Environment",
+      "Value": "dev"
+     },
+     {
+      "Key": "ManagedBy",
+      "Value": "CDK"
+     },
+     {
+      "Key": "Project",
+      "Value": "MultiStepLLM"
+     }
+    ]
+   },
+   "Metadata": {
+    "aws:cdk:path": "MultiStepLLMBatch-dev/SubmitJobLambda/ServiceRole/Resource"
+   }
+  },
+  "SubmitJobLambdaServiceRoleDefaultPolicy5BE65634": {
+   "Type": "AWS::IAM::Policy",
+   "Properties": {
+    "PolicyDocument": {
+     "Statement": [
+      {
+       "Action": [
+        "batch:DescribeJobDefinitions",
+        "batch:SubmitJob"
+       ],
+       "Effect": "Allow",
+       "Resource": "*"
+      },
+      {
+       "Action": [
+        "s3:Abort*",
+        "s3:DeleteObject*",
+        "s3:GetBucket*",
+        "s3:GetObject*",
+        "s3:List*",
+        "s3:PutObject",
+        "s3:PutObjectLegalHold",
+        "s3:PutObjectRetention",
+        "s3:PutObjectTagging",
+        "s3:PutObjectVersionTagging"
+       ],
+       "Effect": "Allow",
+       "Resource": [
+        "arn:aws:s3:::multi-step-llm-research-984906149037",
+        "arn:aws:s3:::multi-step-llm-research-984906149037/*"
+       ]
+      },
+      {
+       "Action": [
+        "s3:GetBucket*",
+        "s3:GetObject*",
+        "s3:List*"
+       ],
+       "Effect": "Allow",
+       "Resource": [
+        "arn:aws:s3:::color-code-research-results-984906149037",
+        "arn:aws:s3:::color-code-research-results-984906149037/*"
+       ]
+      },
+      {
+       "Action": "dynamodb:GetItem",
+       "Effect": "Allow",
+       "Resource": "arn:aws:dynamodb:us-east-1:984906149037:table/ResearchReports"
+      },
+      {
+       "Action": [
+        "dynamodb:BatchWriteItem",
+        "dynamodb:DeleteItem",
+        "dynamodb:DescribeTable",
+        "dynamodb:PutItem",
+        "dynamodb:UpdateItem"
+       ],
+       "Effect": "Allow",
+       "Resource": [
+        {
+         "Fn::GetAtt": [
+          "JobsTable1970BC16",
+          "Arn"
+         ]
+        },
+        {
+         "Fn::Join": [
+          "",
+          [
+           {
+            "Fn::GetAtt": [
+             "JobsTable1970BC16",
+             "Arn"
+            ]
+           },
+           "/index/*"
+          ]
+         ]
+        }
+       ]
+      }
+     ],
+     "Version": "2012-10-17"
+    },
+    "PolicyName": "SubmitJobLambdaServiceRoleDefaultPolicy5BE65634",
+    "Roles": [
+     {
+      "Ref": "SubmitJobLambdaServiceRoleC8EC1F86"
+     }
+    ]
+   },
+   "Metadata": {
+    "aws:cdk:path": "MultiStepLLMBatch-dev/SubmitJobLambda/ServiceRole/DefaultPolicy/Resource"
+   }
+  },
+  "SubmitJobLambda4B842AEF": {
+   "Type": "AWS::Lambda::Function",
+   "Properties": {
+    "Code": {
+     "ZipFile": "\nimport json\nimport boto3\nimport uuid\nimport os\nfrom datetime import datetime, timedelta\n\nbatch_client = boto3.client('batch')\ndynamodb = boto3.resource('dynamodb')\ns3_client = boto3.client('s3')\n\ndef handler(event, context):\n    '''\n    Submit a batch job for the pipeline\n    Expects 'researchId' in the request body\n    '''\n    \n    # Always return CORS headers, even on errors\n    cors_headers = {\n        'Content-Type': 'application/json',\n        'Access-Control-Allow-Origin': '*',\n        'Access-Control-Allow-Headers': 'Content-Type,Authorization',\n        'Access-Control-Allow-Methods': 'GET,POST,OPTIONS'\n    }\n    \n    try:\n        # Parse request\n        body = json.loads(event.get('body', '{}'))\n        research_id = body.get('researchId')\n        team = body.get('team', 'red')  # Default to 'red' if not specified\n        \n        if not research_id:\n            return {\n                'statusCode': 400,\n                'headers': cors_headers,\n                'body': json.dumps({'error': 'researchId is required'})\n            }\n        \n        # The research markdown files are stored in color-code-research-results bucket\n        # Path format: users/fprior/research/{team}/{reportId}/report.md\n        source_bucket = 'color-code-research-results-984906149037'\n        source_key = f\"users/fprior/research/{team}/{research_id}/report.md\"\n        \n        # SIMPLIFIED: Just pass the S3 location directly - no copying!\n        s3_key = f\"{source_bucket}/{source_key}\"\n        \n        # Verify the file exists\n        try:\n            s3_client.head_object(Bucket=source_bucket, Key=source_key)\n            print(f\"Verified research report exists at s3://{source_bucket}/{source_key}\")\n            \n        except s3_client.exceptions.NoSuchKey:\n            print(f\"Research report not found at s3://{source_bucket}/{source_key}\")\n            return {\n                'statusCode': 404,\n                'headers': cors_headers,\n                'body': json.dumps({'error': f'Research report not found at expected location: s3://{source_bucket}/{source_key}'})\n            }\n            \n        except Exception as e:\n            print(f\"Error accessing research report: {str(e)}\")\n            return {\n                'statusCode': 500,\n                'headers': cors_headers,\n                'body': json.dumps({'error': f'Failed to access research report: {str(e)}'})\n            }\n        \n        # Generate job ID and name\n        job_id = str(uuid.uuid4())\n        job_name = f\"pipeline-{research_id}-{datetime.now().strftime('%Y%m%d-%H%M%S')}\"\n        \n        # Submit batch job\n        batch_response = batch_client.submit_job(\n            jobName=job_name,\n            jobQueue=os.environ['JOB_QUEUE'],\n            jobDefinition=os.environ['JOB_DEFINITION'],\n            containerOverrides={\n                'environment': [\n                    {'name': 'S3_INPUT_KEY', 'value': s3_key},\n                    {'name': 'RESEARCH_ID', 'value': research_id},\n                    {'name': 'JOB_ID', 'value': job_id}\n                ],\n                'command': ['--s3-input', f\"s3://{s3_key}\"]  # s3_key already contains bucket/key\n            }\n        )\n        \n        # Store job info in DynamoDB\n        jobs_table = dynamodb.Table(os.environ['JOBS_TABLE'])\n        jobs_table.put_item(\n            Item={\n                'jobId': batch_response['jobId'],\n                'researchId': research_id,\n                'jobName': batch_response['jobName'],\n                'status': 'SUBMITTED',\n                'createdAt': datetime.now().isoformat(),\n                'ttl': int((datetime.now() + timedelta(days=30)).timestamp()),\n                'batchJobId': batch_response['jobId'],\n                'logStreamName': f\"pipeline/default/{batch_response['jobId']}\"\n            }\n        )\n        \n        return {\n            'statusCode': 200,\n            'headers': cors_headers,\n            'body': json.dumps({\n                'jobId': batch_response['jobId'],\n                'jobName': batch_response['jobName'],\n                'status': 'SUBMITTED',\n                'message': 'Pipeline job submitted successfully'\n            })\n        }\n    except Exception as e:\n        print(f\"Error in handler: {str(e)}\")\n        # Always return CORS headers even on unexpected errors\n        return {\n            'statusCode': 502,\n            'headers': cors_headers,\n            'body': json.dumps({\n                'error': 'Internal server error',\n                'details': str(e)\n            })\n        }\n"
+    },
+    "Environment": {
+     "Variables": {
+      "JOB_QUEUE": "multi-step-llm-queue",
+      "JOB_DEFINITION": "multi-step-llm-pipeline",
+      "RESEARCH_TABLE": {
+       "Ref": "ResearchTable3F847AA9"
+      },
+      "JOBS_TABLE": {
+       "Ref": "JobsTable1970BC16"
+      },
+      "RESEARCH_BUCKET": "multi-step-llm-research-984906149037"
+     }
+    },
+    "FunctionName": "pipeline-submit-job",
+    "Handler": "index.handler",
+    "MemorySize": 256,
+    "Role": {
+     "Fn::GetAtt": [
+      "SubmitJobLambdaServiceRoleC8EC1F86",
+      "Arn"
+     ]
+    },
+    "Runtime": "python3.11",
+    "Tags": [
+     {
+      "Key": "Environment",
+      "Value": "dev"
+     },
+     {
+      "Key": "ManagedBy",
+      "Value": "CDK"
+     },
+     {
+      "Key": "Project",
+      "Value": "MultiStepLLM"
+     }
+    ],
+    "Timeout": 30
+   },
+   "DependsOn": [
+    "SubmitJobLambdaServiceRoleDefaultPolicy5BE65634",
+    "SubmitJobLambdaServiceRoleC8EC1F86"
+   ],
+   "Metadata": {
+    "aws:cdk:path": "MultiStepLLMBatch-dev/SubmitJobLambda/Resource"
+   }
+  },
+  "MonitorLogsLambdaServiceRole43D9F2C5": {
+   "Type": "AWS::IAM::Role",
+   "Properties": {
+    "AssumeRolePolicyDocument": {
+     "Statement": [
+      {
+       "Action": "sts:AssumeRole",
+       "Effect": "Allow",
+       "Principal": {
+        "Service": "lambda.amazonaws.com"
+       }
+      }
+     ],
+     "Version": "2012-10-17"
+    },
+    "ManagedPolicyArns": [
+     {
+      "Fn::Join": [
+       "",
+       [
+        "arn:",
+        {
+         "Ref": "AWS::Partition"
+        },
+        ":iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
+       ]
+      ]
+     }
+    ],
+    "Tags": [
+     {
+      "Key": "Environment",
+      "Value": "dev"
+     },
+     {
+      "Key": "ManagedBy",
+      "Value": "CDK"
+     },
+     {
+      "Key": "Project",
+      "Value": "MultiStepLLM"
+     }
+    ]
+   },
+   "Metadata": {
+    "aws:cdk:path": "MultiStepLLMBatch-dev/MonitorLogsLambda/ServiceRole/Resource"
+   }
+  },
+  "MonitorLogsLambdaServiceRoleDefaultPolicy215274BC": {
+   "Type": "AWS::IAM::Policy",
+   "Properties": {
+    "PolicyDocument": {
+     "Statement": [
+      {
+       "Action": [
+        "logs:DescribeLogStreams",
+        "logs:GetLogEvents"
+       ],
+       "Effect": "Allow",
+       "Resource": {
+        "Fn::GetAtt": [
+         "BatchLogGroupFA0EEAC1",
+         "Arn"
+        ]
+       }
+      },
+      {
+       "Action": "batch:DescribeJobs",
+       "Effect": "Allow",
+       "Resource": "*"
+      },
+      {
+       "Action": [
+        "dynamodb:BatchGetItem",
+        "dynamodb:BatchWriteItem",
+        "dynamodb:ConditionCheckItem",
+        "dynamodb:DeleteItem",
+        "dynamodb:DescribeTable",
+        "dynamodb:GetItem",
+        "dynamodb:GetRecords",
+        "dynamodb:GetShardIterator",
+        "dynamodb:PutItem",
+        "dynamodb:Query",
+        "dynamodb:Scan",
+        "dynamodb:UpdateItem"
+       ],
+       "Effect": "Allow",
+       "Resource": [
+        {
+         "Fn::GetAtt": [
+          "JobsTable1970BC16",
+          "Arn"
+         ]
+        },
+        {
+         "Fn::Join": [
+          "",
+          [
+           {
+            "Fn::GetAtt": [
+             "JobsTable1970BC16",
+             "Arn"
+            ]
+           },
+           "/index/*"
+          ]
+         ]
+        }
+       ]
+      }
+     ],
+     "Version": "2012-10-17"
+    },
+    "PolicyName": "MonitorLogsLambdaServiceRoleDefaultPolicy215274BC",
+    "Roles": [
+     {
+      "Ref": "MonitorLogsLambdaServiceRole43D9F2C5"
+     }
+    ]
+   },
+   "Metadata": {
+    "aws:cdk:path": "MultiStepLLMBatch-dev/MonitorLogsLambda/ServiceRole/DefaultPolicy/Resource"
+   }
+  },
+  "MonitorLogsLambda729DC11C": {
+   "Type": "AWS::Lambda::Function",
+   "Properties": {
+    "Code": {
+     "ZipFile": "\nimport json\nimport boto3\nimport os\nfrom datetime import datetime\n\nlogs_client = boto3.client('logs')\ndynamodb = boto3.resource('dynamodb')\nbatch_client = boto3.client('batch')\n\ndef handler(event, context):\n    '''\n    Get logs/status for a pipeline job\n    Expects either 'researchId' or 'jobId' in the path parameters\n    '''\n    \n    # Get research ID or job ID from path\n    path_params = event.get('pathParameters', {})\n    research_id = path_params.get('researchId')\n    job_id = path_params.get('jobId')\n    \n    # Handle CORS preflight\n    if event.get('httpMethod') == 'OPTIONS':\n        return {\n            'statusCode': 200,\n            'headers': {\n                'Content-Type': 'application/json',\n                'Access-Control-Allow-Origin': '*',\n                'Access-Control-Allow-Headers': 'Content-Type,Authorization',\n                'Access-Control-Allow-Methods': 'GET,POST,OPTIONS'\n            },\n            'body': ''\n        }\n    \n    if not research_id and not job_id:\n        return {\n            'statusCode': 400,\n            'headers': {\n                'Content-Type': 'application/json',\n                'Access-Control-Allow-Origin': '*',\n                'Access-Control-Allow-Headers': 'Content-Type,Authorization',\n                'Access-Control-Allow-Methods': 'GET,POST,OPTIONS'\n            },\n            'body': json.dumps({'error': 'researchId or jobId is required'})\n        }\n    \n    # Look up job in DynamoDB\n    jobs_table = dynamodb.Table(os.environ['JOBS_TABLE'])\n    \n    # If jobId is provided, look up directly\n    if job_id:\n        response = jobs_table.get_item(Key={'jobId': job_id})\n        items = [response['Item']] if 'Item' in response else []\n    else:\n        # Otherwise, query by researchId\n        response = jobs_table.query(\n            IndexName='ResearchIdIndex',\n            KeyConditionExpression='researchId = :rid',\n            ExpressionAttributeValues={':rid': research_id},\n            ScanIndexForward=False,\n            Limit=1\n        )\n        items = response.get('Items', [])\n    \n    if not items:\n        return {\n            'statusCode': 404,\n            'headers': {\n                'Content-Type': 'application/json',\n                'Access-Control-Allow-Origin': '*',\n                'Access-Control-Allow-Headers': 'Content-Type,Authorization',\n                'Access-Control-Allow-Methods': 'GET,POST,OPTIONS'\n            },\n            'body': json.dumps({'error': 'No job found'})\n        }\n    \n    job = items[0]\n    batch_job_id = job['batchJobId']\n    \n    # Get current job status from Batch\n    batch_response = batch_client.describe_jobs(jobs=[batch_job_id])\n    if batch_response['jobs']:\n        current_status = batch_response['jobs'][0]['status']\n        job['status'] = current_status\n        \n        # Update status in DynamoDB if changed\n        if current_status != job.get('status'):\n            jobs_table.update_item(\n                Key={'jobId': job['jobId']},\n                UpdateExpression='SET #s = :status',\n                ExpressionAttributeNames={'#s': 'status'},\n                ExpressionAttributeValues={':status': current_status}\n            )\n    \n    # Get logs if job is running or completed\n    logs = []\n    if job['status'] in ['RUNNING', 'SUCCEEDED', 'FAILED']:\n        log_stream_name = job.get('logStreamName')\n        \n        if log_stream_name:\n            try:\n                # Get log events\n                log_response = logs_client.get_log_events(\n                    logGroupName=os.environ['LOG_GROUP'],\n                    logStreamName=log_stream_name,\n                    startFromHead=True,\n                    limit=1000\n                )\n                \n                logs = [\n                    {\n                        'timestamp': event['timestamp'],\n                        'message': event['message']\n                    }\n                    for event in log_response['events']\n                ]\n            except Exception as e:\n                print(f\"Error fetching logs: {str(e)}\")\n    \n    return {\n        'statusCode': 200,\n        'headers': {\n            'Content-Type': 'application/json',\n            'Access-Control-Allow-Origin': '*',\n            'Access-Control-Allow-Headers': 'Content-Type,Authorization',\n            'Access-Control-Allow-Methods': 'GET,POST,OPTIONS'\n        },\n        'body': json.dumps({\n            'jobId': job['jobId'],\n            'researchId': job.get('researchId', research_id),\n            'status': job['status'],\n            'createdAt': job.get('createdAt'),\n            'currentStage': job.get('currentStage', 'unknown'),\n            'progress_percentage': job.get('progress_percentage', 0),\n            'logs': logs,\n            'logStreamUrl': f\"https://console.aws.amazon.com/cloudwatch/home?region={os.environ['AWS_REGION']}#logsV2:log-groups/log-group/{os.environ['LOG_GROUP']}/log-events/{job.get('logStreamName', '')}\"\n        })\n    }\n"
+    },
+    "Environment": {
+     "Variables": {
+      "JOBS_TABLE": {
+       "Ref": "JobsTable1970BC16"
+      },
+      "LOG_GROUP": {
+       "Ref": "BatchLogGroupFA0EEAC1"
+      }
+     }
+    },
+    "FunctionName": "pipeline-monitor-logs",
+    "Handler": "index.handler",
+    "MemorySize": 256,
+    "Role": {
+     "Fn::GetAtt": [
+      "MonitorLogsLambdaServiceRole43D9F2C5",
+      "Arn"
+     ]
+    },
+    "Runtime": "python3.11",
+    "Tags": [
+     {
+      "Key": "Environment",
+      "Value": "dev"
+     },
+     {
+      "Key": "ManagedBy",
+      "Value": "CDK"
+     },
+     {
+      "Key": "Project",
+      "Value": "MultiStepLLM"
+     }
+    ],
+    "Timeout": 30
+   },
+   "DependsOn": [
+    "MonitorLogsLambdaServiceRoleDefaultPolicy215274BC",
+    "MonitorLogsLambdaServiceRole43D9F2C5"
+   ],
+   "Metadata": {
+    "aws:cdk:path": "MultiStepLLMBatch-dev/MonitorLogsLambda/Resource"
+   }
+  },
+  "PipelineAPI0A3BBAB3": {
+   "Type": "AWS::ApiGateway::RestApi",
+   "Properties": {
+    "Description": "API for Multi-Step LLM Pipeline",
+    "Name": "multi-step-llm-pipeline-api",
+    "Tags": [
+     {
+      "Key": "Environment",
+      "Value": "dev"
+     },
+     {
+      "Key": "ManagedBy",
+      "Value": "CDK"
+     },
+     {
+      "Key": "Project",
+      "Value": "MultiStepLLM"
+     }
+    ]
+   },
+   "Metadata": {
+    "aws:cdk:path": "MultiStepLLMBatch-dev/PipelineAPI/Resource"
+   }
+  },
+  "PipelineAPIDeployment7D46F454fd047348784d1c2e10ef047ff1d71c0b": {
+   "Type": "AWS::ApiGateway::Deployment",
+   "Properties": {
+    "Description": "API for Multi-Step LLM Pipeline",
+    "RestApiId": {
+     "Ref": "PipelineAPI0A3BBAB3"
+    }
+   },
+   "DependsOn": [
+    "PipelineAPIlogsresearchIdGET4E0E89F8",
+    "PipelineAPIlogsresearchIdOPTIONSAF680AB2",
+    "PipelineAPIlogsresearchId9221803D",
+    "PipelineAPIlogsOPTIONS7CFB5088",
+    "PipelineAPIlogs7EDE0E2B",
+    "PipelineAPIOPTIONSC62E18C7",
+    "PipelineAPIstatusjobIdGET541C51DE",
+    "PipelineAPIstatusjobIdOPTIONS2EAB259A",
+    "PipelineAPIstatusjobId07BA37F4",
+    "PipelineAPIstatusOPTIONSCF9C8C69",
+    "PipelineAPIstatusACBE3803",
+    "PipelineAPIsubmitOPTIONSFA2CD968",
+    "PipelineAPIsubmitPOST0DC274A4",
+    "PipelineAPIsubmitA10426C4"
+   ],
+   "Metadata": {
+    "aws:cdk:path": "MultiStepLLMBatch-dev/PipelineAPI/Deployment/Resource"
+   }
+  },
+  "PipelineAPIDeploymentStageprodDC5F287C": {
+   "Type": "AWS::ApiGateway::Stage",
+   "Properties": {
+    "DeploymentId": {
+     "Ref": "PipelineAPIDeployment7D46F454fd047348784d1c2e10ef047ff1d71c0b"
+    },
+    "RestApiId": {
+     "Ref": "PipelineAPI0A3BBAB3"
+    },
+    "StageName": "prod",
+    "Tags": [
+     {
+      "Key": "Environment",
+      "Value": "dev"
+     },
+     {
+      "Key": "ManagedBy",
+      "Value": "CDK"
+     },
+     {
+      "Key": "Project",
+      "Value": "MultiStepLLM"
+     }
+    ]
+   },
+   "Metadata": {
+    "aws:cdk:path": "MultiStepLLMBatch-dev/PipelineAPI/DeploymentStage.prod/Resource"
+   }
+  },
+  "PipelineAPIOPTIONSC62E18C7": {
+   "Type": "AWS::ApiGateway::Method",
+   "Properties": {
+    "ApiKeyRequired": false,
+    "AuthorizationType": "NONE",
+    "HttpMethod": "OPTIONS",
+    "Integration": {
+     "IntegrationResponses": [
+      {
+       "ResponseParameters": {
+        "method.response.header.Access-Control-Allow-Headers": "'Content-Type,Authorization'",
+        "method.response.header.Access-Control-Allow-Origin": "'*'",
+        "method.response.header.Access-Control-Allow-Methods": "'GET,POST,OPTIONS'"
+       },
+       "StatusCode": "204"
+      }
+     ],
+     "RequestTemplates": {
+      "application/json": "{ statusCode: 200 }"
+     },
+     "Type": "MOCK"
+    },
+    "MethodResponses": [
+     {
+      "ResponseParameters": {
+       "method.response.header.Access-Control-Allow-Headers": true,
+       "method.response.header.Access-Control-Allow-Origin": true,
+       "method.response.header.Access-Control-Allow-Methods": true
+      },
+      "StatusCode": "204"
+     }
+    ],
+    "ResourceId": {
+     "Fn::GetAtt": [
+      "PipelineAPI0A3BBAB3",
+      "RootResourceId"
+     ]
+    },
+    "RestApiId": {
+     "Ref": "PipelineAPI0A3BBAB3"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "MultiStepLLMBatch-dev/PipelineAPI/Default/OPTIONS/Resource"
+   }
+  },
+  "PipelineAPIsubmitA10426C4": {
+   "Type": "AWS::ApiGateway::Resource",
+   "Properties": {
+    "ParentId": {
+     "Fn::GetAtt": [
+      "PipelineAPI0A3BBAB3",
+      "RootResourceId"
+     ]
+    },
+    "PathPart": "submit",
+    "RestApiId": {
+     "Ref": "PipelineAPI0A3BBAB3"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "MultiStepLLMBatch-dev/PipelineAPI/Default/submit/Resource"
+   }
+  },
+  "PipelineAPIsubmitOPTIONSFA2CD968": {
+   "Type": "AWS::ApiGateway::Method",
+   "Properties": {
+    "ApiKeyRequired": false,
+    "AuthorizationType": "NONE",
+    "HttpMethod": "OPTIONS",
+    "Integration": {
+     "IntegrationResponses": [
+      {
+       "ResponseParameters": {
+        "method.response.header.Access-Control-Allow-Headers": "'Content-Type,Authorization'",
+        "method.response.header.Access-Control-Allow-Origin": "'*'",
+        "method.response.header.Access-Control-Allow-Methods": "'GET,POST,OPTIONS'"
+       },
+       "StatusCode": "204"
+      }
+     ],
+     "RequestTemplates": {
+      "application/json": "{ statusCode: 200 }"
+     },
+     "Type": "MOCK"
+    },
+    "MethodResponses": [
+     {
+      "ResponseParameters": {
+       "method.response.header.Access-Control-Allow-Headers": true,
+       "method.response.header.Access-Control-Allow-Origin": true,
+       "method.response.header.Access-Control-Allow-Methods": true
+      },
+      "StatusCode": "204"
+     }
+    ],
+    "ResourceId": {
+     "Ref": "PipelineAPIsubmitA10426C4"
+    },
+    "RestApiId": {
+     "Ref": "PipelineAPI0A3BBAB3"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "MultiStepLLMBatch-dev/PipelineAPI/Default/submit/OPTIONS/Resource"
+   }
+  },
+  "PipelineAPIsubmitPOSTApiPermissionMultiStepLLMBatchdevPipelineAPI2A9CA470POSTsubmit2C45E3AE": {
+   "Type": "AWS::Lambda::Permission",
+   "Properties": {
+    "Action": "lambda:InvokeFunction",
+    "FunctionName": {
+     "Fn::GetAtt": [
+      "SubmitJobLambda4B842AEF",
+      "Arn"
+     ]
+    },
+    "Principal": "apigateway.amazonaws.com",
+    "SourceArn": {
+     "Fn::Join": [
+      "",
+      [
+       "arn:aws:execute-api:us-east-1:984906149037:",
+       {
+        "Ref": "PipelineAPI0A3BBAB3"
+       },
+       "/",
+       {
+        "Ref": "PipelineAPIDeploymentStageprodDC5F287C"
+       },
+       "/POST/submit"
+      ]
+     ]
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "MultiStepLLMBatch-dev/PipelineAPI/Default/submit/POST/ApiPermission.MultiStepLLMBatchdevPipelineAPI2A9CA470.POST..submit"
+   }
+  },
+  "PipelineAPIsubmitPOSTApiPermissionTestMultiStepLLMBatchdevPipelineAPI2A9CA470POSTsubmit7812E14E": {
+   "Type": "AWS::Lambda::Permission",
+   "Properties": {
+    "Action": "lambda:InvokeFunction",
+    "FunctionName": {
+     "Fn::GetAtt": [
+      "SubmitJobLambda4B842AEF",
+      "Arn"
+     ]
+    },
+    "Principal": "apigateway.amazonaws.com",
+    "SourceArn": {
+     "Fn::Join": [
+      "",
+      [
+       "arn:aws:execute-api:us-east-1:984906149037:",
+       {
+        "Ref": "PipelineAPI0A3BBAB3"
+       },
+       "/test-invoke-stage/POST/submit"
+      ]
+     ]
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "MultiStepLLMBatch-dev/PipelineAPI/Default/submit/POST/ApiPermission.Test.MultiStepLLMBatchdevPipelineAPI2A9CA470.POST..submit"
+   }
+  },
+  "PipelineAPIsubmitPOST0DC274A4": {
+   "Type": "AWS::ApiGateway::Method",
+   "Properties": {
+    "AuthorizationType": "NONE",
+    "HttpMethod": "POST",
+    "Integration": {
+     "IntegrationHttpMethod": "POST",
+     "Type": "AWS_PROXY",
+     "Uri": {
+      "Fn::Join": [
+       "",
+       [
+        "arn:aws:apigateway:us-east-1:lambda:path/2015-03-31/functions/",
+        {
+         "Fn::GetAtt": [
+          "SubmitJobLambda4B842AEF",
+          "Arn"
+         ]
+        },
+        "/invocations"
+       ]
+      ]
+     }
+    },
+    "ResourceId": {
+     "Ref": "PipelineAPIsubmitA10426C4"
+    },
+    "RestApiId": {
+     "Ref": "PipelineAPI0A3BBAB3"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "MultiStepLLMBatch-dev/PipelineAPI/Default/submit/POST/Resource"
+   }
+  },
+  "PipelineAPIlogs7EDE0E2B": {
+   "Type": "AWS::ApiGateway::Resource",
+   "Properties": {
+    "ParentId": {
+     "Fn::GetAtt": [
+      "PipelineAPI0A3BBAB3",
+      "RootResourceId"
+     ]
+    },
+    "PathPart": "logs",
+    "RestApiId": {
+     "Ref": "PipelineAPI0A3BBAB3"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "MultiStepLLMBatch-dev/PipelineAPI/Default/logs/Resource"
+   }
+  },
+  "PipelineAPIlogsOPTIONS7CFB5088": {
+   "Type": "AWS::ApiGateway::Method",
+   "Properties": {
+    "ApiKeyRequired": false,
+    "AuthorizationType": "NONE",
+    "HttpMethod": "OPTIONS",
+    "Integration": {
+     "IntegrationResponses": [
+      {
+       "ResponseParameters": {
+        "method.response.header.Access-Control-Allow-Headers": "'Content-Type,Authorization'",
+        "method.response.header.Access-Control-Allow-Origin": "'*'",
+        "method.response.header.Access-Control-Allow-Methods": "'GET,POST,OPTIONS'"
+       },
+       "StatusCode": "204"
+      }
+     ],
+     "RequestTemplates": {
+      "application/json": "{ statusCode: 200 }"
+     },
+     "Type": "MOCK"
+    },
+    "MethodResponses": [
+     {
+      "ResponseParameters": {
+       "method.response.header.Access-Control-Allow-Headers": true,
+       "method.response.header.Access-Control-Allow-Origin": true,
+       "method.response.header.Access-Control-Allow-Methods": true
+      },
+      "StatusCode": "204"
+     }
+    ],
+    "ResourceId": {
+     "Ref": "PipelineAPIlogs7EDE0E2B"
+    },
+    "RestApiId": {
+     "Ref": "PipelineAPI0A3BBAB3"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "MultiStepLLMBatch-dev/PipelineAPI/Default/logs/OPTIONS/Resource"
+   }
+  },
+  "PipelineAPIlogsresearchId9221803D": {
+   "Type": "AWS::ApiGateway::Resource",
+   "Properties": {
+    "ParentId": {
+     "Ref": "PipelineAPIlogs7EDE0E2B"
+    },
+    "PathPart": "{researchId}",
+    "RestApiId": {
+     "Ref": "PipelineAPI0A3BBAB3"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "MultiStepLLMBatch-dev/PipelineAPI/Default/logs/{researchId}/Resource"
+   }
+  },
+  "PipelineAPIlogsresearchIdOPTIONSAF680AB2": {
+   "Type": "AWS::ApiGateway::Method",
+   "Properties": {
+    "ApiKeyRequired": false,
+    "AuthorizationType": "NONE",
+    "HttpMethod": "OPTIONS",
+    "Integration": {
+     "IntegrationResponses": [
+      {
+       "ResponseParameters": {
+        "method.response.header.Access-Control-Allow-Headers": "'Content-Type,Authorization'",
+        "method.response.header.Access-Control-Allow-Origin": "'*'",
+        "method.response.header.Access-Control-Allow-Methods": "'GET,POST,OPTIONS'"
+       },
+       "StatusCode": "204"
+      }
+     ],
+     "RequestTemplates": {
+      "application/json": "{ statusCode: 200 }"
+     },
+     "Type": "MOCK"
+    },
+    "MethodResponses": [
+     {
+      "ResponseParameters": {
+       "method.response.header.Access-Control-Allow-Headers": true,
+       "method.response.header.Access-Control-Allow-Origin": true,
+       "method.response.header.Access-Control-Allow-Methods": true
+      },
+      "StatusCode": "204"
+     }
+    ],
+    "ResourceId": {
+     "Ref": "PipelineAPIlogsresearchId9221803D"
+    },
+    "RestApiId": {
+     "Ref": "PipelineAPI0A3BBAB3"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "MultiStepLLMBatch-dev/PipelineAPI/Default/logs/{researchId}/OPTIONS/Resource"
+   }
+  },
+  "PipelineAPIlogsresearchIdGETApiPermissionMultiStepLLMBatchdevPipelineAPI2A9CA470GETlogsresearchId6FA4181B": {
+   "Type": "AWS::Lambda::Permission",
+   "Properties": {
+    "Action": "lambda:InvokeFunction",
+    "FunctionName": {
+     "Fn::GetAtt": [
+      "MonitorLogsLambda729DC11C",
+      "Arn"
+     ]
+    },
+    "Principal": "apigateway.amazonaws.com",
+    "SourceArn": {
+     "Fn::Join": [
+      "",
+      [
+       "arn:aws:execute-api:us-east-1:984906149037:",
+       {
+        "Ref": "PipelineAPI0A3BBAB3"
+       },
+       "/",
+       {
+        "Ref": "PipelineAPIDeploymentStageprodDC5F287C"
+       },
+       "/GET/logs/*"
+      ]
+     ]
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "MultiStepLLMBatch-dev/PipelineAPI/Default/logs/{researchId}/GET/ApiPermission.MultiStepLLMBatchdevPipelineAPI2A9CA470.GET..logs.{researchId}"
+   }
+  },
+  "PipelineAPIlogsresearchIdGETApiPermissionTestMultiStepLLMBatchdevPipelineAPI2A9CA470GETlogsresearchIdA670DF17": {
+   "Type": "AWS::Lambda::Permission",
+   "Properties": {
+    "Action": "lambda:InvokeFunction",
+    "FunctionName": {
+     "Fn::GetAtt": [
+      "MonitorLogsLambda729DC11C",
+      "Arn"
+     ]
+    },
+    "Principal": "apigateway.amazonaws.com",
+    "SourceArn": {
+     "Fn::Join": [
+      "",
+      [
+       "arn:aws:execute-api:us-east-1:984906149037:",
+       {
+        "Ref": "PipelineAPI0A3BBAB3"
+       },
+       "/test-invoke-stage/GET/logs/*"
+      ]
+     ]
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "MultiStepLLMBatch-dev/PipelineAPI/Default/logs/{researchId}/GET/ApiPermission.Test.MultiStepLLMBatchdevPipelineAPI2A9CA470.GET..logs.{researchId}"
+   }
+  },
+  "PipelineAPIlogsresearchIdGET4E0E89F8": {
+   "Type": "AWS::ApiGateway::Method",
+   "Properties": {
+    "AuthorizationType": "NONE",
+    "HttpMethod": "GET",
+    "Integration": {
+     "IntegrationHttpMethod": "POST",
+     "Type": "AWS_PROXY",
+     "Uri": {
+      "Fn::Join": [
+       "",
+       [
+        "arn:aws:apigateway:us-east-1:lambda:path/2015-03-31/functions/",
+        {
+         "Fn::GetAtt": [
+          "MonitorLogsLambda729DC11C",
+          "Arn"
+         ]
+        },
+        "/invocations"
+       ]
+      ]
+     }
+    },
+    "ResourceId": {
+     "Ref": "PipelineAPIlogsresearchId9221803D"
+    },
+    "RestApiId": {
+     "Ref": "PipelineAPI0A3BBAB3"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "MultiStepLLMBatch-dev/PipelineAPI/Default/logs/{researchId}/GET/Resource"
+   }
+  },
+  "PipelineAPIstatusACBE3803": {
+   "Type": "AWS::ApiGateway::Resource",
+   "Properties": {
+    "ParentId": {
+     "Fn::GetAtt": [
+      "PipelineAPI0A3BBAB3",
+      "RootResourceId"
+     ]
+    },
+    "PathPart": "status",
+    "RestApiId": {
+     "Ref": "PipelineAPI0A3BBAB3"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "MultiStepLLMBatch-dev/PipelineAPI/Default/status/Resource"
+   }
+  },
+  "PipelineAPIstatusOPTIONSCF9C8C69": {
+   "Type": "AWS::ApiGateway::Method",
+   "Properties": {
+    "ApiKeyRequired": false,
+    "AuthorizationType": "NONE",
+    "HttpMethod": "OPTIONS",
+    "Integration": {
+     "IntegrationResponses": [
+      {
+       "ResponseParameters": {
+        "method.response.header.Access-Control-Allow-Headers": "'Content-Type,Authorization'",
+        "method.response.header.Access-Control-Allow-Origin": "'*'",
+        "method.response.header.Access-Control-Allow-Methods": "'GET,POST,OPTIONS'"
+       },
+       "StatusCode": "204"
+      }
+     ],
+     "RequestTemplates": {
+      "application/json": "{ statusCode: 200 }"
+     },
+     "Type": "MOCK"
+    },
+    "MethodResponses": [
+     {
+      "ResponseParameters": {
+       "method.response.header.Access-Control-Allow-Headers": true,
+       "method.response.header.Access-Control-Allow-Origin": true,
+       "method.response.header.Access-Control-Allow-Methods": true
+      },
+      "StatusCode": "204"
+     }
+    ],
+    "ResourceId": {
+     "Ref": "PipelineAPIstatusACBE3803"
+    },
+    "RestApiId": {
+     "Ref": "PipelineAPI0A3BBAB3"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "MultiStepLLMBatch-dev/PipelineAPI/Default/status/OPTIONS/Resource"
+   }
+  },
+  "PipelineAPIstatusjobId07BA37F4": {
+   "Type": "AWS::ApiGateway::Resource",
+   "Properties": {
+    "ParentId": {
+     "Ref": "PipelineAPIstatusACBE3803"
+    },
+    "PathPart": "{jobId}",
+    "RestApiId": {
+     "Ref": "PipelineAPI0A3BBAB3"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "MultiStepLLMBatch-dev/PipelineAPI/Default/status/{jobId}/Resource"
+   }
+  },
+  "PipelineAPIstatusjobIdOPTIONS2EAB259A": {
+   "Type": "AWS::ApiGateway::Method",
+   "Properties": {
+    "ApiKeyRequired": false,
+    "AuthorizationType": "NONE",
+    "HttpMethod": "OPTIONS",
+    "Integration": {
+     "IntegrationResponses": [
+      {
+       "ResponseParameters": {
+        "method.response.header.Access-Control-Allow-Headers": "'Content-Type,Authorization'",
+        "method.response.header.Access-Control-Allow-Origin": "'*'",
+        "method.response.header.Access-Control-Allow-Methods": "'GET,POST,OPTIONS'"
+       },
+       "StatusCode": "204"
+      }
+     ],
+     "RequestTemplates": {
+      "application/json": "{ statusCode: 200 }"
+     },
+     "Type": "MOCK"
+    },
+    "MethodResponses": [
+     {
+      "ResponseParameters": {
+       "method.response.header.Access-Control-Allow-Headers": true,
+       "method.response.header.Access-Control-Allow-Origin": true,
+       "method.response.header.Access-Control-Allow-Methods": true
+      },
+      "StatusCode": "204"
+     }
+    ],
+    "ResourceId": {
+     "Ref": "PipelineAPIstatusjobId07BA37F4"
+    },
+    "RestApiId": {
+     "Ref": "PipelineAPI0A3BBAB3"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "MultiStepLLMBatch-dev/PipelineAPI/Default/status/{jobId}/OPTIONS/Resource"
+   }
+  },
+  "PipelineAPIstatusjobIdGETApiPermissionMultiStepLLMBatchdevPipelineAPI2A9CA470GETstatusjobId5F02F85C": {
+   "Type": "AWS::Lambda::Permission",
+   "Properties": {
+    "Action": "lambda:InvokeFunction",
+    "FunctionName": {
+     "Fn::GetAtt": [
+      "MonitorLogsLambda729DC11C",
+      "Arn"
+     ]
+    },
+    "Principal": "apigateway.amazonaws.com",
+    "SourceArn": {
+     "Fn::Join": [
+      "",
+      [
+       "arn:aws:execute-api:us-east-1:984906149037:",
+       {
+        "Ref": "PipelineAPI0A3BBAB3"
+       },
+       "/",
+       {
+        "Ref": "PipelineAPIDeploymentStageprodDC5F287C"
+       },
+       "/GET/status/*"
+      ]
+     ]
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "MultiStepLLMBatch-dev/PipelineAPI/Default/status/{jobId}/GET/ApiPermission.MultiStepLLMBatchdevPipelineAPI2A9CA470.GET..status.{jobId}"
+   }
+  },
+  "PipelineAPIstatusjobIdGETApiPermissionTestMultiStepLLMBatchdevPipelineAPI2A9CA470GETstatusjobIdCE4143A1": {
+   "Type": "AWS::Lambda::Permission",
+   "Properties": {
+    "Action": "lambda:InvokeFunction",
+    "FunctionName": {
+     "Fn::GetAtt": [
+      "MonitorLogsLambda729DC11C",
+      "Arn"
+     ]
+    },
+    "Principal": "apigateway.amazonaws.com",
+    "SourceArn": {
+     "Fn::Join": [
+      "",
+      [
+       "arn:aws:execute-api:us-east-1:984906149037:",
+       {
+        "Ref": "PipelineAPI0A3BBAB3"
+       },
+       "/test-invoke-stage/GET/status/*"
+      ]
+     ]
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "MultiStepLLMBatch-dev/PipelineAPI/Default/status/{jobId}/GET/ApiPermission.Test.MultiStepLLMBatchdevPipelineAPI2A9CA470.GET..status.{jobId}"
+   }
+  },
+  "PipelineAPIstatusjobIdGET541C51DE": {
+   "Type": "AWS::ApiGateway::Method",
+   "Properties": {
+    "AuthorizationType": "NONE",
+    "HttpMethod": "GET",
+    "Integration": {
+     "IntegrationHttpMethod": "POST",
+     "Type": "AWS_PROXY",
+     "Uri": {
+      "Fn::Join": [
+       "",
+       [
+        "arn:aws:apigateway:us-east-1:lambda:path/2015-03-31/functions/",
+        {
+         "Fn::GetAtt": [
+          "MonitorLogsLambda729DC11C",
+          "Arn"
+         ]
+        },
+        "/invocations"
+       ]
+      ]
+     }
+    },
+    "ResourceId": {
+     "Ref": "PipelineAPIstatusjobId07BA37F4"
+    },
+    "RestApiId": {
+     "Ref": "PipelineAPI0A3BBAB3"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "MultiStepLLMBatch-dev/PipelineAPI/Default/status/{jobId}/GET/Resource"
+   }
+  },
+  "CDKMetadata": {
+   "Type": "AWS::CDK::Metadata",
+   "Properties": {
+    "Analytics": "v2:deflate64:H4sIAAAAAAAA/1WR3U7jMBCFn4V710ALD1DCj1ixS0gRt2jiTNvZJp7IHlNFVt4dxUn/rubz8Xh8jj3Xt/M7fXMFez8z1W5WU6njSsDsFOz9d/QL/RDMDuUBPKqqs9BwVer4CWWNKlvbBL1CM9fxqzWD9JVnKg9lTWYVSosyaCcqOAgej4/6SVt6z4ZAiO2xeYCn13wo/0BeQHAPncod/YDgafCrFXQWjw2jk2m1FAGzbdCKWqEJjqR7cRza5OFcGKI4XWDLnoRdl3ITNDoWPFpONeeaTLpjpF6VIGarY7a2GTdtEHyyP+TYpjuztf3D5UfAgBM/4posDTl7VfPG6/jGm6OlA/eqhqasQMfnYM3hVc45R9eQ92kOtLQZ4+pYoJdlS8nwhI/Y1twd/JytVgKb8TcSFOg5OIMp+l+ULVfD5kSH3Wly4r6/kN+DtEEuGlTeyZbt9ULfLvT91X9PNHPBCjWoi7H+AtkP1rCLAgAA"
+   },
+   "Metadata": {
+    "aws:cdk:path": "MultiStepLLMBatch-dev/CDKMetadata/Default"
+   }
+  }
+ },
+ "Outputs": {
+  "PipelineAPIEndpoint09C90552": {
+   "Value": {
+    "Fn::Join": [
+     "",
+     [
+      "https://",
+      {
+       "Ref": "PipelineAPI0A3BBAB3"
+      },
+      ".execute-api.us-east-1.",
+      {
+       "Ref": "AWS::URLSuffix"
+      },
+      "/",
+      {
+       "Ref": "PipelineAPIDeploymentStageprodDC5F287C"
+      },
+      "/"
+     ]
+    ]
+   }
+  }
+ },
+ "Parameters": {
+  "BootstrapVersion": {
+   "Type": "AWS::SSM::Parameter::Value<String>",
+   "Default": "/cdk-bootstrap/hnb659fds/version",
+   "Description": "Version of the CDK Bootstrap resources in this environment, automatically retrieved from SSM Parameter Store. [cdk:skip]"
+  }
+ },
+ "Rules": {
+  "CheckBootstrapVersion": {
+   "Assertions": [
+    {
+     "Assert": {
+      "Fn::Not": [
+       {
+        "Fn::Contains": [
+         [
+          "1",
+          "2",
+          "3",
+          "4",
+          "5"
+         ],
+         {
+          "Ref": "BootstrapVersion"
+         }
+        ]
+       }
+      ]
+     },
+     "AssertDescription": "CDK bootstrap stack version 6 required. Please run 'cdk bootstrap' with a recent version of the CDK CLI."
+    }
+   ]
+  }
+ }
+}

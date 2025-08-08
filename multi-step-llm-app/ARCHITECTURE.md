@@ -185,22 +185,29 @@ The Multi-Step LLM Pipeline is a sophisticated market research and product innov
 ### AWS Batch Deployment
 
 ```
-┌──────────────┐     ┌──────────────┐     ┌──────────────┐
-│   Client     │────▶│ API Gateway  │────▶│   Lambda     │
-└──────────────┘     └──────────────┘     └──────────────┘
-                                                  │
-                                                  ▼
-                                           ┌──────────────┐
-                                           │  AWS Batch   │
-                                           │  (Fargate)   │
-                                           └──────────────┘
-                                                  │
-                                    ┌─────────────┴──────────────┐
-                                    ▼                            ▼
-                              ┌──────────┐              ┌──────────────┐
-                              │    S3    │              │  DynamoDB    │
-                              └──────────┘              └──────────────┘
+┌──────────────┐     ┌──────────────────┐     ┌────────────────┐
+│  Frontend    │────▶│  API Gateway     │────▶│    Lambda      │
+│              │     │  (9hv22ga3uh)    │     │ (CORS-enabled) │
+└──────────────┘     └──────────────────┘     └────────────────┘
+                                                       │
+                                                       ▼
+                                                ┌──────────────┐
+                                                │  AWS Batch   │
+                                                │  (Fargate)   │
+                                                └──────────────┘
+                                                       │
+                                         ┌─────────────┴──────────────┐
+                                         ▼                            ▼
+                                   ┌──────────┐              ┌──────────────────┐
+                                   │    S3    │              │    DynamoDB      │
+                                   └──────────┘              │ ResearchReports  │
+                                                             └──────────────────┘
 ```
+
+**Production Endpoints**:
+- API Gateway: `https://9hv22ga3uh.execute-api.us-east-1.amazonaws.com/prod/`
+- Submit Job: `POST /submit` (expects `{"researchId": "reportId-from-ResearchReports"}`)
+- Monitor Logs: `GET /logs/{researchId}`
 
 ### Container Architecture
 - **Base Image**: `jupyter/scipy-notebook:python-3.11`
@@ -212,11 +219,13 @@ The Multi-Step LLM Pipeline is a sophisticated market research and product innov
 - **Stack**: `MultiStepLLMBatchStack`
 - **Components**:
   - VPC with private subnets for Batch
-  - ECR repository for container images
+  - ECR repository: `multi-step-llm-pipeline`
   - Batch compute environment (Fargate)
-  - DynamoDB tables for job tracking
-  - Lambda functions for job submission/monitoring
-  - API Gateway REST API
+  - DynamoDB tables:
+    - `ResearchReports`: Frontend-managed (key: `reportId`, contains `s3ReportKey`)
+    - `PipelineBatchJobs`: Backend job tracking
+  - Lambda functions with CORS headers for frontend integration
+  - API Gateway REST API with CORS configuration
 
 ## API Architecture
 

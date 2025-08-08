@@ -73,12 +73,14 @@ This is a comprehensive 7-stage Python application suite that transforms raw mar
 
 ## 🚀 AWS Batch Deployment
 
-### Infrastructure Components
+### Production Infrastructure
+- **API Gateway**: `https://9hv22ga3uh.execute-api.us-east-1.amazonaws.com/prod/`
 - **CDK Stack**: `infrastructure/cdk_batch_pipeline.py`
 - **Container**: Fargate with 4 vCPUs, 16GB RAM
 - **Wrapper**: `batch_wrapper.py` handles S3 I/O
-- **API Gateway**: POST /submit, GET /logs/{researchId}
-- **DynamoDB**: Job tracking and research mapping
+- **DynamoDB Tables**:
+  - `ResearchReports`: Frontend-managed (key: `reportId`, has `s3ReportKey`)
+  - `PipelineBatchJobs`: Backend job tracking
 
 ### Deployment Commands
 ```bash
@@ -99,6 +101,12 @@ make deploy
 - `run_pipeline.py` runs WITHOUT modifications in Batch
 - `batch_wrapper.py` acts as adapter for S3/DynamoDB
 - GitHub creation happens normally (not skipped!)
+
+### ⚠️ IMPORTANT: Table Integration
+- Lambda looks in `ResearchReports` table (NOT `PipelineResearch`)
+- Uses `reportId` as key (NOT `researchId`)
+- Uses `s3ReportKey` field (NOT `s3Key`)
+- All Lambda functions include CORS headers for frontend
 
 ## 🔧 Recent Major Features
 
@@ -263,19 +271,30 @@ python cleanup_pipeline.py --force
 ### Issue: GitHub repo created with cached data
 **Solution**: Stage 6 checks `use_cache` flag and skips if True
 
-### Issue: CDK deployment fails
-**Solution**: Use stable batch constructs from aws-cdk-lib (not alpha)
+### Issue: CDK deployment fails with existing resources
+**Solution**: CDK now imports existing ECR repo and S3 bucket. For job queue conflicts, delete and redeploy
+
+### Issue: Frontend CORS errors (404 with missing headers)
+**Solution**: All Lambda functions now include comprehensive CORS headers
+
+### Issue: "Research not found" error
+**Solution**: Lambda looks in `ResearchReports` table with `reportId` key, not `PipelineResearch`
 
 ### Issue: Missing files in pipeline
 **Solution**: Use glob patterns for timestamp-based files
 
+### Issue: Nonsensical test fixture fallbacks
+**Solution**: Removed - proper error handling instead of random test data
+
 ## 📚 Documentation Structure
 
 - `README.md` - Comprehensive pipeline overview and usage
-- `ARCHITECTURE.md` - System design and technical architecture
-- `BATCH_DEPLOYMENT.md` - AWS Batch deployment guide
-- `CLAUDE.md` - This file, development guidelines
-- `infrastructure/README.md` - CDK infrastructure details
+- `ARCHITECTURE.md` - System design and technical architecture (updated with production endpoints)
+- `BATCH_DEPLOYMENT.md` - AWS Batch deployment guide (updated with ResearchReports integration)
+- `CLAUDE.md` - This file, development guidelines with latest fixes
+- `infrastructure/CDK_README.md` - CDK infrastructure details for Batch deployment
+- `infrastructure/INTEGRATION_GUIDE.md` - Frontend-backend integration documentation
+- `infrastructure/README.md` - SAM infrastructure (older deployment method)
 - `docs/` - Additional documentation
 
 ## 🚨 Important Notes

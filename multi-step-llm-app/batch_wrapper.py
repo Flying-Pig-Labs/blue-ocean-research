@@ -160,7 +160,8 @@ def main() -> None:
         # Download input from S3 if provided
         local_input = None
         if s3_input:
-            local_input = '/tmp/research_input.json'
+            # Use .md extension since we're downloading markdown directly
+            local_input = '/tmp/research_input.md'
             download_from_s3(s3_input, local_input)
             print(f"Downloaded input to {local_input}")
         

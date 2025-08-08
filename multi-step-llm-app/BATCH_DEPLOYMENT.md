@@ -8,7 +8,8 @@ This guide walks through deploying the Multi-Step LLM Pipeline to AWS Batch with
 
 ```
 ┌─────────────┐     ┌──────────────┐     ┌─────────────┐
-│   Client    │────▶│ API Gateway  │────▶│   Lambda    │
+│   Frontend  │────▶│ API Gateway  │────▶│   Lambda    │
+│             │     │ (9hv22ga3uh) │     │ Functions   │
 └─────────────┘     └──────────────┘     └─────────────┘
                                                  │
                                                  ▼
@@ -23,15 +24,20 @@ This guide walks through deploying the Multi-Step LLM Pipeline to AWS Batch with
                               └──────────┘            └──────────────┘
 ```
 
+**Production API Endpoint**: `https://9hv22ga3uh.execute-api.us-east-1.amazonaws.com/prod/`
+
 ## Components
 
-1. **API Gateway**: REST API with two endpoints
+1. **API Gateway**: REST API with CORS-enabled endpoints
    - `POST /submit` - Submit a new pipeline job
    - `GET /logs/{researchId}` - Get logs for a research job
+   - **API ID**: `9hv22ga3uh`
+   - **Full URL**: `https://9hv22ga3uh.execute-api.us-east-1.amazonaws.com/prod/`
 
 2. **Lambda Functions**:
-   - `pipeline-submit-job` - Looks up research in DynamoDB, submits Batch job
+   - `pipeline-submit-job` - Looks up research in ResearchReports table, submits Batch job
    - `pipeline-monitor-logs` - Retrieves job status and CloudWatch logs
+   - Both functions include comprehensive CORS headers for frontend integration
 
 3. **AWS Batch**:
    - Fargate compute environment (serverless)
@@ -39,7 +45,9 @@ This guide walks through deploying the Multi-Step LLM Pipeline to AWS Batch with
    - Runs containerized pipeline with 4 vCPUs and 16GB RAM
 
 4. **DynamoDB Tables**:
-   - `PipelineResearch` - Maps research IDs to S3 keys
+   - `ResearchReports` - Frontend-managed table with research documents
+     - Primary key: `reportId` (string)
+     - Contains: `s3ReportKey`, `status`, `createdAt`, `metadata`
    - `PipelineBatchJobs` - Tracks Batch job runs with research association
 
 5. **S3 Bucket**:
@@ -106,22 +114,26 @@ cdk deploy --require-approval never --profile mvp
 ### 5. Note the outputs
 
 After deployment, you'll see:
-- API Gateway URL: `https://[api-id].execute-api.us-east-1.amazonaws.com/prod/`
+- API Gateway URL: `https://9hv22ga3uh.execute-api.us-east-1.amazonaws.com/prod/`
 - ECR Repository URI: `984906149037.dkr.ecr.us-east-1.amazonaws.com/multi-step-llm-pipeline`
 - Job Queue: `multi-step-llm-queue`
-- DynamoDB Tables: `PipelineResearch`, `PipelineBatchJobs`
+- DynamoDB Tables: 
+  - `ResearchReports` (frontend-managed, uses `reportId` as key)
+  - `PipelineBatchJobs` (backend job tracking)
 - S3 Bucket: `multi-step-llm-research-984906149037`
 
 ## Usage
 
-### 1. Upload research to S3 and register in DynamoDB
+### 1. Frontend creates research in ResearchReports table
+
+The frontend application manages research documents in the `ResearchReports` table:
 
 ```python
 import boto3
 import json
 from datetime import datetime, timedelta
 
-# Upload research file to S3
+# Frontend uploads research file to S3
 s3 = boto3.client('s3')
 bucket = 'multi-step-llm-research-984906149037'
 key = f'research/{datetime.now().isoformat()}/research.json'
@@ -129,17 +141,21 @@ key = f'research/{datetime.now().isoformat()}/research.json'
 with open('sample_research.json', 'rb') as f:
     s3.put_object(Bucket=bucket, Key=key, Body=f)
 
-# Register in DynamoDB
+# Frontend registers in ResearchReports table (NOT PipelineResearch)
 dynamodb = boto3.resource('dynamodb')
-table = dynamodb.Table('PipelineResearch')
+table = dynamodb.Table('ResearchReports')  # Frontend-managed table
 
-research_id = 'RESEARCH-001'
+report_id = 'report-2024-12-15-123456'  # Frontend format
 table.put_item(
     Item={
-        'researchId': research_id,
-        's3Key': key,
+        'reportId': report_id,  # Note: 'reportId' not 'researchId'
+        's3ReportKey': key,     # Note: 's3ReportKey' not 's3Key'
+        'status': 'ready',
         'createdAt': datetime.now().isoformat(),
-        'ttl': int((datetime.now() + timedelta(days=90)).timestamp())
+        'metadata': {
+            'title': 'Market Research Report',
+            'description': 'Analysis of emerging markets'
+        }
     }
 )
 ```
@@ -147,10 +163,13 @@ table.put_item(
 ### 2. Submit a pipeline job
 
 ```bash
-# Using curl
-curl -X POST https://YOUR_API_GATEWAY_URL/submit \
+# Using curl with production endpoint
+curl -X POST https://9hv22ga3uh.execute-api.us-east-1.amazonaws.com/prod/submit \
   -H "Content-Type: application/json" \
-  -d '{"researchId": "RESEARCH-001"}'
+  -H "Origin: http://localhost:3000" \
+  -d '{"researchId": "report-2024-12-15-123456"}'
+
+# Note: researchId should match a reportId from ResearchReports table
 ```
 
 Response:
@@ -166,8 +185,10 @@ Response:
 ### 3. Monitor job logs
 
 ```bash
-# Get job status and logs
-curl https://YOUR_API_GATEWAY_URL/logs/RESEARCH-001
+# Get job status and logs using production endpoint
+curl https://9hv22ga3uh.execute-api.us-east-1.amazonaws.com/prod/logs/report-2024-12-15-123456
+
+# The endpoint includes CORS headers for frontend access
 ```
 
 Response:
@@ -278,6 +299,16 @@ Track jobs at: https://console.aws.amazon.com/dynamodbv2/home?region=us-east-1#t
 
 ## Troubleshooting
 
+### CORS Issues
+- All Lambda functions now include comprehensive CORS headers
+- Headers included: `Access-Control-Allow-Origin: *`, `Access-Control-Allow-Methods: GET,POST,OPTIONS`
+- If frontend still gets CORS errors, check API Gateway CORS configuration
+
+### Research Not Found Error
+- Lambda now looks in `ResearchReports` table (not `PipelineResearch`)
+- Ensure the `reportId` exists in ResearchReports table
+- Check that `s3ReportKey` field is populated in the table item
+
 ### CDK Dependencies Error
 ```bash
 # If you see "No matching distribution found for aws-cdk.aws-batch-alpha"
@@ -328,7 +359,8 @@ aws ecr delete-repository --repository-name multi-step-llm-pipeline --force --pr
 2. **Network Isolation**: Batch runs in private VPC subnets
 3. **IAM Roles**: Least privilege access for all components
 4. **Encryption**: S3 bucket encryption, DynamoDB encryption at rest
-5. **API Security**: Consider adding API keys or Cognito authentication
+5. **CORS Configuration**: Currently allows all origins (`*`) - consider restricting to specific domains in production
+6. **API Security**: Consider adding API keys or Cognito authentication for production use
 
 ## Next Steps
 
