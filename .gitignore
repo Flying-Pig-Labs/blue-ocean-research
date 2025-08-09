@@ -1,9 +1,5 @@
-# Large files
-multi-step-llm-app/infrastructure/layers/layer.zip
-*.zip
-
-# Lambda layer files
-**/layers/*.zip
+# Environment variables
+.env
 
 # Python
 __pycache__/
@@ -11,16 +7,15 @@ __pycache__/
 *$py.class
 *.so
 .Python
-env/
 venv/
+env/
 ENV/
-.venv
-
-# Node
-node_modules/
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
+.venv/
+.ENV/
+*.egg-info/
+.pytest_cache/
+htmlcov/
+.coverage
 
 # IDE
 .vscode/
@@ -28,13 +23,48 @@ yarn-error.log*
 *.swp
 *.swo
 *~
-.DS_Store
 
-# AWS
+# OS
+.DS_Store
+Thumbs.db
+
+# Output files
+analysis_results.md
+jtbd_research.md
+jtbd_research_pain_points.txt
+jtbd_clusters.json
+opportunity_zones.json
+value_curves.json
+value_curves_report.md
+pain_points.txt
+workflow_results.md
+
+# Logs
+logs/
+*.log
+
+# Claude Flow
+.claude-flow/
+memory/
+
+# Test files
+demo_*.py
+test_*.py
+
+# Archive and temporary directories
+archive/
+temp/
+
+# E2E test outputs
+test_outputs/
+
+# AWS SAM
 .aws-sam/
 samconfig.toml
 
-# Environment files
-.env
-.env.local
-.env.production
+# Large data files
+*.npy
+*.xlsx
+reddit_embeddings_*.npy
+reddit_analysis_*.xlsx
+reddit_cluster_report_*.xlsx
