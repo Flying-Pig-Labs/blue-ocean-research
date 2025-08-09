@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# NOTE: Legacy script; no references found in repository. Consider removal.
 """
 Lambda-compatible Product Idea Generator
 Refactored from product_idea_generator.py for AWS Lambda deployment

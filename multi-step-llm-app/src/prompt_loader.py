@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# NOTE: Legacy script; no references found in repository. Consider removal.
 """
 Prompt Loader Utility
 Loads prompts from the prompts directory for use in the pipeline

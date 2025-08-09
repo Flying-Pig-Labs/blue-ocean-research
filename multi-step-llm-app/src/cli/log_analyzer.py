@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# NOTE: Legacy script; no references found in repository. Consider removal.
 """
 CLI tools for analyzing pipeline logs
 """
