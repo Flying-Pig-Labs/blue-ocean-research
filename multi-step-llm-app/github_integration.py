@@ -306,11 +306,7 @@ Description: {business_description}
 IMPORTANT: The above research report contains ALL the original insights, pain points, industry verticals, personas, and specific details about {original_business}. 
 You MUST use this original research to ground all your analysis and recommendations.
 
-All opportunity zones and product ideas MUST be framed in the context of {original_business} operating in {business_domain}. 
-Ideas should be positioned as:
-- RED TEAM: Disruptive startups that could challenge {original_business}
-- BLACK TEAM: Operational improvements {original_business} could implement (vendor replacements, efficiency gains)
-- WHITE TEAM: New ventures {original_business} could launch to expand into adjacent markets
+All opportunity zones and product ideas MUST be framed in the context of {original_business} operating in {business_domain}.
 
 COMPLETE RESEARCH CONTEXT:
 {json.dumps(context, indent=2)}
@@ -323,7 +319,7 @@ Create a comprehensive README with this EXACT structure:
 Clearly state:
 - **Target Business**: {original_business}
 - **Industry/Domain**: {business_domain}
-- **Strategic Focus**: How this research helps {original_business} identify threats, improvements, and expansion opportunities
+- **Strategic Focus**: How this research helps {original_business} navigate market opportunities and challenges
 
 ## 1️⃣ Research Overview
 Write a narrative explaining what this research was about IN THE CONTEXT OF {original_business}. Include:
@@ -403,10 +399,7 @@ The Eliminate-Reduce-Raise-Create grid is a strategic framework that identifies:
 
 ### 🚀 Strategic Innovation Portfolio for {original_business}
 
-For each opportunity zone, ideas are categorized by strategic intent:
-- 🔴 **RED TEAM (Threats)**: Startups that could disrupt {original_business}
-- ⚫ **BLACK TEAM (Efficiency)**: Operational improvements {original_business} could implement
-- ⚪ **WHITE TEAM (Growth)**: New ventures {original_business} could launch
+For each opportunity zone, ideas are positioned based on their strategic relevance to {original_business}'s current market position and growth objectives.
 
 {self._generate_ideas_by_zone_template(zones_data, ideas_data)}
 
@@ -424,9 +417,9 @@ The following 10 ideas were selected based on weighted market opportunity and st
 
 ### Immediate Actions
 Based on this research, {original_business} should:
-1. **Defend Against Threats**: Address RED TEAM ideas that pose immediate disruption risk
-2. **Optimize Operations**: Implement BLACK TEAM improvements for quick efficiency gains
-3. **Expand Strategically**: Launch WHITE TEAM ventures in highest-opportunity zones
+1. **Defend Market Position**: Address competitive threats that pose disruption risk
+2. **Optimize Operations**: Implement efficiency improvements for quick gains
+3. **Expand Strategically**: Launch new ventures in highest-opportunity zones
 
 ### Competitive Positioning
 - How {original_business} can leverage its strengths in {business_domain}
@@ -464,9 +457,9 @@ gantt
 This comprehensive market research for {original_business} in {business_domain} analyzed {context['validation_evidence']['reddit_discussions_analyzed']} Reddit discussions, extracted {context['metrics']['total_jtbds']} jobs-to-be-done, identified {len(zones_with_percentages)} opportunity zones, and generated {context['metrics']['total_ideas_generated']} product ideas.
 
 **Key Takeaways for {original_business}:**
-- **Threats to defend against**: [Summarize RED TEAM findings]
-- **Efficiency opportunities**: [Summarize BLACK TEAM findings]  
-- **Growth ventures to pursue**: [Summarize WHITE TEAM findings]
+- **Competitive threats to monitor**: [Summarize key disruption risks]
+- **Efficiency opportunities identified**: [Summarize operational improvements]  
+- **Growth ventures to pursue**: [Summarize expansion opportunities]
 
 The research provides a strategic roadmap for {original_business} to maintain competitive advantage in {business_domain} while identifying new growth opportunities.
 
@@ -1158,10 +1151,7 @@ CRITICAL CONTEXT FROM RESEARCH:
 - Key pain dimensions in this zone: {', '.join(list(zone_info.get('pain_dimensions', {}).keys())[:3])}
 - Solution requirements: {', '.join(zone_info.get('solution_requirements', [])[:3])}
 
-IMPORTANT: The original research report above contains the specific business context. This idea MUST be framed as:
-- RED TEAM: A disruptive startup that could challenge the target business
-- BLACK TEAM: An operational improvement the target business could implement
-- WHITE TEAM: A new venture the target business could launch
+IMPORTANT: The original research report above contains the specific business context. Use it to ground this idea in the reality of the target business and their market.
 
 Create an EXCEPTIONAL GitHub issue that serves as a complete pitch deck. This should be so comprehensive that an investor could make a funding decision based solely on this issue.
 
@@ -1173,7 +1163,7 @@ STRUCTURE YOUR ISSUE AS:
 [One paragraph that captures everything - the problem, solution, market, and why this wins. MUST reference the original business context from the research.]
 
 ## 🏢 Strategic Context for Original Business
-[How this idea relates to the original business in the research report - as a threat (RED), improvement (BLACK), or expansion opportunity (WHITE)]
+[How this idea relates to the original business in the research report and their strategic position]
 
 ## 📊 Market Context & Zone Analysis
 - Position within opportunity portfolio (this is idea X of {zone_info.get('idea_allocation', 1)} in a zone representing {zone_info.get('market_percentage', 0):.1f}% of market)
@@ -1278,7 +1268,7 @@ Output the complete markdown content that will be the issue body:"""
                 title = first_line[2:].strip()
         
         return {
-            "title": f"🚀 {title}",
+            "title": title if title.startswith("🚀") else f"🚀 {title}",
             "body": gpt5_content
         }
     
@@ -1293,6 +1283,11 @@ Output the complete markdown content that will be the issue body:"""
     def create_labels(self, repo: Any) -> Dict[str, Any]:
         """Create standard labels for the repository."""
         labels = [
+            {
+                "name": "shark ready 🦈",
+                "color": "FBCA04",
+                "description": "Ready for the sharks to add their 2 cents",
+            },
             {
                 "name": "product-idea",
                 "color": "0E8A16",
