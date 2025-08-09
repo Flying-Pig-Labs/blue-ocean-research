@@ -241,6 +241,24 @@ class MultiStepLLMBatchStack(Stack):
         research_table.grant_read_write_data(task_role)
         jobs_table.grant_read_write_data(task_role)
         
+        # Explicitly add permissions for PipelineBatchJobs table
+        # This ensures the batch job can write to the tracking table
+        task_role.add_to_policy(
+            iam.PolicyStatement(
+                actions=[
+                    "dynamodb:PutItem",
+                    "dynamodb:GetItem",
+                    "dynamodb:UpdateItem",
+                    "dynamodb:Query",
+                    "dynamodb:Scan"
+                ],
+                resources=[
+                    f"arn:aws:dynamodb:{region}:{account}:table/PipelineBatchJobs",
+                    f"arn:aws:dynamodb:{region}:{account}:table/PipelineBatchJobs/index/*"
+                ]
+            )
+        )
+        
         # Grant Secrets Manager permissions to task role
         # The task needs to read secrets to get API keys
         task_role.add_to_policy(
@@ -272,7 +290,7 @@ class MultiStepLLMBatchStack(Stack):
         )
         
         # Force job definition update by adding a timestamp comment
-        # This ensures IAM policy changes are reflected
+        # This ensures IAM policy changes are reflected - Updated 2025-08-09
         import time
         job_definition = batch.CfnJobDefinition(
             self, "JobDefinition",
@@ -291,7 +309,8 @@ class MultiStepLLMBatchStack(Stack):
                     {"name": "AWS_DEFAULT_REGION", "value": region},
                     {"name": "RESEARCH_BUCKET", "value": research_bucket.bucket_name},
                     {"name": "RESEARCH_TABLE", "value": research_table.table_name},
-                    {"name": "JOBS_TABLE", "value": jobs_table.table_name}
+                    {"name": "JOBS_TABLE", "value": jobs_table.table_name},
+                    {"name": "IAM_UPDATE", "value": "2025-08-09-permissions-fix"}
                 ],
                 # API keys injected from AWS Secrets Manager
                 # These must exist in Secrets Manager before deployment
@@ -373,7 +392,9 @@ def handler(event, context):
         # Parse request
         body = json.loads(event.get('body', '{}'))
         research_id = body.get('researchId')
-        team = body.get('team', 'red')  # Default to 'red' if not specified
+        team = body.get('team')
+        
+        print(f"Received request: researchId={research_id}, team={team}")
         
         if not research_id:
             return {
@@ -382,51 +403,61 @@ def handler(event, context):
                 'body': json.dumps({'error': 'researchId is required'})
             }
         
+        if not team:
+            return {
+                'statusCode': 400,
+                'headers': cors_headers,
+                'body': json.dumps({'error': 'team is required (must be one of: red, black, white, blue)'})
+            }
+        
         # The research markdown files are stored in color-code-research-results bucket
         # Path format: users/fprior/research/{team}/{reportId}/report.md
         source_bucket = 'color-code-research-results-984906149037'
         source_key = f"users/fprior/research/{team}/{research_id}/report.md"
         
-        # SIMPLIFIED: Just pass the S3 location directly - no copying!
-        s3_key = f"{source_bucket}/{source_key}"
+        # Full S3 path for passing to batch job
+        s3_full_path = f"s3://{source_bucket}/{source_key}"
         
         # Verify the file exists
         try:
+            print(f"Checking for research report at: {s3_full_path}")
             s3_client.head_object(Bucket=source_bucket, Key=source_key)
-            print(f"Verified research report exists at s3://{source_bucket}/{source_key}")
+            print(f"SUCCESS: Verified research report exists at {s3_full_path}")
             
         except s3_client.exceptions.NoSuchKey:
-            print(f"Research report not found at s3://{source_bucket}/{source_key}")
+            print(f"ERROR: Research report not found at {s3_full_path}")
+            print(f"  Bucket: {source_bucket}")
+            print(f"  Key: {source_key}")
             return {
                 'statusCode': 404,
                 'headers': cors_headers,
-                'body': json.dumps({'error': f'Research report not found at expected location: s3://{source_bucket}/{source_key}'})
+                'body': json.dumps({'error': f'Research report not found at expected location: {s3_full_path}'})
             }
             
         except Exception as e:
-            print(f"Error accessing research report: {str(e)}")
+            print(f"ERROR: Failed to access research report at {s3_full_path}")
+            print(f"  Exception: {str(e)}")
             return {
                 'statusCode': 500,
                 'headers': cors_headers,
                 'body': json.dumps({'error': f'Failed to access research report: {str(e)}'})
             }
         
-        # Generate job ID and name
-        job_id = str(uuid.uuid4())
+        # Generate job name
         job_name = f"pipeline-{research_id}-{datetime.now().strftime('%Y%m%d-%H%M%S')}"
         
-        # Submit batch job
+        # Submit batch job - AWS Batch will automatically set AWS_BATCH_JOB_ID env var
         batch_response = batch_client.submit_job(
             jobName=job_name,
             jobQueue=os.environ['JOB_QUEUE'],
             jobDefinition=os.environ['JOB_DEFINITION'],
             containerOverrides={
                 'environment': [
-                    {'name': 'S3_INPUT_KEY', 'value': s3_key},
-                    {'name': 'RESEARCH_ID', 'value': research_id},
-                    {'name': 'JOB_ID', 'value': job_id}
+                    {'name': 'S3_INPUT_KEY', 'value': s3_full_path},
+                    {'name': 'RESEARCH_ID', 'value': research_id}
+                    # Don't pass JOB_ID - use AWS_BATCH_JOB_ID instead
                 ],
-                'command': ['--s3-input', f"s3://{s3_key}"]  # s3_key already contains bucket/key
+                'command': ['--s3-input', s3_full_path]  # Pass the full S3 path
             }
         )
         
@@ -438,9 +469,8 @@ def handler(event, context):
                 'researchId': research_id,
                 'jobName': batch_response['jobName'],
                 'status': 'SUBMITTED',
-                'createdAt': datetime.now().isoformat(),
+                'createdAt': datetime.now().isoformat() + 'Z',
                 'ttl': int((datetime.now() + timedelta(days=30)).timestamp()),
-                'batchJobId': batch_response['jobId'],
                 'logStreamName': f"pipeline/default/{batch_response['jobId']}"
             }
         )
@@ -502,14 +532,14 @@ def handler(event, context):
             timeout=Duration.seconds(30),
             memory_size=256,
             environment={
-                "DYNAMODB_TABLE": "InnovationPipelineJobs",
+                "DYNAMODB_TABLE": "PipelineBatchJobs",
                 "BATCH_JOB_QUEUE": job_queue.job_queue_name,
                 "BATCH_JOB_DEFINITION": job_definition.job_definition_name
             },
             code=lambda_.Code.from_inline(open("lambda_pipeline_status.py").read())
         )
         
-        # Grant permissions to read from InnovationPipelineJobs table
+        # Grant permissions to read from PipelineBatchJobs table
         pipeline_status_lambda.add_to_role_policy(
             iam.PolicyStatement(
                 actions=[
@@ -518,8 +548,8 @@ def handler(event, context):
                     "dynamodb:Scan"
                 ],
                 resources=[
-                    f"arn:aws:dynamodb:{region}:{account}:table/InnovationPipelineJobs",
-                    f"arn:aws:dynamodb:{region}:{account}:table/InnovationPipelineJobs/index/*"
+                    f"arn:aws:dynamodb:{region}:{account}:table/PipelineBatchJobs",
+                    f"arn:aws:dynamodb:{region}:{account}:table/PipelineBatchJobs/index/*"
                 ]
             )
         )
@@ -753,6 +783,13 @@ def handler(event, context):
         api_status_resource = api_resource.add_resource("status")
         api_status_running_resource = api_status_resource.add_resource("running")
         api_status_running_resource.add_method(
+            "GET",
+            apigw.LambdaIntegration(pipeline_status_lambda)
+        )
+        
+        # /api/status/all endpoint - Also get all recent jobs (alias for running)
+        api_status_all_resource = api_status_resource.add_resource("all")
+        api_status_all_resource.add_method(
             "GET",
             apigw.LambdaIntegration(pipeline_status_lambda)
         )

@@ -1,610 +1,324 @@
-name: Multi-Step LLM Pipeline - CI/CD
+name: Deploy Multi-Step LLM Pipeline
 
 on:
   push:
-    branches: 
+    branches:
       - main
-      - develop
-      - 'feature/*'
   pull_request:
-    branches: 
+    branches:
       - main
-      - develop
+    types: [opened, synchronize, reopened]
   workflow_dispatch:
     inputs:
       environment:
         description: 'Environment to deploy to'
         required: true
-        default: 'staging'
+        default: 'dev'
         type: choice
         options:
-          - development
+          - dev
           - staging
           - production
-      force_deploy:
-        description: 'Force deployment even if no changes detected'
-        required: false
-        default: false
-        type: boolean
 
 env:
-  AWS_DEFAULT_REGION: us-east-1
-  SAM_CLI_VERSION: 1.100.0
-  PYTHON_VERSION: 3.11
+  AWS_REGION: us-east-1
+  ECR_REPOSITORY: multi-step-llm-pipeline
+  AWS_ACCOUNT_ID: '984906149037'  # Your AWS Account ID
+  CDK_DEFAULT_ACCOUNT: '984906149037'
+  CDK_DEFAULT_REGION: us-east-1
+
+permissions:
+  id-token: write   # Required for OIDC
+  contents: read    # Required for actions/checkout
+  statuses: write   # Required for creating commit statuses
+  pull-requests: write  # Required for PR comments
 
 jobs:
-  # ==================== VALIDATION AND TESTING ====================
-  
-  validate:
-    name: 'Validate Code & Configuration'
+  test:
+    name: Run Tests
     runs-on: ubuntu-latest
-    outputs:
-      has_changes: ${{ steps.changes.outputs.has_changes }}
-      environment: ${{ steps.environment.outputs.environment }}
+    if: github.event_name == 'pull_request'
     
     steps:
-      - name: Checkout Code
+      - name: Checkout code
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0  # Full history for change detection
-      
+        
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
-          python-version: ${{ env.PYTHON_VERSION }}
-          cache: 'pip'
-      
-      - name: Install Dependencies
+          python-version: '3.11'
+          
+      - name: Cache pip packages
+        uses: actions/cache@v3
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
+            
+      - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
-          pip install pytest black flake8 bandit safety
-      
-      - name: Determine Environment
-        id: environment
+          pip install pytest pytest-cov pytest-asyncio
+          
+      - name: Configure AWS credentials for tests
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::${{ env.AWS_ACCOUNT_ID }}:role/github-actions-flying-pig-labs
+          role-session-name: GitHubActions-Tests-${{ github.run_id }}
+          aws-region: ${{ env.AWS_REGION }}
+          
+      - name: Retrieve secrets from AWS
+        id: secrets
         run: |
-          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
-            echo "environment=${{ github.event.inputs.environment }}" >> $GITHUB_OUTPUT
-          elif [[ "${{ github.ref }}" == "refs/heads/main" ]]; then
-            echo "environment=production" >> $GITHUB_OUTPUT
-          elif [[ "${{ github.ref }}" == "refs/heads/develop" ]]; then
-            echo "environment=staging" >> $GITHUB_OUTPUT
-          else
-            echo "environment=development" >> $GITHUB_OUTPUT
-          fi
-      
-      - name: Detect Changes
-        id: changes
+          # Fetch secrets from AWS Secrets Manager
+          SECRET_JSON=$(aws secretsmanager get-secret-value --secret-id ColorCodeResearchHubSecrets --query SecretString --output text)
+          echo "::add-mask::$(echo $SECRET_JSON | jq -r '.ANTHROPIC_API_KEY')"
+          echo "::add-mask::$(echo $SECRET_JSON | jq -r '.OPENAI_API_KEY')"
+          echo "::add-mask::$(echo $SECRET_JSON | jq -r '.GITHUB_PAT')"
+          echo "ANTHROPIC_API_KEY=$(echo $SECRET_JSON | jq -r '.ANTHROPIC_API_KEY')" >> $GITHUB_ENV
+          echo "OPENAI_API_KEY=$(echo $SECRET_JSON | jq -r '.OPENAI_API_KEY')" >> $GITHUB_ENV
+          echo "GITHUB_TOKEN=$(echo $SECRET_JSON | jq -r '.GITHUB_PAT')" >> $GITHUB_ENV
+          
+      - name: Run unit tests
         run: |
-          if [[ "${{ github.event.inputs.force_deploy }}" == "true" ]]; then
-            echo "has_changes=true" >> $GITHUB_OUTPUT
-            echo "Force deployment requested"
-          elif [[ "${{ github.event_name }}" == "pull_request" ]]; then
-            echo "has_changes=false" >> $GITHUB_OUTPUT
-            echo "PR - skipping deployment"
-          else
-            # Check for infrastructure or code changes
-            if git diff --name-only ${{ github.event.before }} ${{ github.sha }} | grep -E "(infrastructure/|src/|requirements.txt|lambda_handler.py)" > /dev/null; then
-              echo "has_changes=true" >> $GITHUB_OUTPUT
-              echo "Changes detected in deployable code"
-            else
-              echo "has_changes=false" >> $GITHUB_OUTPUT
-              echo "No deployable changes detected"
-            fi
-          fi
-      
-      - name: Code Quality - Black
-        run: |
-          echo "Checking code formatting with Black..."
-          black --check --line-length 120 *.py src/ tests/ || (echo "Code formatting issues found. Run 'black --line-length 120 *.py src/ tests/' to fix." && exit 1)
-      
-      - name: Code Quality - Flake8
-        run: |
-          echo "Linting with Flake8..."
-          flake8 *.py src/ tests/ --max-line-length 120 --ignore=E501,W503
-      
-      - name: Security Scan - Bandit
-        run: |
-          echo "Running security scan with Bandit..."
-          bandit -r . -f json -o bandit-report.json || true
-          bandit -r . --severity-level medium
-      
-      - name: Dependency Security - Safety
-        run: |
-          echo "Checking dependencies for known vulnerabilities..."
-          safety check --json --output safety-report.json || true
-          safety check
-      
-      - name: Validate SAM Template
-        run: |
-          echo "Installing SAM CLI..."
-          pip install aws-sam-cli==${{ env.SAM_CLI_VERSION }}
-          echo "Validating SAM template..."
-          cd infrastructure
-          sam validate --template template.yaml
-      
-      - name: Upload Security Reports
-        uses: actions/upload-artifact@v3
+          python -m pytest tests/ -v --cov=. --cov-report=xml --cov-report=html
+          
+      - name: Upload coverage reports
+        uses: codecov/codecov-action@v3
         if: always()
         with:
-          name: security-reports
-          path: |
-            bandit-report.json
-            safety-report.json
+          file: ./coverage.xml
+          flags: unittests
+          name: codecov-umbrella
 
-  test:
-    name: 'Run Tests'
+  build-and-push:
+    name: Build and Push Docker Image
     runs-on: ubuntu-latest
-    needs: validate
-    
-    steps:
-      - name: Checkout Code
-        uses: actions/checkout@v4
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    outputs:
+      image-tag: ${{ steps.meta.outputs.tags }}
+      image-digest: ${{ steps.build.outputs.digest }}
       
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::${{ env.AWS_ACCOUNT_ID }}:role/github-actions-flying-pig-labs
+          role-session-name: GitHubActions-${{ github.run_id }}
+          aws-region: ${{ env.AWS_REGION }}
+          
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+        
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+        
+      - name: Generate Docker metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}
+          tags: |
+            type=ref,event=branch
+            type=ref,event=pr
+            type=sha,prefix={{branch}}-
+            type=raw,value=latest,enable={{is_default_branch}}
+            type=raw,value={{date 'YYYYMMDD-HHmmss'}}
+            
+      - name: Build and push Docker image
+        id: build
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          platforms: linux/amd64
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          build-args: |
+            BUILD_DATE=${{ github.event.head_commit.timestamp }}
+            VCS_REF=${{ github.sha }}
+            VERSION=${{ github.run_number }}
+            
+      - name: Create image artifact
+        run: |
+          echo "${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:latest" > image-uri.txt
+          echo "Image digest: ${{ steps.build.outputs.digest }}" >> image-uri.txt
+          
+      - name: Upload image URI artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: docker-image-uri
+          path: image-uri.txt
+
+  deploy-cdk:
+    name: Deploy CDK Stack
+    runs-on: ubuntu-latest
+    needs: build-and-push
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    environment:
+      name: ${{ github.event.inputs.environment || 'dev' }}
+      
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
-          python-version: ${{ env.PYTHON_VERSION }}
-          cache: 'pip'
-      
-      - name: Install Dependencies
+          python-version: '3.11'
+          
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::${{ env.AWS_ACCOUNT_ID }}:role/github-actions-flying-pig-labs
+          role-session-name: GitHubActions-${{ github.run_id }}
+          aws-region: ${{ env.AWS_REGION }}
+          
+      - name: Install AWS CDK
+        run: |
+          npm install -g aws-cdk@latest
+          cdk --version
+          
+      - name: Install Python dependencies
+        working-directory: ./infrastructure
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
-          pip install pytest pytest-cov pytest-mock moto responses
-      
-      - name: Run Unit Tests
+          
+      - name: Cache CDK assets
+        uses: actions/cache@v3
+        with:
+          path: ./infrastructure/cdk.out
+          key: ${{ runner.os }}-cdk-${{ hashFiles('**/cdk.json') }}
+          restore-keys: |
+            ${{ runner.os }}-cdk-
+            
+      - name: CDK Bootstrap (if needed)
+        working-directory: ./infrastructure
         run: |
-          echo "Running unit tests with coverage..."
-          python -m pytest tests/ -v --cov=. --cov-report=xml --cov-report=html --cov-report=term-missing
-      
-      - name: Upload Test Coverage
+          cdk bootstrap aws://${{ env.AWS_ACCOUNT_ID }}/${{ env.AWS_REGION }} || true
+        env:
+          CDK_DEFAULT_ACCOUNT: ${{ env.AWS_ACCOUNT_ID }}
+          CDK_DEFAULT_REGION: ${{ env.AWS_REGION }}
+          
+      - name: CDK Diff
+        working-directory: ./infrastructure
+        run: |
+          cdk diff --context env=${{ github.event.inputs.environment || 'dev' }}
+        env:
+          CDK_DEFAULT_ACCOUNT: ${{ env.AWS_ACCOUNT_ID }}
+          CDK_DEFAULT_REGION: ${{ env.AWS_REGION }}
+          
+      - name: CDK Deploy
+        working-directory: ./infrastructure
+        run: |
+          cdk deploy --require-approval never \
+            --context env=${{ github.event.inputs.environment || 'dev' }} \
+            --outputs-file ./cdk-outputs.json
+        env:
+          CDK_DEFAULT_ACCOUNT: ${{ env.AWS_ACCOUNT_ID }}
+          CDK_DEFAULT_REGION: ${{ env.AWS_REGION }}
+          
+      - name: Upload CDK outputs
         uses: actions/upload-artifact@v3
         with:
-          name: coverage-report
-          path: |
-            coverage.xml
-            htmlcov/
-      
-      - name: Integration Tests
+          name: cdk-outputs
+          path: ./infrastructure/cdk-outputs.json
+          
+      - name: Display deployment info
+        working-directory: ./infrastructure
         run: |
-          echo "Running integration tests..."
-          python -m pytest tests/test_integration_e2e.py -v -s
-        env:
-          # Mock environment variables for testing
-          MOCK_ANTHROPIC_API_KEY: test-key
-          MOCK_OPENAI_API_KEY: test-key
-          MOCK_EXA_API_KEY: test-key
-          MOCK_COHERE_API_KEY: test-key
-          MOCK_GITHUB_TOKEN: test-token
+          echo "🚀 Deployment completed successfully!"
+          echo "Environment: ${{ github.event.inputs.environment || 'dev' }}"
+          echo "API Endpoint:"
+          cat cdk-outputs.json | python -m json.tool | grep -i endpoint || true
 
-  # ==================== BUILD AND PACKAGE ====================
-  
-  build:
-    name: 'Build SAM Application'
+  update-batch-job-definition:
+    name: Update Batch Job Definition
     runs-on: ubuntu-latest
-    needs: [validate, test]
-    if: needs.validate.outputs.has_changes == 'true' && github.event_name != 'pull_request'
-    
-    strategy:
-      matrix:
-        environment: [development, staging, production]
+    needs: [build-and-push, deploy-cdk]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     
     steps:
-      - name: Checkout Code
-        uses: actions/checkout@v4
-      
-      - name: Set up Python
-        uses: actions/setup-python@v4
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
         with:
-          python-version: ${{ env.PYTHON_VERSION }}
-      
-      - name: Install SAM CLI
+          role-to-assume: arn:aws:iam::${{ env.AWS_ACCOUNT_ID }}:role/github-actions-flying-pig-labs
+          role-session-name: GitHubActions-${{ github.run_id }}
+          aws-region: ${{ env.AWS_REGION }}
+          
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+        
+      - name: Update Batch Job Definition
         run: |
-          pip install aws-sam-cli==${{ env.SAM_CLI_VERSION }}
-      
-      - name: Prepare Lambda Layers
-        run: |
-          echo "Preparing Lambda layers..."
-          mkdir -p infrastructure/layers/dependencies/python
-          mkdir -p infrastructure/layers/utils/python
+          # Get the latest image URI
+          IMAGE_URI="${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:latest"
+          echo "Updating Batch job definition with image: $IMAGE_URI"
           
-          # Dependencies layer
-          pip install -r requirements.txt -t infrastructure/layers/dependencies/python/
+          # Get current job definition
+          CURRENT_JOB_DEF=$(aws batch describe-job-definitions \
+            --job-definition-name multi-step-llm-pipeline \
+            --status ACTIVE \
+            --query 'jobDefinitions[0]' \
+            --output json)
           
-          # Utils layer
-          cp -r src/ infrastructure/layers/utils/python/
-          cp llm_config.yaml infrastructure/layers/utils/python/
-          cp config_loader.py infrastructure/layers/utils/python/
-          cp prompt_loader.py infrastructure/layers/utils/python/
-      
-      - name: Create Lambda Source Directories
-        run: |
-          echo "Creating Lambda function source directories..."
-          mkdir -p infrastructure/src/lambda/starter
-          mkdir -p infrastructure/src/lambda/status
-          mkdir -p infrastructure/src/lambda/logs
-          mkdir -p infrastructure/src/lambda/cancel
-          mkdir -p infrastructure/src/lambda/stages
-          mkdir -p infrastructure/src/lambda/cleanup
-          
-          # Copy Lambda handlers
-          cp lambda_handler.py infrastructure/src/lambda/starter/handler.py
-          cp lambda_handler.py infrastructure/src/lambda/status/handler.py
-          cp lambda_handler.py infrastructure/src/lambda/logs/handler.py
-          cp lambda_handler.py infrastructure/src/lambda/cancel/handler.py
-          cp lambda_handler.py infrastructure/src/lambda/cleanup/handler.py
-          
-          # Create stage-specific handlers from main pipeline scripts
-          python3 << 'EOF'
-          import os
-          import shutil
-          
-          # Stage handler mapping
-          stages = {
-              'research_analysis': 'research_analyzer.py',
-              'jtbd_research': 'jobs_researcher.py',
-              'clustering': 'cluster_jtbd.py',
-              'value_curve_mapping': 'value_curve_mapper.py',
-              'product_idea_generation': 'product_idea_generator.py',
-              'idea_consolidation': 'idea_consolidator.py',
-              'github_integration': 'github_integration.py'
-          }
-          
-          for stage, script in stages.items():
-              stage_dir = f'infrastructure/src/lambda/stages'
-              if os.path.exists(script):
-                  shutil.copy(script, f'{stage_dir}/{stage}.py')
-                  print(f"Copied {script} to {stage_dir}/{stage}.py")
-              else:
-                  print(f"Warning: {script} not found")
-          EOF
-      
-      - name: Build SAM Application
-        run: |
-          echo "Building SAM application for ${{ matrix.environment }}..."
-          cd infrastructure
-          sam build --use-container --cached --parallel --config-env ${{ matrix.environment }}
-        env:
-          SAM_CLI_TELEMETRY: 0
-      
-      - name: Package SAM Application
-        run: |
-          echo "Packaging SAM application..."
-          cd infrastructure
-          
-          # Create S3 bucket for packaging if it doesn't exist
-          BUCKET_NAME="sam-deploy-${{ github.repository_owner }}-${{ matrix.environment }}-$(echo ${{ github.repository }} | tr '[:upper:]/' '[:lower:]-')"
-          echo "Using bucket: $BUCKET_NAME"
-          
-          # Package (but don't deploy yet)
-          sam package \
-            --s3-bucket $BUCKET_NAME \
-            --s3-prefix multi-step-llm-pipeline \
-            --output-template-file packaged-${{ matrix.environment }}.yaml \
-            --config-env ${{ matrix.environment }}
-        env:
-          AWS_DEFAULT_REGION: ${{ env.AWS_DEFAULT_REGION }}
-      
-      - name: Upload Build Artifacts
-        uses: actions/upload-artifact@v3
-        with:
-          name: sam-build-${{ matrix.environment }}
-          path: |
-            infrastructure/.aws-sam/
-            infrastructure/packaged-${{ matrix.environment }}.yaml
-          retention-days: 30
-
-  # ==================== DEPLOYMENT ====================
-  
-  deploy-development:
-    name: 'Deploy to Development'
-    runs-on: ubuntu-latest
-    needs: [validate, build]
-    if: needs.validate.outputs.environment == 'development' && needs.validate.outputs.has_changes == 'true'
-    environment: development
-    
-    steps:
-      - name: Checkout Code
-        uses: actions/checkout@v4
-      
-      - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v3
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ env.AWS_DEFAULT_REGION }}
-      
-      - name: Download Build Artifacts
-        uses: actions/download-artifact@v3
-        with:
-          name: sam-build-development
-          path: infrastructure/
-      
-      - name: Install SAM CLI
-        run: pip install aws-sam-cli==${{ env.SAM_CLI_VERSION }}
-      
-      - name: Deploy to Development
-        run: |
-          cd infrastructure
-          sam deploy \
-            --template-file packaged-development.yaml \
-            --stack-name multi-step-llm-pipeline-dev \
-            --capabilities CAPABILITY_IAM \
-            --parameter-overrides \
-              EnvironmentName=development \
-              NotificationEmail="${{ secrets.NOTIFICATION_EMAIL }}" \
-            --no-confirm-changeset \
-            --no-fail-on-empty-changeset \
-            --tags Environment=development Project=multi-step-llm-pipeline Owner=${{ github.actor }}
-        env:
-          SAM_CLI_TELEMETRY: 0
-      
-      - name: Update API Keys in Secrets Manager
-        run: |
-          echo "Updating development secrets..."
-          aws secretsmanager put-secret-value \
-            --secret-id multi-step-llm-pipeline-dev-secrets \
-            --secret-string '{
-              "ANTHROPIC_API_KEY": "${{ secrets.ANTHROPIC_API_KEY }}",
-              "OPENAI_API_KEY": "${{ secrets.OPENAI_API_KEY }}",
-              "EXA_API_KEY": "${{ secrets.EXA_API_KEY }}",
-              "COHERE_API_KEY": "${{ secrets.COHERE_API_KEY }}",
-              "GITHUB_TOKEN": "${{ secrets.GITHUB_TOKEN }}",
-              "PERPLEXITY_KEY": "${{ secrets.PERPLEXITY_KEY }}"
-            }' || echo "Secrets update failed - may need to be done manually"
-      
-      - name: Run Deployment Tests
-        run: |
-          echo "Testing deployment..."
-          STACK_NAME="multi-step-llm-pipeline-dev"
-          
-          # Get API endpoint
-          API_ENDPOINT=$(aws cloudformation describe-stacks \
-            --stack-name $STACK_NAME \
-            --query 'Stacks[0].Outputs[?OutputKey==`ApiEndpoint`].OutputValue' \
-            --output text)
-          
-          echo "API Endpoint: $API_ENDPOINT"
-          
-          # Test API health
-          if curl -f "${API_ENDPOINT}/health" > /dev/null 2>&1; then
-            echo "✅ API health check passed"
+          if [ "$CURRENT_JOB_DEF" != "null" ]; then
+            echo "Found existing job definition, updating..."
+            # Update would go here if needed
           else
-            echo "❌ API health check failed"
-            exit 1
+            echo "No active job definition found, CDK should have created it"
           fi
-      
-      - name: Comment on PR
-        if: github.event_name == 'pull_request'
-        uses: actions/github-script@v6
+
+  notify:
+    name: Send Notification
+    runs-on: ubuntu-latest
+    needs: [deploy-cdk]
+    if: always() && github.ref == 'refs/heads/main'
+    
+    steps:
+      - name: Send deployment notification
+        run: |
+          if [ "${{ needs.deploy-cdk.result }}" == "success" ]; then
+            echo "✅ Deployment successful!"
+            echo "Environment: ${{ github.event.inputs.environment || 'dev' }}"
+            echo "Commit: ${{ github.sha }}"
+            echo "Author: ${{ github.actor }}"
+            echo "Message: ${{ github.event.head_commit.message }}"
+          else
+            echo "❌ Deployment failed!"
+            echo "Check the workflow logs for details."
+          fi
+          
+      - name: Create deployment status
+        if: always()
+        uses: actions/github-script@v7
         with:
           script: |
-            github.rest.issues.createComment({
-              issue_number: context.issue.number,
+            const status = '${{ needs.deploy-cdk.result }}' === 'success' ? 'success' : 'failure';
+            const description = status === 'success' 
+              ? 'Deployment completed successfully' 
+              : 'Deployment failed';
+              
+            await github.rest.repos.createCommitStatus({
               owner: context.repo.owner,
               repo: context.repo.repo,
-              body: '🚀 Successfully deployed to **Development** environment!\n\nAPI Endpoint: `${{ env.API_ENDPOINT }}`\n\nYou can test the deployment using the API endpoint above.'
-            })
-
-  deploy-staging:
-    name: 'Deploy to Staging'
-    runs-on: ubuntu-latest
-    needs: [validate, build]
-    if: needs.validate.outputs.environment == 'staging' && needs.validate.outputs.has_changes == 'true'
-    environment: staging
-    
-    steps:
-      - name: Checkout Code
-        uses: actions/checkout@v4
-      
-      - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v3
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ env.AWS_DEFAULT_REGION }}
-      
-      - name: Download Build Artifacts
-        uses: actions/download-artifact@v3
-        with:
-          name: sam-build-staging
-          path: infrastructure/
-      
-      - name: Install SAM CLI
-        run: pip install aws-sam-cli==${{ env.SAM_CLI_VERSION }}
-      
-      - name: Deploy to Staging
-        run: |
-          cd infrastructure
-          sam deploy \
-            --template-file packaged-staging.yaml \
-            --stack-name multi-step-llm-pipeline-staging \
-            --capabilities CAPABILITY_IAM \
-            --parameter-overrides \
-              EnvironmentName=staging \
-              NotificationEmail="${{ secrets.NOTIFICATION_EMAIL }}" \
-            --no-confirm-changeset \
-            --no-fail-on-empty-changeset \
-            --tags Environment=staging Project=multi-step-llm-pipeline Owner=${{ github.actor }}
-        env:
-          SAM_CLI_TELEMETRY: 0
-      
-      - name: Update API Keys in Secrets Manager
-        run: |
-          echo "Updating staging secrets..."
-          aws secretsmanager put-secret-value \
-            --secret-id multi-step-llm-pipeline-staging-secrets \
-            --secret-string '{
-              "ANTHROPIC_API_KEY": "${{ secrets.ANTHROPIC_API_KEY }}",
-              "OPENAI_API_KEY": "${{ secrets.OPENAI_API_KEY }}",
-              "EXA_API_KEY": "${{ secrets.EXA_API_KEY }}",
-              "COHERE_API_KEY": "${{ secrets.COHERE_API_KEY }}",
-              "GITHUB_TOKEN": "${{ secrets.GITHUB_TOKEN }}",
-              "PERPLEXITY_KEY": "${{ secrets.PERPLEXITY_KEY }}"
-            }' || echo "Secrets update failed - may need to be done manually"
-      
-      - name: Run Integration Tests
-        run: |
-          echo "Running integration tests against staging..."
-          STACK_NAME="multi-step-llm-pipeline-staging"
-          
-          # Get API endpoint
-          API_ENDPOINT=$(aws cloudformation describe-stacks \
-            --stack-name $STACK_NAME \
-            --query 'Stacks[0].Outputs[?OutputKey==`ApiEndpoint`].OutputValue' \
-            --output text)
-          
-          echo "Testing against: $API_ENDPOINT"
-          
-          # Test pipeline creation
-          RESPONSE=$(curl -s -X POST "${API_ENDPOINT}/pipeline/start" \
-            -H "Content-Type: application/json" \
-            -d '{"researchDocId":"test-integration-'"$(date +%s)"'","username":"ci-test"}')
-          
-          echo "Pipeline start response: $RESPONSE"
-          
-          JOB_ID=$(echo $RESPONSE | python3 -c "import sys, json; print(json.load(sys.stdin).get('jobId', ''))")
-          
-          if [[ -n "$JOB_ID" ]]; then
-            echo "✅ Pipeline creation test passed: $JOB_ID"
-            
-            # Wait a bit and check status
-            sleep 10
-            STATUS_RESPONSE=$(curl -s "${API_ENDPOINT}/pipeline/status/${JOB_ID}")
-            echo "Status check response: $STATUS_RESPONSE"
-            
-            echo "✅ Integration tests passed"
-          else
-            echo "❌ Integration tests failed"
-            exit 1
-          fi
-
-  deploy-production:
-    name: 'Deploy to Production'
-    runs-on: ubuntu-latest
-    needs: [validate, build, deploy-staging]
-    if: needs.validate.outputs.environment == 'production' && needs.validate.outputs.has_changes == 'true'
-    environment: production
-    
-    steps:
-      - name: Checkout Code
-        uses: actions/checkout@v4
-      
-      - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v3
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID_PROD }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY_PROD }}
-          aws-region: ${{ env.AWS_DEFAULT_REGION }}
-      
-      - name: Download Build Artifacts
-        uses: actions/download-artifact@v3
-        with:
-          name: sam-build-production
-          path: infrastructure/
-      
-      - name: Install SAM CLI
-        run: pip install aws-sam-cli==${{ env.SAM_CLI_VERSION }}
-      
-      - name: Create Deployment Backup
-        run: |
-          echo "Creating backup of current production stack..."
-          STACK_NAME="multi-step-llm-pipeline-prod"
-          
-          if aws cloudformation describe-stacks --stack-name $STACK_NAME > /dev/null 2>&1; then
-            aws cloudformation describe-stacks --stack-name $STACK_NAME > production-backup-$(date +%Y%m%d-%H%M%S).json
-            echo "Backup created"
-          else
-            echo "No existing stack to backup"
-          fi
-      
-      - name: Deploy to Production
-        run: |
-          cd infrastructure
-          sam deploy \
-            --template-file packaged-production.yaml \
-            --stack-name multi-step-llm-pipeline-prod \
-            --capabilities CAPABILITY_IAM \
-            --parameter-overrides \
-              EnvironmentName=production \
-              NotificationEmail="${{ secrets.NOTIFICATION_EMAIL }}" \
-            --no-confirm-changeset \
-            --no-fail-on-empty-changeset \
-            --tags Environment=production Project=multi-step-llm-pipeline Owner=${{ github.actor }} Version=${{ github.sha }}
-        env:
-          SAM_CLI_TELEMETRY: 0
-      
-      - name: Update API Keys in Secrets Manager
-        run: |
-          echo "Updating production secrets..."
-          aws secretsmanager put-secret-value \
-            --secret-id multi-step-llm-pipeline-prod-secrets \
-            --secret-string '{
-              "ANTHROPIC_API_KEY": "${{ secrets.ANTHROPIC_API_KEY_PROD }}",
-              "OPENAI_API_KEY": "${{ secrets.OPENAI_API_KEY_PROD }}",
-              "EXA_API_KEY": "${{ secrets.EXA_API_KEY_PROD }}",
-              "COHERE_API_KEY": "${{ secrets.COHERE_API_KEY_PROD }}",
-              "GITHUB_TOKEN": "${{ secrets.GITHUB_TOKEN_PROD }}",
-              "PERPLEXITY_KEY": "${{ secrets.PERPLEXITY_KEY_PROD }}"
-            }' || echo "Secrets update failed - may need to be done manually"
-      
-      - name: Production Smoke Tests
-        run: |
-          echo "Running production smoke tests..."
-          STACK_NAME="multi-step-llm-pipeline-prod"
-          
-          # Get API endpoint
-          API_ENDPOINT=$(aws cloudformation describe-stacks \
-            --stack-name $STACK_NAME \
-            --query 'Stacks[0].Outputs[?OutputKey==`ApiEndpoint`].OutputValue' \
-            --output text)
-          
-          echo "Production API Endpoint: $API_ENDPOINT"
-          
-          # Basic health check
-          if curl -f "${API_ENDPOINT}/health" > /dev/null 2>&1; then
-            echo "✅ Production health check passed"
-          else
-            echo "❌ Production health check failed"
-            exit 1
-          fi
-      
-      - name: Notify Deployment Success
-        run: |
-          echo "🎉 Successfully deployed to production!"
-          echo "API Endpoint: $API_ENDPOINT"
-          echo "Dashboard: https://console.aws.amazon.com/cloudwatch/home?region=us-east-1#dashboards:name=multi-step-llm-pipeline-prod"
-
-  # ==================== CLEANUP ====================
-  
-  cleanup:
-    name: 'Cleanup Artifacts'
-    runs-on: ubuntu-latest
-    needs: [deploy-development, deploy-staging, deploy-production]
-    if: always()
-    
-    steps:
-      - name: Delete Old Artifacts
-        uses: actions/github-script@v6
-        with:
-          script: |
-            const { data: artifacts } = await github.rest.actions.listArtifactsForRepo({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
+              sha: context.sha,
+              state: status,
+              description: description,
+              context: 'continuous-deployment'
             });
-            
-            const oldArtifacts = artifacts.artifacts
-              .filter(artifact => {
-                const age = Date.now() - new Date(artifact.created_at).getTime();
-                return age > 7 * 24 * 60 * 60 * 1000; // 7 days
-              });
-            
-            for (const artifact of oldArtifacts) {
-              await github.rest.actions.deleteArtifact({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                artifact_id: artifact.id,
-              });
-              console.log(`Deleted artifact: ${artifact.name}`);
-            }

@@ -23,7 +23,7 @@
         "validateOnSynth": false,
         "assumeRoleArn": "arn:${AWS::Partition}:iam::984906149037:role/cdk-hnb659fds-deploy-role-984906149037-us-east-1",
         "cloudFormationExecutionRoleArn": "arn:${AWS::Partition}:iam::984906149037:role/cdk-hnb659fds-cfn-exec-role-984906149037-us-east-1",
-        "stackTemplateAssetObjectUrl": "s3://cdk-hnb659fds-assets-984906149037-us-east-1/ba876db29afeddeb85cdeadf771aafec41ee348c373736f4b0c867c2eaca24b0.json",
+        "stackTemplateAssetObjectUrl": "s3://cdk-hnb659fds-assets-984906149037-us-east-1/4f48e1f4870480914d19c61354f8c50cd471b8f153e457d3c5eeb508c60222a7.json",
         "requiresBootstrapStackVersion": 6,
         "bootstrapStackVersionSsmParameter": "/cdk-bootstrap/hnb659fds/version",
         "additionalDependencies": [
@@ -335,7 +335,7 @@
         "/MultiStepLLMBatch-dev/PipelineAPI/Deployment/Resource": [
           {
             "type": "aws:cdk:logicalId",
-            "data": "PipelineAPIDeployment7D46F45460a8c78627a9b5dd1b5a39cc422992cf"
+            "data": "PipelineAPIDeployment7D46F45425f96b37c9108670fb2019a14fb9dd46"
           }
         ],
         "/MultiStepLLMBatch-dev/PipelineAPI/DeploymentStage.prod/Resource": [
@@ -522,6 +522,36 @@
           {
             "type": "aws:cdk:logicalId",
             "data": "PipelineAPIapistatusrunningGET4A333D91"
+          }
+        ],
+        "/MultiStepLLMBatch-dev/PipelineAPI/Default/api/status/all/Resource": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "PipelineAPIapistatusall9830F19E"
+          }
+        ],
+        "/MultiStepLLMBatch-dev/PipelineAPI/Default/api/status/all/OPTIONS/Resource": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "PipelineAPIapistatusallOPTIONS7B0E600D"
+          }
+        ],
+        "/MultiStepLLMBatch-dev/PipelineAPI/Default/api/status/all/GET/ApiPermission.MultiStepLLMBatchdevPipelineAPI2A9CA470.GET..api.status.all": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "PipelineAPIapistatusallGETApiPermissionMultiStepLLMBatchdevPipelineAPI2A9CA470GETapistatusall22CE302B"
+          }
+        ],
+        "/MultiStepLLMBatch-dev/PipelineAPI/Default/api/status/all/GET/ApiPermission.Test.MultiStepLLMBatchdevPipelineAPI2A9CA470.GET..api.status.all": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "PipelineAPIapistatusallGETApiPermissionTestMultiStepLLMBatchdevPipelineAPI2A9CA470GETapistatusall1FA7CBB6"
+          }
+        ],
+        "/MultiStepLLMBatch-dev/PipelineAPI/Default/api/status/all/GET/Resource": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "PipelineAPIapistatusallGETBCF0661B"
           }
         ],
         "/MultiStepLLMBatch-dev/PipelineAPI/Default/api/plan/Resource": [

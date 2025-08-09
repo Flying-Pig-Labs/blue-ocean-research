@@ -155,7 +155,8 @@ def main() -> None:
     
     # Get environment variables
     research_id = args.research_id or os.environ.get('RESEARCH_ID')
-    job_id = args.job_id or os.environ.get('JOB_ID', 'unknown')
+    # Use AWS Batch's automatically set job ID
+    job_id = args.job_id or os.environ.get('AWS_BATCH_JOB_ID', os.environ.get('JOB_ID', 'unknown'))
     s3_input = args.s3_input or os.environ.get('S3_INPUT_KEY')
     
     print(f"Starting pipeline for Research ID: {research_id}, Job ID: {job_id}")
@@ -241,8 +242,24 @@ def main() -> None:
         github_repo_name = None
         issues_created = 0
         
-        # Try to extract GitHub info from pipeline output
-        # This would need to be saved by the pipeline or parsed from logs
+        # Try to read GitHub results from the file saved by product_idea_generator
+        github_results_file = "github_results.json"
+        if os.path.exists(github_results_file):
+            try:
+                with open(github_results_file, 'r') as f:
+                    github_results = json.load(f)
+                    github_repo_url = github_results.get('repo_url')
+                    github_repo_name = github_results.get('repo_name')
+                    issues_created = github_results.get('issues_created', 0)
+                    print(f"Loaded GitHub results: {github_repo_url} with {issues_created} issues")
+                    
+                    # Also upload the GitHub results file to S3
+                    if output_bucket and research_id:
+                        s3_key = f"outputs/{research_id}/github_results.json"
+                        upload_to_s3(github_results_file, output_bucket, s3_key)
+                        print(f"Uploaded GitHub results to s3://{output_bucket}/{s3_key}")
+            except Exception as e:
+                print(f"Error loading GitHub results: {e}")
         
         # Update status to SUCCEEDED in both tables
         update_job_status(job_id, 'SUCCEEDED', 'Pipeline completed successfully')

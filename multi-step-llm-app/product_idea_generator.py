@@ -1592,6 +1592,21 @@ Output in a structured format that can be parsed."""
                 console.print(
                     f"[green]✅ Created {len(result['issues_created'])} issues[/green]"
                 )
+            
+            # Save GitHub results to a file for batch_wrapper to read
+            github_results = {
+                "repo_url": result.get("repo_url"),
+                "repo_name": final_repo_name,
+                "issues_created": len(result.get("issues_created", [])),
+                "success": True,
+                "timestamp": datetime.now().isoformat()
+            }
+            
+            with open("github_results.json", "w") as f:
+                json.dump(github_results, f, indent=2)
+            console.print(
+                f"[green]✅ Saved GitHub results to github_results.json[/green]"
+            )
         else:
             console.print(
                 "[red]❌ Failed to create GitHub repository[/red]"
@@ -1599,6 +1614,19 @@ Output in a structured format that can be parsed."""
             if result.get("errors"):
                 for error in result["errors"]:
                     console.print(f"[red]  • {error}[/red]")
+            
+            # Save failure result
+            github_results = {
+                "repo_url": None,
+                "repo_name": None,
+                "issues_created": 0,
+                "success": False,
+                "errors": result.get("errors", []),
+                "timestamp": datetime.now().isoformat()
+            }
+            
+            with open("github_results.json", "w") as f:
+                json.dump(github_results, f, indent=2)
         
         # Return early - GitHub creation already attempted above
         return

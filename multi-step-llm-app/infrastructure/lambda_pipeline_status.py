@@ -15,7 +15,7 @@ from typing import Dict, Any, List, Optional
 
 # Initialize AWS clients
 dynamodb = boto3.resource('dynamodb')
-table = dynamodb.Table('InnovationPipelineJobs')
+table = dynamodb.Table('PipelineBatchJobs')
 batch_client = boto3.client('batch')
 
 
@@ -106,9 +106,8 @@ def format_job_for_status_endpoint(job: Dict[str, Any]) -> Dict[str, Any]:
     current_stage_str = job.get('currentStage', 'Starting pipeline')
     stage_info = get_stage_info(current_stage_str)
     
-    # Map status
-    backend_status = job.get('status', 'SUBMITTED')
-    frontend_status = STATUS_MAP.get(backend_status, backend_status)
+    # Use actual AWS Batch status without mapping
+    status = job.get('status')
     
     # Calculate elapsed time
     elapsed_minutes = 0
@@ -155,7 +154,7 @@ def format_job_for_status_endpoint(job: Dict[str, Any]) -> Dict[str, Any]:
     # Build response
     response = {
         'jobId': job.get('jobId'),
-        'status': frontend_status,
+        'status': status,
         'currentStage': stage_number,
         'stageName': stage_info['name'],
         'stageProgress': round(stage_progress),
@@ -179,12 +178,12 @@ def format_job_for_status_endpoint(job: Dict[str, Any]) -> Dict[str, Any]:
     }
     
     # Add completion time if finished
-    if frontend_status == 'COMPLETED':
+    if status == 'SUCCEEDED':
         response['completedAt'] = job.get('endTime')
         response['actualDurationMinutes'] = round(elapsed_minutes, 1)
     
     # Add error if failed
-    if frontend_status == 'FAILED':
+    if status == 'FAILED':
         response['error'] = job.get('error', 'Pipeline failed')
     
     return response
@@ -193,10 +192,11 @@ def format_job_for_status_endpoint(job: Dict[str, Any]) -> Dict[str, Any]:
 def format_job_for_running_endpoint(job: Dict[str, Any]) -> Dict[str, Any]:
     """Format job data for /api/status/running endpoint"""
     
-    # Calculate elapsed time
+    # Calculate elapsed time using startTime or createdAt
     elapsed_minutes = 0
-    if 'startTime' in job:
-        start = datetime.fromisoformat(job['startTime'].replace('Z', '+00:00'))
+    start_time_field = job.get('startTime') or job.get('createdAt')
+    if start_time_field:
+        start = datetime.fromisoformat(start_time_field.replace('Z', '+00:00'))
         if 'endTime' in job:
             end = datetime.fromisoformat(job['endTime'].replace('Z', '+00:00'))
             elapsed_minutes = (end - start).total_seconds() / 60
@@ -207,7 +207,7 @@ def format_job_for_running_endpoint(job: Dict[str, Any]) -> Dict[str, Any]:
         'jobId': job.get('jobId'),
         'researchId': job.get('researchId'),
         'username': job.get('username'),
-        'startTime': job.get('startTime'),
+        'startTime': start_time_field,  # Use the field we found (startTime or createdAt)
         'endTime': job.get('endTime'),
         'status': job.get('status'),  # Keep backend status for this endpoint
         'currentStage': job.get('currentStage'),
@@ -215,7 +215,7 @@ def format_job_for_running_endpoint(job: Dict[str, Any]) -> Dict[str, Any]:
         'elapsedMinutes': round(elapsed_minutes, 1),
         'githubRepoUrl': job.get('githubRepoUrl'),
         'issuesCreated': job.get('issuesCreated', 0),
-        'error': job.get('error')
+        'error': job.get('error') or job.get('message')  # Also check 'message' field
     }
 
 
@@ -248,8 +248,8 @@ def lambda_handler(event, context):
         path = event.get('path', '')
         path_params = event.get('pathParameters', {})
         
-        # Route: GET /api/status/running
-        if path == '/api/status/running' or path == '/status/running':
+        # Route: GET /api/status/running or /api/status/all
+        if path in ['/api/status/running', '/status/running', '/api/status/all', '/status/all']:
             # Get jobs from last 48 hours
             cutoff_time = (datetime.utcnow() - timedelta(hours=48)).isoformat() + 'Z'
             
@@ -257,16 +257,16 @@ def lambda_handler(event, context):
             all_jobs = []
             
             # We need to scan the table since we can't query by time alone
-            # In production, you might want to add a GSI on startTime
+            # Check for either startTime or createdAt field for compatibility
             response = table.scan(
-                FilterExpression='startTime > :cutoff',
+                FilterExpression='attribute_exists(startTime) AND startTime > :cutoff OR attribute_exists(createdAt) AND createdAt > :cutoff',
                 ExpressionAttributeValues={':cutoff': cutoff_time}
             )
             
             all_jobs = response.get('Items', [])
             
-            # Sort by startTime descending (newest first)
-            all_jobs.sort(key=lambda x: x.get('startTime', ''), reverse=True)
+            # Sort by startTime or createdAt descending (newest first)
+            all_jobs.sort(key=lambda x: x.get('startTime') or x.get('createdAt', ''), reverse=True)
             
             # Format jobs for frontend
             formatted_jobs = [format_job_for_running_endpoint(job) for job in all_jobs[:50]]

@@ -3,7 +3,7 @@
 """
 Pipeline Job Tracker for DynamoDB
 
-This module handles all interactions with the InnovationPipelineJobs DynamoDB table,
+This module handles all interactions with the PipelineBatchJobs DynamoDB table,
 tracking AWS Batch jobs and mapping them to research IDs for the frontend.
 
 Author: Multi-Step LLM Pipeline Team
@@ -20,7 +20,7 @@ import os
 # Initialize DynamoDB client and resource
 dynamodb_client = boto3.client('dynamodb', region_name='us-east-1')
 dynamodb_resource = boto3.resource('dynamodb', region_name='us-east-1')
-table = dynamodb_resource.Table('InnovationPipelineJobs')
+table = dynamodb_resource.Table('PipelineBatchJobs')
 
 
 def decimal_default(obj):
@@ -33,7 +33,7 @@ def decimal_default(obj):
 class PipelineJobTracker:
     """Manages job tracking in DynamoDB for the Innovation Pipeline"""
     
-    def __init__(self, table_name: str = 'InnovationPipelineJobs'):
+    def __init__(self, table_name: str = 'PipelineBatchJobs'):
         """Initialize the job tracker with DynamoDB table"""
         self.table = dynamodb_resource.Table(table_name)
     
@@ -109,7 +109,8 @@ class PipelineJobTracker:
             
             # Set TTL to 30 days from completion
             ttl_time = int((datetime.utcnow() + timedelta(days=30)).timestamp())
-            update_expr_parts.append('ttl = :ttl')
+            update_expr_parts.append('#ttl = :ttl')
+            expr_attrs['#ttl'] = 'ttl'  # ttl is a reserved keyword in DynamoDB
             expr_values[':ttl'] = ttl_time
         
         self.table.update_item(
