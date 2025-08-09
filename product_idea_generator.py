@@ -1471,6 +1471,14 @@ Output in a structured format that can be parsed."""
                 research_analysis = json.load(f)
         else:
             research_analysis = {"executive_summary": "Market research analysis"}
+        
+        # Load company metadata if available
+        if os.path.exists("research_metadata.json"):
+            with open("research_metadata.json", "r") as f:
+                metadata = json.load(f)
+                # Merge metadata into research_analysis
+                research_analysis.update(metadata)
+                print(f"✅ Loaded company metadata: {metadata.get('company_name', 'Unknown')}")
 
         # Load zones data (from value curves)
         zones_data = {"clustered_zones": {}}

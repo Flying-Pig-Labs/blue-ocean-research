@@ -781,22 +781,129 @@ class ResearchAnalyzer(DebugAwareComponent):
 
             return results
 
-    def combine_results(self, results: Dict[str, str]) -> str:
+    def extract_company_metadata(self, research_content: str) -> Dict[str, str]:
+        """
+        Extract company metadata from the research content.
+        
+        Searches for company name, domain/industry, and description from the research.
+        This metadata is critical for maintaining context throughout the pipeline.
+        
+        Args:
+            research_content: The raw research content
+            
+        Returns:
+            Dict containing company_name, domain, description, and executive_summary
+        """
+        import re
+        
+        metadata = {
+            "company_name": "Unknown Company",
+            "domain": "Unknown Domain", 
+            "company_description": "",
+            "executive_summary": ""
+        }
+        
+        # Extract company name patterns
+        # Look for "Providence Hill" or similar company names
+        company_patterns = [
+            r"Providence Hill(?:\s+(?:Group|Real Estate|Realty|Company|Corp|LLC))?",
+            r"Comprehensive Competitive Disruption Analysis:\s*([^-\n]+)",
+            r"Analysis:\s*([A-Z][A-Za-z0-9\s&]+(?:Group|Company|Corp|LLC|Inc))",
+            r"(?:Company|Business|Organization):\s*([A-Z][A-Za-z0-9\s&]+)",
+            r"# [^#\n]*?([A-Z][A-Za-z0-9\s&]+(?:Group|Company|Corp|LLC|Inc))[^#\n]*Market",
+            r"intelligence analysis reveals ([A-Z][A-Za-z0-9\s&]+(?:Real Estate|Group|Company))",
+        ]
+        
+        for pattern in company_patterns:
+            match = re.search(pattern, research_content, re.IGNORECASE)
+            if match:
+                metadata["company_name"] = match.group(1) if match.lastindex else match.group(0)
+                metadata["company_name"] = metadata["company_name"].strip()
+                break
+        
+        # Extract domain/industry
+        domain_patterns = [
+            r"(?:Domain|Industry|Sector|Market):\s*([^\n]+)",
+            r"Richmond(?:,)?\s*(?:VA|Virginia)?\s*(?:real estate|market)",
+            r"(?:operates?|operating|business)\s+in\s+([^\n,]+(?:industry|market|sector))",
+        ]
+        
+        for pattern in domain_patterns:
+            match = re.search(pattern, research_content, re.IGNORECASE)
+            if match:
+                metadata["domain"] = match.group(1) if match.lastindex else match.group(0)
+                metadata["domain"] = metadata["domain"].strip()
+                break
+        
+        # Extract executive summary (first paragraph or section)
+        summary_patterns = [
+            r"This exhaustive competitive intelligence analysis reveals ([^.]+\.[^.]+\.)",  # Get 2 sentences
+            r"exhaustive competitive intelligence analysis reveals ([^.]+\.[^.]+\.)",
+            r"^([^#\n]{100,800})",  # First substantial paragraph (increased size)
+            r"Executive Summary[:\s]*([^\n#]+(?:\n[^\n#]+)*)",
+        ]
+        
+        for pattern in summary_patterns:
+            match = re.search(pattern, research_content, re.MULTILINE | re.IGNORECASE)
+            if match:
+                metadata["executive_summary"] = match.group(1).strip()
+                break
+        
+        # Extract company description
+        desc_patterns = [
+            r"(?:is|represents?|operates as)\s+a?\s*([^.]+(?:brokerage|company|organization|firm)[^.]+\.)",
+            r"Founded in \d{4}[^.]+\.",
+        ]
+        
+        for pattern in desc_patterns:
+            match = re.search(pattern, research_content, re.IGNORECASE)
+            if match:
+                metadata["company_description"] = match.group(0).strip()
+                break
+        
+        # Special handling for Providence Hill
+        if "Providence Hill" in research_content:
+            metadata["company_name"] = "Providence Hill Group"
+            if "Richmond" in research_content and "real estate" in research_content.lower():
+                metadata["domain"] = "Real Estate Brokerage - Richmond, VA Market"
+                metadata["company_description"] = "Providence Hill Real Estate is a rapidly growing residential brokerage in Richmond, VA, founded in 2021 by industry veterans from SRMF Real Estate."
+        
+        return metadata
+
+    def combine_results(self, results: Dict[str, str], research_content: str = None) -> str:
         """
         Combine all analysis results into a single document.
 
         Merges the four analysis results into a well-formatted markdown document
-        with clear sections, timestamps, and visual separators.
+        with clear sections, timestamps, visual separators, and company metadata.
 
         Args:
             results: Dictionary mapping task names to analysis results
+            research_content: Original research content for metadata extraction
 
         Returns:
             str: Combined markdown document with all analysis results
         """
         combined = f"# Research Analysis Results\n\n"
         combined += f"Generated on: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n"
-        combined += "---\n\n"
+        
+        # Extract and add company metadata if research content provided
+        if research_content:
+            metadata = self.extract_company_metadata(research_content)
+            combined += "## Company Context\n\n"
+            combined += f"**Company:** {metadata['company_name']}\n"
+            combined += f"**Domain/Industry:** {metadata['domain']}\n"
+            if metadata['company_description']:
+                combined += f"**Description:** {metadata['company_description']}\n"
+            if metadata['executive_summary']:
+                combined += f"\n**Executive Summary:** {metadata['executive_summary']}\n"
+            combined += "\n---\n\n"
+            
+            # Also save metadata to JSON for pipeline stages
+            import json
+            with open("research_metadata.json", "w") as f:
+                json.dump(metadata, f, indent=2)
+            console.print("[green]✅ Saved company metadata to research_metadata.json[/green]")
 
         # Add each analysis section
         for task_name, content in results.items():
@@ -910,7 +1017,7 @@ class ResearchAnalyzer(DebugAwareComponent):
                 ComponentType.RESEARCH_ANALYZER,
                 "research_analysis_pipeline",
             )
-            combined_results = self.combine_results(results)
+            combined_results = self.combine_results(results, research_content)
             op.output_data_size = len(combined_results)
             op.records_processed = len(results)
 

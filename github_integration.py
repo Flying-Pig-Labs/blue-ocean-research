@@ -285,10 +285,18 @@ OUTPUT ONLY THE NAME (lowercase with hyphens):"""
         else:
             logger.warning("analysis_results.md not found - using limited research context")
         
-        # Extract the original business context from research analysis
-        original_business = research_analysis.get("company_name", "the target business")
-        business_domain = research_analysis.get("domain", research_analysis.get("industry", ""))
-        business_description = research_analysis.get("company_description", "")
+        # Load company metadata if available
+        company_metadata = {}
+        if os.path.exists("research_metadata.json"):
+            with open("research_metadata.json", "r") as f:
+                company_metadata = json.load(f)
+                logger.info(f"Loaded company metadata: {company_metadata.get('company_name', 'Unknown')}")
+        
+        # Extract the original business context from metadata or research analysis
+        original_business = company_metadata.get("company_name") or research_analysis.get("company_name", "the target business")
+        business_domain = company_metadata.get("domain") or research_analysis.get("domain", research_analysis.get("industry", ""))
+        business_description = company_metadata.get("company_description") or research_analysis.get("company_description", "")
+        executive_summary = company_metadata.get("executive_summary", "")
         
         prompt = f"""You are creating the definitive research report for a comprehensive market analysis that discovered multiple opportunity zones. Present ALL findings systematically.
 
@@ -303,6 +311,9 @@ Company/Business: {original_business}
 Domain/Industry: {business_domain}
 Description: {business_description}
 
+Executive Summary of Research:
+{executive_summary}
+
 IMPORTANT: The above research report contains ALL the original insights, pain points, industry verticals, personas, and specific details about {original_business}. 
 You MUST use this original research to ground all your analysis and recommendations.
 
@@ -316,10 +327,10 @@ Create a comprehensive README with this EXACT structure:
 # 🎯 Market Research & Innovation Portfolio for {original_business}
 
 ## 🏢 Business Context
-Clearly state:
 - **Target Business**: {original_business}
-- **Industry/Domain**: {business_domain}
-- **Strategic Focus**: How this research helps {original_business} navigate market opportunities and challenges
+- **Industry/Domain**: {business_domain if business_domain else 'Not specified'}
+- **Business Description**: {business_description if business_description else 'Market research analysis'}
+- **Strategic Focus**: Identifying high-value market opportunities and innovation pathways for {original_business}
 
 ## 1️⃣ Research Overview
 Write a narrative explaining what this research was about IN THE CONTEXT OF {original_business}. Include:
@@ -417,9 +428,9 @@ The following 10 ideas were selected based on weighted market opportunity and st
 
 ### Immediate Actions
 Based on this research, {original_business} should:
-1. **Defend Market Position**: Address competitive threats that pose disruption risk
-2. **Optimize Operations**: Implement efficiency improvements for quick gains
-3. **Expand Strategically**: Launch new ventures in highest-opportunity zones
+1. **Capitalize on Market Opportunities**: Focus on highest-value opportunity zones
+2. **Build Innovation Pipeline**: Develop products addressing key unmet needs
+3. **Establish Market Leadership**: Launch initiatives in emerging market segments
 
 ### Competitive Positioning
 - How {original_business} can leverage its strengths in {business_domain}
@@ -433,12 +444,12 @@ Based on this research, {original_business} should:
 gantt
     title Strategic Implementation Timeline for {original_business}
     dateFormat  YYYY-MM-DD
-    section Defense (RED)
-    Threat Mitigation    :2024-01-01, 60d
-    section Efficiency (BLACK)
-    Operational Improvements :2024-02-01, 120d
-    section Growth (WHITE)
-    New Venture Launch :2024-04-01, 180d
+    section Phase 1
+    Quick Wins & Foundation    :2024-01-01, 60d
+    section Phase 2
+    Core Development :2024-02-01, 120d
+    section Phase 3
+    Scale & Expansion :2024-04-01, 180d
 ```
 
 ## 📊 Success Metrics for {original_business}
@@ -457,9 +468,9 @@ gantt
 This comprehensive market research for {original_business} in {business_domain} analyzed {context['validation_evidence']['reddit_discussions_analyzed']} Reddit discussions, extracted {context['metrics']['total_jtbds']} jobs-to-be-done, identified {len(zones_with_percentages)} opportunity zones, and generated {context['metrics']['total_ideas_generated']} product ideas.
 
 **Key Takeaways for {original_business}:**
-- **Competitive threats to monitor**: [Summarize key disruption risks]
-- **Efficiency opportunities identified**: [Summarize operational improvements]  
-- **Growth ventures to pursue**: [Summarize expansion opportunities]
+- **Market opportunities identified**: [Summarize key opportunities]
+- **Strategic priorities**: [Summarize main focus areas]  
+- **Innovation pathways**: [Summarize product/service innovations]
 
 The research provides a strategic roadmap for {original_business} to maintain competitive advantage in {business_domain} while identifying new growth opportunities.
 
@@ -469,7 +480,7 @@ The research provides a strategic roadmap for {original_business} to maintain co
 
 Generate this README with:
 - Clear connection to {original_business} throughout
-- Strategic framing (RED/BLACK/WHITE team perspectives)
+- Market opportunity framing
 - Actual data from the context
 - Mermaid diagrams where specified
 - All zones covered with business relevance explained
@@ -1109,6 +1120,12 @@ Generate the enhanced v2 README that makes this research investment-ready:"""
             with open("analysis_results.md", "r") as f:
                 original_research_report = f.read()
         
+        # Load company metadata if available
+        company_metadata = {}
+        if os.path.exists("research_metadata.json"):
+            with open("research_metadata.json", "r") as f:
+                company_metadata = json.load(f)
+        
         # Get the zone's percentage and allocation info
         zones_with_percentages = self._calculate_zone_percentages(
             {"clustered_zones": {"zone": zone_data}} if zone_data else {}
@@ -1152,6 +1169,12 @@ CRITICAL CONTEXT FROM RESEARCH:
 - Solution requirements: {', '.join(zone_info.get('solution_requirements', [])[:3])}
 
 IMPORTANT: The original research report above contains the specific business context. Use it to ground this idea in the reality of the target business and their market.
+
+Company Context from Research:
+- Company: {company_metadata.get('company_name', 'Unknown')}
+- Domain: {company_metadata.get('domain', 'Unknown')}
+- Description: {company_metadata.get('company_description', '')}
+- Executive Summary: {company_metadata.get('executive_summary', '')[:500]}
 
 Create an EXCEPTIONAL GitHub issue that serves as a complete pitch deck. This should be so comprehensive that an investor could make a funding decision based solely on this issue.
 
@@ -1282,6 +1305,7 @@ Output the complete markdown content that will be the issue body:"""
 
     def create_labels(self, repo: Any) -> Dict[str, Any]:
         """Create standard labels for the repository."""
+        logger.info(f"Starting label creation for repo: {repo.name}")
         labels = [
             {
                 "name": "shark ready 🦈",
@@ -1377,11 +1401,26 @@ Output the complete markdown content that will be the issue body:"""
                         label = repo.get_label(label_data["name"])
                         created_labels[label_data["name"]] = label
                         logger.info(f"Label already exists: {label_data['name']}")
-                    except Exception:
-                        pass
+                    except Exception as get_error:
+                        logger.warning(f"Could not get existing label {label_data['name']}: {get_error}")
                 else:
                     logger.error(f"Error creating label {label_data['name']}: {e}")
+                    # For shark ready label, try harder to create it
+                    if label_data["name"] == "shark ready 🦈":
+                        logger.info("Retrying shark ready label creation...")
+                        try:
+                            # Try without emoji in the name
+                            label = repo.create_label(
+                                name="shark-ready",
+                                color=label_data["color"],
+                                description=label_data["description"]
+                            )
+                            created_labels["shark-ready"] = label
+                            logger.info("Created shark-ready label (without emoji)")
+                        except Exception as retry_error:
+                            logger.error(f"Failed to create shark-ready label: {retry_error}")
 
+        logger.info(f"Label creation complete. Successfully created: {list(created_labels.keys())}")
         return created_labels
 
     def create_github_project(
@@ -1443,7 +1482,9 @@ Output the complete markdown content that will be the issue body:"""
             results["repo_url"] = repo.html_url
 
             # Create labels
-            self.create_labels(repo)
+            logger.info("Creating repository labels...")
+            created_labels = self.create_labels(repo)
+            logger.info(f"Created {len(created_labels)} labels for repository")
 
             # Step 5: Create README in repository
             logger.info("📄 Step 5: Creating README.md in repository...")
