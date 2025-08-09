@@ -1,6 +1,4 @@
-"""
-Pydantic models for comprehensive logging system
-"""
+"""Data models and enums for pipeline logging infrastructure."""
 
 from datetime import datetime
 from typing import Dict, List, Optional, Any, Literal

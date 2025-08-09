@@ -1,9 +1,7 @@
-"""
-Smart Filtering System with Excellence Preservation
-=================================================
+"""Adaptive filtering of product ideas across zones.
 
-Implements adaptive filtering that preserves excellent ideas while optimizing
-portfolio selection across opportunity zones.
+Preserves high-scoring ideas while applying flexible quotas and
+breakthrough-aware filters for balanced portfolios.
 """
 
 from typing import Dict, List, Any, Tuple, Optional

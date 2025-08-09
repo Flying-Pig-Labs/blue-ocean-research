@@ -1,9 +1,7 @@
-"""
-Selection Reporting System
-========================
+"""Generate reports for the idea selection process.
 
-Generates comprehensive reports on the selection process with zone-by-zone
-analysis and breakthrough preservation metrics.
+Produces zone-by-zone analytics and breakthrough preservation metrics to
+explain how final selections were made.
 """
 
 from typing import Dict, List, Any, Optional

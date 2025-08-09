@@ -1,9 +1,7 @@
-"""
-Final Selection System with Ensemble Approach
-===========================================
+"""Ensemble-based final selection of product ideas.
 
-Implements multiple selection strategies with safety checks to prevent
-dropping excellent ideas and generate warnings for high-value ideas.
+Combines multiple selection strategies and safety checks to ensure high-value
+ideas are preserved while flagging risky decisions.
 """
 
 from typing import Dict, List, Any, Optional, Tuple
