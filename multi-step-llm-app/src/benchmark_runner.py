@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# NOTE: Legacy script; no references found in repository. Consider removal.
 """
 Benchmark Runner - Test different model configurations per step in isolation
 Allows comparing model performance, cost, and quality across variations

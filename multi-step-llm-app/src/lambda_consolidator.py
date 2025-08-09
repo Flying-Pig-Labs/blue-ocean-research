@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# NOTE: Legacy script; no references found in repository. Consider removal.
 """
 Lambda-compatible Idea Consolidator
 Refactored from idea_consolidator.py for AWS Lambda deployment

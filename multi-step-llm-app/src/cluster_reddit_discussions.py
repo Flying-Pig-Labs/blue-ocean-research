@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# NOTE: Legacy script; no references found in repository. Consider removal.
 """
 Cluster Reddit Discussions using Cohere Embeddings
 Finds patterns in real user discussions from Reddit threads

@@ -1,9 +1,7 @@
-"""
-Confidence Scoring and Risk Adjustment System
-===========================================
+"""Utilities for confidence scoring and risk adjustment.
 
-Calculates confidence in assessments and applies risk adjustments based on
-uncertainty levels and data quality.
+This module calculates confidence metrics for product ideas and applies
+risk adjustments based on data quality and assessment uncertainty.
 """
 
 from typing import Dict, List, Any, Optional, Tuple

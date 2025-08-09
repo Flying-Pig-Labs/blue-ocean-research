@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# NOTE: Legacy script; no references found in repository. Consider removal.
 """
 Lambda-compatible Jobs-to-Reddit Pipeline
 Refactored from jobs_to_reddit.py for AWS Lambda deployment

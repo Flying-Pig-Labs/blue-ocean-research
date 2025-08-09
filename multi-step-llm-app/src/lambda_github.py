@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# NOTE: Legacy script; no references found in repository. Consider removal.
 """
 Lambda Handler for GitHub Integration Stage
 Wraps the github_integration.py module for AWS Lambda execution

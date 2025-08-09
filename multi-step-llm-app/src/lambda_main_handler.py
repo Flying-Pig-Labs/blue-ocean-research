@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# NOTE: Legacy script; no references found in repository. Consider removal.
 """
 Main Lambda Handler for Multi-Step LLM Pipeline
 Handles API Gateway requests to start pipeline and check status

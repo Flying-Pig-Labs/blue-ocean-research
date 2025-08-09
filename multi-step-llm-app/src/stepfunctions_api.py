@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# NOTE: Legacy script; no references found in repository. Consider removal.
 """
 Step Functions API handlers for pipeline orchestration.
 Provides REST endpoints for starting, monitoring, and resuming pipeline executions.

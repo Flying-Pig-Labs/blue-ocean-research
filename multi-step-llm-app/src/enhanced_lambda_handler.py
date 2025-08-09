@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# NOTE: Legacy script; no references found in repository. Consider removal.
 """
 Enhanced AWS Lambda handler with GraphQL integration for real-time updates.
 Integrates with AppSync to provide real-time pipeline execution updates.

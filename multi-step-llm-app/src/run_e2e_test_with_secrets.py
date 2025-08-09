@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# NOTE: Legacy script; no references found in repository. Consider removal.
 """
 True end-to-end test for the multi-step LLM pipeline.
 Runs all 7 stages from original input to GitHub repository creation.

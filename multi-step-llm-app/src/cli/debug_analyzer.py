@@ -1,3 +1,4 @@
+# NOTE: Legacy script; no references found in repository. Consider removal.
 """
 CLI tool for analyzing debug sessions and showing cost savings
 """

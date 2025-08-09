@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# NOTE: Legacy script; no references found in repository. Consider removal.
 """
 Product Idea Generator - Final Pipeline Step
 Generates and filters product ideas based on ERRC analysis for each opportunity zone

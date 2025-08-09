@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# NOTE: Legacy script; no references found in repository. Consider removal.
 """
 Lambda-compatible Advanced Opportunity Zone Analyzer
 Refactored from opportunity_zone_analyzer.py for AWS Lambda deployment
