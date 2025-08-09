@@ -16,6 +16,7 @@ ENV/
 .pytest_cache/
 htmlcov/
 .coverage
+coverage.xml
 
 # IDE
 .vscode/
@@ -68,3 +69,11 @@ samconfig.toml
 reddit_embeddings_*.npy
 reddit_analysis_*.xlsx
 reddit_cluster_report_*.xlsx
+
+# Node.js
+node_modules/
+package-lock.json
+
+# Generated CSV outputs
+/reddit_*.csv
+/test_reddit_subset.csv

@@ -2,6 +2,8 @@
 
 A comprehensive 7-stage Python application suite that transforms raw market research into actionable product innovation portfolios with automatic GitHub repository creation. This pipeline leverages multiple AI models (Claude Sonnet/Opus, GPT-4o, OpenAI o1, Cohere) and Reddit's PRAW API to perform deep market analysis, customer insight extraction, opportunity identification, and product ideation.
 
+For detailed architecture, deployment, integration and testing guides, see the organized documentation under the `docs/` directory.
+
 ## 🆕 Recent Enhancements (December 2024)
 
 ### ✨ Enhanced Opportunity Zone Naming
