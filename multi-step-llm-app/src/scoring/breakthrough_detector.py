@@ -1,9 +1,7 @@
-"""
-Breakthrough Idea Detection System
-================================
+"""Detect breakthrough and moonshot product ideas.
 
-Identifies breakthrough potential, moonshot opportunities, and game-changing ideas
-with cross-industry versatility analysis.
+Provides heuristics for evaluating whether an idea represents a breakthrough,
+moonshot, or game-changing opportunity across multiple industries.
 """
 
 from typing import Dict, List, Any, Tuple, Optional

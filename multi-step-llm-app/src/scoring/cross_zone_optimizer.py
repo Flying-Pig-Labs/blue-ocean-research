@@ -1,9 +1,7 @@
-"""
-Cross-Zone Portfolio Optimization
-================================
+"""Optimize idea selection across opportunity zones.
 
-Optimizes idea selection across opportunity zones considering synergies,
-portfolio balance, and multi-objective optimization.
+This module evaluates synergies between ideas and balances portfolios across
+opportunity zones using multi-objective optimization heuristics.
 """
 
 from typing import Dict, List, Any, Tuple, Optional, Set

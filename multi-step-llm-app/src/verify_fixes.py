@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
-"""
-Verify all fixes have been applied to the pipeline.
+"""Legacy script for verifying earlier pipeline fixes.
+
+This script remains for historical reference and is not part of the active
+pipeline execution.
 """
 
 import re
