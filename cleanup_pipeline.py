@@ -29,7 +29,7 @@ Usage:
     python cleanup_pipeline.py              # Interactive mode with confirmation
     python cleanup_pipeline.py --dry-run    # Preview what would be deleted
     python cleanup_pipeline.py --force      # Skip confirmation (use with caution)
-    
+
 Safety Features:
 - Never deletes source code files
 - Preserves .env and configuration
@@ -51,12 +51,12 @@ console = Console()
 class PipelineCleanup:
     """
     Orchestrates safe cleanup of pipeline-generated files.
-    
+
     This class manages the identification and removal of all files generated
     during pipeline execution while carefully preserving essential project
     files. It uses pattern matching to identify outputs and maintains
     preservation lists to protect important files.
-    
+
     The cleanup process follows these steps:
     1. Scan directory for files matching cleanup patterns
     2. Filter out preserved files and directories
@@ -64,7 +64,7 @@ class PipelineCleanup:
     4. Request confirmation (unless forced)
     5. Remove identified files with error handling
     6. Report results and any errors encountered
-    
+
     Attributes:
         CLEANUP_PATTERNS: List of glob patterns for files to remove
         PRESERVE_FILES: Set of specific files to never delete
@@ -73,7 +73,7 @@ class PipelineCleanup:
         files_to_remove: List of files identified for removal
         files_removed: List of successfully removed files
         errors: List of (file, error) tuples for failures
-        
+
     Methods:
         find_files_to_clean: Scans for removable files
         is_safe_to_remove: Validates file can be deleted
@@ -86,37 +86,37 @@ class PipelineCleanup:
     # Organized by pipeline stage for clarity
     CLEANUP_PATTERNS = [
         # Stage 1: Research Analysis outputs
-        "analysis_results.md",              # Primary analysis output
-        "analysis_results_*.md",            # Timestamped versions
+        "analysis_results.md",  # Primary analysis output
+        "analysis_results_*.md",  # Timestamped versions
         # Stage 2: JTBD & Reddit Discovery outputs
-        "jtbds_*.txt",                      # Timestamped JTBD files
-        "reddit_discussions_*.csv",         # Reddit discussion data
-        "reddit_analysis_*.xlsx",           # Optional analysis spreadsheet
-        "jtbd_research.md",                 # Legacy format
-        "jtbd_research_*.md",               # Legacy timestamped
-        "pain_points.txt",                  # Legacy pain points
-        "pain_points_*.txt",                # Legacy timestamped
-        "*_pain_points.txt",                # Legacy pattern
+        "jtbds_*.txt",  # Timestamped JTBD files
+        "reddit_discussions_*.csv",  # Reddit discussion data
+        "reddit_analysis_*.xlsx",  # Optional analysis spreadsheet
+        "jtbd_research.md",  # Legacy format
+        "jtbd_research_*.md",  # Legacy timestamped
+        "pain_points.txt",  # Legacy pain points
+        "pain_points_*.txt",  # Legacy timestamped
+        "*_pain_points.txt",  # Legacy pattern
         # Stage 3: Opportunity Zone Analysis outputs
-        "opportunity_zones.json",            # Standard output
-        "opportunity_zones_advanced.json",   # Advanced analysis
-        "opportunity_zones_*.json",          # Timestamped versions
+        "opportunity_zones.json",  # Standard output
+        "opportunity_zones_advanced.json",  # Advanced analysis
+        "opportunity_zones_*.json",  # Timestamped versions
         # Stage 4: Value Curve Mapping outputs (deprecated)
-        "value_curves.json",                 # Legacy value curves
-        "value_curves_*.json",               # Legacy timestamped
-        "value_curves_report.md",            # Legacy report
-        "value_curves_report_*.md",          # Legacy timestamped
+        "value_curves.json",  # Legacy value curves
+        "value_curves_*.json",  # Legacy timestamped
+        "value_curves_report.md",  # Legacy report
+        "value_curves_report_*.md",  # Legacy timestamped
         # Stage 4: Product Idea Generation outputs
-        "product_ideas.json",                # Primary output (10 ideas)
-        "product_ideas_*.json",              # Timestamped versions
-        "product_ideas_report.md",           # Human-readable report
-        "product_ideas_report_*.md",         # Timestamped reports
+        "product_ideas.json",  # Primary output (10 ideas)
+        "product_ideas_*.json",  # Timestamped versions
+        "product_ideas_report.md",  # Human-readable report
+        "product_ideas_report_*.md",  # Timestamped reports
         "product_ideas_comprehensive.json",  # Full unfiltered output
-        "product_ideas_report_comprehensive.md", # Comprehensive report
+        "product_ideas_report_comprehensive.md",  # Comprehensive report
         # Stage 5: Idea Consolidation outputs
-        "final_innovation_portfolio.json",   # Enriched portfolio
-        "final_innovation_portfolio_*.json", # Timestamped versions
-        "final_innovation_portfolio_summary.md", # Executive summary
+        "final_innovation_portfolio.json",  # Enriched portfolio
+        "final_innovation_portfolio_*.json",  # Timestamped versions
+        "final_innovation_portfolio_summary.md",  # Executive summary
         # Test outputs
         "test_*.json",
         "test_*.md",
@@ -157,7 +157,7 @@ class PipelineCleanup:
     def __init__(self, dry_run: bool = False):
         """
         Initialize the pipeline cleanup handler.
-        
+
         Args:
             dry_run: If True, only preview files to be deleted without
                     actually removing them. Useful for verification.

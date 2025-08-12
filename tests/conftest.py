@@ -55,14 +55,14 @@ from pathlib import Path
 # These are fake keys that allow the code to initialize without errors
 # All actual API calls are mocked via fixtures below
 os.environ["ANTHROPIC_API_KEY"] = "test-anthropic-key"  # Mock Claude API key
-os.environ["AWS_ACCESS_KEY_ID"] = "test-aws-key"        # Mock AWS access key
+os.environ["AWS_ACCESS_KEY_ID"] = "test-aws-key"  # Mock AWS access key
 os.environ["AWS_SECRET_ACCESS_KEY"] = "test-aws-secret"  # Mock AWS secret
-os.environ["S3_BUCKET_NAME"] = "test-bucket"            # Mock S3 bucket name
-os.environ["S3_FILE_KEY"] = "test-key.json"             # Mock S3 object key
-os.environ["EXA_API_KEY"] = "test-exa-key"              # Mock Exa API key (deprecated)
-os.environ["COHERE_API_KEY"] = "test-cohere-key"        # Mock Cohere API key
-os.environ["OPENAI_API_KEY"] = "test-openai-key"        # Mock OpenAI API key
-os.environ["GITHUB_TOKEN"] = "test-github-token"        # Mock GitHub PAT
+os.environ["S3_BUCKET_NAME"] = "test-bucket"  # Mock S3 bucket name
+os.environ["S3_FILE_KEY"] = "test-key.json"  # Mock S3 object key
+os.environ["EXA_API_KEY"] = "test-exa-key"  # Mock Exa API key (deprecated)
+os.environ["COHERE_API_KEY"] = "test-cohere-key"  # Mock Cohere API key
+os.environ["OPENAI_API_KEY"] = "test-openai-key"  # Mock OpenAI API key
+os.environ["GITHUB_TOKEN"] = "test-github-token"  # Mock GitHub PAT
 
 
 @pytest.fixture
@@ -70,7 +70,7 @@ def sample_research_json():
     """
     Sample research JSON data matching Color Code Research Hub format.
     Represents the input to Stage 1 (Research Analysis).
-    
+
     Returns:
         dict: Research document with metadata and content sections
     """
@@ -85,7 +85,7 @@ def sample_analysis_results():
     """
     Sample analysis results from Stage 1 output.
     This markdown format is consumed by Stage 2 (JTBD Research).
-    
+
     Returns:
         str: Markdown-formatted analysis with verticals, personas, and pain points
     """
@@ -122,7 +122,7 @@ def sample_pain_points():
     """
     Sample pain points extracted from Reddit discussions.
     Input for Stage 3 (Opportunity Zone Clustering).
-    
+
     Returns:
         list: User pain points in first-person format
     """
@@ -141,7 +141,7 @@ def sample_opportunity_zones():
     Sample opportunity zones from Stage 3 output.
     Shows clustered pain points with weighted importance.
     Used as input for Stage 4 (Product Idea Generation).
-    
+
     Returns:
         dict: Opportunity zones with clusters and market percentages
     """
@@ -184,7 +184,7 @@ def mock_anthropic_client():
     """
     Mock Anthropic (Claude) API client.
     Simulates responses from Claude Sonnet/Opus models.
-    
+
     Returns:
         MagicMock: Mocked client with create() method returning test content
     """
@@ -200,7 +200,7 @@ def mock_s3_client():
     """
     Mock AWS S3 client for storage operations.
     Simulates reading research documents from S3.
-    
+
     Returns:
         MagicMock: Mocked boto3 S3 client with get_object() method
     """
@@ -220,7 +220,7 @@ def mock_exa_client():
     """
     Mock EXA API client (deprecated - replaced by PRAW).
     Kept for backward compatibility with older tests.
-    
+
     Returns:
         MagicMock: Mocked EXA client with search_and_contents() method
     """
@@ -239,7 +239,7 @@ def mock_cohere_client():
     """
     Mock Cohere API client for embeddings.
     Used in Stage 3 for clustering pain points.
-    
+
     Returns:
         MagicMock: Mocked client with embed() method returning test vectors
     """
@@ -254,7 +254,7 @@ def mock_openai_client():
     """
     Mock OpenAI API client (GPT-4o, GPT-5, o1).
     Simulates responses for idea generation and README creation.
-    
+
     Returns:
         MagicMock: Mocked client with chat.completions.create() method
     """
@@ -281,10 +281,10 @@ def temp_files(tmp_path):
     """
     Create temporary files for I/O testing.
     Provides isolated file system for each test.
-    
+
     Args:
         tmp_path: pytest's built-in temporary directory fixture
-        
+
     Returns:
         dict: Paths to temporary test files (json, pain_points, markdown)
     """

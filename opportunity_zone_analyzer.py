@@ -64,11 +64,11 @@ logger = logging.getLogger(__name__)
 class OpportunityZoneAnalyzer:
     """
     Discovers opportunity zones by analyzing pain dimensions across JTBDs.
-    
+
     This class orchestrates the complex process of transforming Reddit discussions
     and JTBDs into weighted market opportunity zones. It uses hierarchical clustering
     on 8-dimensional pain vectors to identify natural groupings of related problems.
-    
+
     The analyzer performs several sophisticated operations:
     1. Maps Reddit discussions to JTBDs based on semantic similarity
     2. Scores each discussion across 8 pain dimensions using keyword analysis
@@ -77,7 +77,7 @@ class OpportunityZoneAnalyzer:
     5. Generates unique names for each zone using LLM analysis
     6. Calculates market opportunity scores based on engagement metrics
     7. Extracts specific solution requirements for each zone
-    
+
     Attributes:
         PAIN_DIMENSIONS: Dictionary mapping pain types to indicator keywords
         anthropic_client: Claude API client for zone naming and analysis
@@ -85,7 +85,7 @@ class OpportunityZoneAnalyzer:
         jtbds: List of JTBD statements
         jtbd_reddit_mapping: Maps each JTBD to relevant Reddit discussions
         pain_profiles: 8-dimensional pain vectors for each JTBD
-        
+
     Methods:
         analyze: Main orchestration method
         map_reddit_to_jtbds: Associates discussions with relevant JTBDs
@@ -101,25 +101,25 @@ class OpportunityZoneAnalyzer:
     # These dimensions were empirically validated across 1000+ Reddit posts
     PAIN_DIMENSIONS = {
         "timing_coordination": [  # Problems with scheduling and time management
-            "schedule",      # "need to schedule showings"
-            "deadline",      # "closing deadline approaching"
-            "timing",        # "bad timing with lease end"
-            "delay",         # "delayed closing date"
+            "schedule",  # "need to schedule showings"
+            "deadline",  # "closing deadline approaching"
+            "timing",  # "bad timing with lease end"
+            "delay",  # "delayed closing date"
             "simultaneous",  # "selling and buying simultaneously"
-            "coordinate",    # "coordinate with multiple parties"
-            "sync",          # "sync up viewings"
-            "waiting",       # "waiting for responses"
+            "coordinate",  # "coordinate with multiple parties"
+            "sync",  # "sync up viewings"
+            "waiting",  # "waiting for responses"
         ],
         "financial_stress": [  # Money-related anxieties and constraints
-            "cost",          # "closing costs higher than expected"
-            "mortgage",      # "mortgage rate concerns"
-            "fee",           # "hidden fees everywhere"
-            "expensive",     # "everything is so expensive"
-            "afford",        # "can't afford current market"
-            "price",         # "price keeps going up"
-            "budget",        # "over budget already"
-            "payment",       # "down payment requirements"
-            "loan",          # "loan approval stress"
+            "cost",  # "closing costs higher than expected"
+            "mortgage",  # "mortgage rate concerns"
+            "fee",  # "hidden fees everywhere"
+            "expensive",  # "everything is so expensive"
+            "afford",  # "can't afford current market"
+            "price",  # "price keeps going up"
+            "budget",  # "over budget already"
+            "payment",  # "down payment requirements"
+            "loan",  # "loan approval stress"
         ],
         "communication_gaps": [
             "update",
@@ -191,14 +191,14 @@ class OpportunityZoneAnalyzer:
     def __init__(self, anthropic_api_key: str = None):
         """
         Initialize the analyzer with Anthropic client.
-        
+
         Sets up the Claude API client for LLM-powered zone naming and analysis.
         Falls back to environment variable if API key not provided directly.
-        
+
         Args:
             anthropic_api_key: Optional API key for Claude. If not provided,
                              uses ANTHROPIC_API_KEY environment variable.
-                             
+
         Raises:
             ValueError: If no API key available (neither argument nor env var)
         """

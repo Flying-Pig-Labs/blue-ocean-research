@@ -209,7 +209,8 @@ class ResearchAnalyzer(DebugAwareComponent):
                 "model", "claude-3-5-sonnet-20241022"
             )
             self.production_model_opus = pain_points_config.get(
-                "model", "claude-3-5-haiku-20241022"  # Was Opus, now Haiku for cost
+                "model",
+                "claude-3-5-haiku-20241022",  # Was Opus, now Haiku for cost
             )
 
             # Get debug-aware models - substitutes cheaper models in debug mode
@@ -255,7 +256,9 @@ class ResearchAnalyzer(DebugAwareComponent):
         self.aws_secret_key = os.getenv("AWS_SECRET_ACCESS_KEY")
         self.aws_region = os.getenv("AWS_REGION", "us-east-1")  # Default to us-east-1
         self.bucket_name = os.getenv("S3_BUCKET_NAME")  # e.g., "blue-ocean-research"
-        self.file_key = os.getenv("S3_FILE_KEY")  # e.g., "research-docs/market-analysis.json"
+        self.file_key = os.getenv(
+            "S3_FILE_KEY"
+        )  # e.g., "research-docs/market-analysis.json"
 
         if not all([self.aws_access_key, self.aws_secret_key, self.bucket_name]):
             self.logger.warning(

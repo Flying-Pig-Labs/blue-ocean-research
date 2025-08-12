@@ -82,11 +82,11 @@ console = Console()
 class ProductIdeaGenerator:
     """
     Orchestrates product idea generation with sophisticated multi-model AI and scoring.
-    
+
     This class manages the most complex operation in the pipeline, coordinating between
     multiple AI models (o1, Opus, GPT-4o, GPT-5) and sophisticated scoring algorithms
     to generate exactly 10 high-quality product ideas distributed by market opportunity.
-    
+
     The generation process follows these steps:
     1. Load opportunity zones with their market percentages
     2. For each zone, generate ERRC strategy using OpenAI o1
@@ -96,7 +96,7 @@ class ProductIdeaGenerator:
     6. Select top N ideas from each zone based on zone's market percentage
     7. Ensure exactly 10 total ideas are selected
     8. Optionally create GitHub repository with comprehensive documentation
-    
+
     Attributes:
         openai_client: OpenAI API client for o1 and GPT models
         anthropic_client: Claude API client for Opus model
@@ -105,7 +105,7 @@ class ProductIdeaGenerator:
         cross_zone_optimizer: Finds synergies across zones
         confidence_scorer: Calculates confidence levels
         final_selector: Makes strategic selection decisions
-        
+
     Models Used:
         - GPT-4o: ERRC strategy generation (1 call per zone)
         - Claude Opus: Product idea generation (1 call per zone)
@@ -117,19 +117,19 @@ class ProductIdeaGenerator:
     def __init__(self, debug_mode: bool = False):
         """
         Initialize API clients and sophisticated scoring system.
-        
+
         Sets up connections to multiple AI services and initializes the
         multi-component scoring system. Debug mode enables detailed logging
         and cost tracking for development.
-        
+
         Args:
             debug_mode: If True, enables detailed operation logging and
                        uses cheaper models where possible
-                       
+
         Environment Variables Required:
             OPENAI_API_KEY: For GPT-4o, o1, and GPT-5 models
             ANTHROPIC_API_KEY: For Claude Opus model
-            
+
         Raises:
             SystemExit: If required API keys are missing
         """
@@ -221,11 +221,11 @@ class ProductIdeaGenerator:
     ) -> Dict:
         """
         Use GPT-5 with maximum context for ultra-high-intelligence portfolio synthesis.
-        
+
         This method represents the pinnacle of AI-assisted innovation synthesis,
         leveraging GPT-5's advanced reasoning to create a comprehensive portfolio
         narrative that identifies breakthrough opportunities and strategic synergies.
-        
+
         The synthesis includes:
         - Executive summary with key insights
         - Breakthrough opportunity identification
@@ -233,7 +233,7 @@ class ProductIdeaGenerator:
         - Implementation roadmap
         - Risk assessment and mitigation strategies
         - Market entry recommendations
-        
+
         Args:
             final_selection: The 10 selected product ideas with full metadata
             zone_results: Complete results from all zones (for context)
@@ -241,10 +241,10 @@ class ProductIdeaGenerator:
             optimization_results: Cross-zone optimization insights
             jtbd_data: Original Jobs-to-be-Done data (optional)
             research_analysis: Original research analysis (optional)
-            
+
         Returns:
             Dict containing comprehensive portfolio synthesis with strategic insights
-            
+
         Note:
             This is the most expensive operation in the pipeline (~$1-2 per call)
             but provides the highest value in terms of strategic insights.

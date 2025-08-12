@@ -54,22 +54,22 @@ console = Console()
 class IdeaConsolidator:
     """
     Consolidates filtered product ideas into a comprehensive innovation portfolio.
-    
+
     This class takes the 10 carefully selected product ideas from Stage 4 and
     transforms them into a rich, structured portfolio suitable for executive
     review and development team implementation. It preserves the complete
     journey from research to idea, maintaining traceability.
-    
+
     The consolidator performs several enrichment operations:
     1. Adds unique tracking IDs for project management
     2. Preserves complete scoring and filtering history
     3. Includes strategic context (ERRC grids, zone analysis)
     4. Adds implementation metadata (timelines, resources)
     5. Creates both JSON and markdown outputs
-    
+
     Attributes:
         timestamp: ISO format timestamp for tracking
-        
+
     Methods:
         load_product_ideas: Loads Stage 4 output
         extract_complete_journey: Compiles pipeline metadata
@@ -81,7 +81,7 @@ class IdeaConsolidator:
     def __init__(self):
         """
         Initialize the idea consolidator.
-        
+
         Sets up timestamp for tracking and prepares the consolidation environment.
         The timestamp is used to track when the portfolio was finalized and
         appears in all output files for version control.
@@ -91,19 +91,19 @@ class IdeaConsolidator:
     def load_product_ideas(self, filepath: str) -> Dict:
         """
         Load product ideas from Stage 4 output.
-        
+
         Reads the product_ideas.json file containing the 10 filtered ideas
         along with their complete metadata, scoring history, and zone context.
-        
+
         Args:
             filepath: Path to product_ideas.json (default: "product_ideas.json")
-            
+
         Returns:
             Dict containing ideas array and metadata
-            
+
         Raises:
             SystemExit: If file not found or JSON parsing fails
-            
+
         Expected Structure:
             {
                 "ideas": [...10 product ideas...],
@@ -126,17 +126,17 @@ class IdeaConsolidator:
     def extract_complete_journey(self, data: Dict) -> Dict:
         """
         Extract complete pipeline journey metadata.
-        
+
         Compiles metadata from all previous pipeline stages to create a
         comprehensive journey record. This provides traceability from
         initial research through to final idea selection.
-        
+
         Args:
             data: Product ideas data with embedded metadata
-            
+
         Returns:
             Dict containing complete journey statistics and milestones
-            
+
         Journey Tracking Includes:
         - Pipeline completion timestamp
         - Total zones analyzed (typically 7)
@@ -170,21 +170,21 @@ class IdeaConsolidator:
     ) -> Dict:
         """
         Create exhaustive enriched details for a single product idea.
-        
+
         Transforms a filtered idea into a comprehensive data structure with
         all metadata, scores, strategic context, and implementation guidance.
         This becomes the canonical record for the idea throughout development.
-        
+
         Args:
             idea: Original idea dictionary from Stage 4
             zone: Opportunity zone this idea addresses
             errc_grid: ERRC strategy that guided idea generation
             zone_index: Numerical index of the zone (for ID generation)
             idea_index: Index of idea within zone (for ID generation)
-            
+
         Returns:
             Dict with exhaustive idea details in standardized format
-            
+
         Structure Created:
         - idea_id: Unique identifier (IDEA-XXX-YYY)
         - metadata: Generation context and zone info

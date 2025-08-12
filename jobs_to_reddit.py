@@ -71,15 +71,15 @@ console = Console()
 class JTBDRedditPipeline:
     """
     Orchestrates JTBD extraction and Reddit discussion discovery.
-    
+
     This class manages the entire Stage 2 pipeline, coordinating between
     Claude API for intelligent extraction and PRAW for Reddit searching.
     It handles rate limiting, error recovery, and data formatting.
-    
+
     Attributes:
         anthropic_client: Claude API client for JTBD operations
         reddit: PRAW Reddit instance for searching discussions
-        
+
     Methods:
         extract_jtbds_from_analysis: Uses Claude to extract JTBDs from analysis
         translate_jtbd_to_reddit_queries: Converts JTBDs to search queries
@@ -90,17 +90,17 @@ class JTBDRedditPipeline:
     def __init__(self):
         """
         Initialize API clients for Claude and Reddit.
-        
+
         Sets up authenticated connections to both Anthropic Claude API and
         Reddit API. Handles missing credentials gracefully with clear error
         messages. Reddit connection failures are non-fatal (allows offline mode).
-        
+
         Environment Variables Required:
             ANTHROPIC_API_KEY: Claude API key (mandatory)
             REDDIT_CLIENT_ID: Reddit app client ID (optional, has default)
             REDDIT_CLIENT_SECRET: Reddit app secret (optional, has default)
             REDDIT_USER_AGENT: Reddit user agent string (optional)
-            
+
         Raises:
             SystemExit: If ANTHROPIC_API_KEY is missing
         """
@@ -120,14 +120,14 @@ class JTBDRedditPipeline:
     def _init_reddit(self):
         """
         Initialize Reddit connection using PRAW.
-        
+
         Establishes authenticated connection to Reddit API using app credentials.
         Falls back to default Ocean Studio credentials if environment variables
         not set. Connection failures are non-fatal to allow offline development.
-        
+
         Returns:
             praw.Reddit: Authenticated Reddit instance, or None if connection fails
-            
+
         Note:
             Default credentials are read-only and rate-limited. For production,
             create your own Reddit app at https://www.reddit.com/prefs/apps
@@ -154,24 +154,24 @@ class JTBDRedditPipeline:
     def extract_jtbds_from_analysis(self, analysis_file: str) -> List[str]:
         """
         Extract Jobs-to-be-Done statements from analysis using Claude.
-        
+
         Processes the analysis_results.md file to identify and extract 20-30
         specific JTBD statements that represent real customer needs. Uses
         Claude Sonnet for intelligent extraction with structured prompting.
-        
+
         Args:
             analysis_file: Path to analysis results markdown file
-            
+
         Returns:
             List[str]: 20-30 JTBD statements in standard format
-            
+
         Raises:
             SystemExit: If file not found or Claude API fails
-            
+
         JTBD Formats:
         1. "When I [situation], I want to [motivation], so I can [outcome]"
         2. "[Action verb] [object] without/while/before [constraint]"
-        
+
         Example Output:
             ["Find affordable housing without sacrificing neighborhood quality",
              "When I relocate for work, I want to find housing quickly...",
@@ -240,23 +240,23 @@ Return ONLY a numbered list of JTBD statements, one per line. Nothing else."""
     def translate_jtbd_to_reddit_queries(self, jtbd: str) -> List[str]:
         """
         Translate a JTBD statement into authentic Reddit search queries.
-        
+
         Converts formal JTBD statements into the casual language and search
         patterns typical of Reddit users. Generates 2-3 query variations
         to maximize relevant discussion discovery.
-        
+
         Args:
             jtbd: Single JTBD statement to translate
-            
+
         Returns:
             List[str]: 2-3 Reddit search queries
-            
+
         Translation Strategy:
         - Remove formal language, use Reddit vernacular
         - Focus on pain points and frustrations
         - Include common Reddit phrases ("how do I", "anyone else", "tips for")
         - Target both questions and complaint formats
-        
+
         Example:
             Input: "Find affordable housing without sacrificing quality"
             Output: ["affordable housing good neighborhood",

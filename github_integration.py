@@ -58,25 +58,25 @@ logger = logging.getLogger(__name__)
 class GitHubIntegration:
     """
     Orchestrates GitHub repository creation with comprehensive documentation.
-    
+
     This class manages all GitHub operations, from repository creation to issue
     generation, label management, and documentation publishing. It handles both
     organization and personal repositories with intelligent fallback logic.
-    
+
     The integration creates a complete project structure:
     1. Repository with creative naming (via GPT-3.5-turbo)
     2. Comprehensive README with all research insights (via GPT-5)
     3. Individual issues for each product idea (via GPT-5)
     4. Smart labeling system for project management
     5. Cross-references between issues and source data
-    
+
     Attributes:
         github: PyGithub client instance
         user: Authenticated GitHub user
         organization: Target organization (if accessible)
         openai_client: OpenAI client for content generation
         perplexity_api_key: For deep research validation (optional)
-        
+
     Methods:
         create_github_project: Main orchestration method
         generate_creative_repo_name: Creates unique project names
@@ -93,20 +93,20 @@ class GitHubIntegration:
     ):
         """
         Initialize GitHub integration with authentication and API clients.
-        
+
         Sets up authenticated connections to GitHub, OpenAI, and optionally
         Perplexity APIs. Handles organization access with graceful fallback
         to personal repositories if organization is inaccessible.
-        
+
         Args:
             github_token: GitHub Personal Access Token. If not provided,
                         uses GITHUB_TOKEN environment variable.
             organization: Target GitHub organization name. Defaults to
                         "ocean-studio-repos" for Ocean Studio projects.
-                        
+
         Raises:
             ValueError: If no GitHub token is available
-            
+
         Environment Variables:
             GITHUB_TOKEN: GitHub PAT with repo creation permissions
             OPENAI_API_KEY: For creative naming and content generation
@@ -147,13 +147,13 @@ class GitHubIntegration:
     def check_repo_exists(self, repo_name: str) -> bool:
         """
         Check if a repository with the given name already exists.
-        
+
         Queries both organization and user repositories to prevent
         naming conflicts. Used before attempting to create new repos.
-        
+
         Args:
             repo_name: Name to check for existence
-            
+
         Returns:
             bool: True if repository exists, False otherwise
         """
@@ -171,11 +171,11 @@ class GitHubIntegration:
     ) -> str:
         """
         Generate a creative, unique repository name using GPT-3.5-turbo.
-        
+
         Creates Silicon Valley-style project codenames that are memorable,
         exciting, and convey innovation. Falls back to timestamp-based names
         if OpenAI is unavailable or all generated names are taken.
-        
+
         Args:
             research_context: Dictionary containing:
                 - market_domain: Target market or industry
@@ -184,11 +184,11 @@ class GitHubIntegration:
                 - industry: Industry vertical
                 - innovation_focus: Core innovation area
             max_attempts: Maximum attempts to generate unique name (default: 5)
-            
+
         Returns:
             str: Unique, creative repository name (e.g., "nexus-velocity",
                 "quantum-forge", "atlas-prime")
-                
+
         Examples:
             Real names generated: "skybridge-nexus", "velocity-core",
             "prism-labs", "zenith-forge", "nova-collective"

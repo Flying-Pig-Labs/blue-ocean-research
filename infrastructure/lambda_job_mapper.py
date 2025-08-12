@@ -65,10 +65,10 @@ def decimal_default(obj):
 def lambda_handler(event, context):
     """
     Main Lambda handler for job mapping and status queries.
-    
+
     Routes API Gateway requests to appropriate handlers based on path.
     All responses include CORS headers for frontend compatibility.
-    
+
     Args:
         event: API Gateway event containing:
             - path: Request path
@@ -76,13 +76,13 @@ def lambda_handler(event, context):
             - httpMethod: HTTP method (GET/OPTIONS)
             - headers: Request headers
         context: Lambda context (request ID, remaining time, etc.)
-        
+
     Returns:
         Dict with:
             - statusCode: HTTP status code
             - headers: Response headers including CORS
             - body: JSON response body
-            
+
     Error Handling:
         - 400: Missing required parameters
         - 404: Job or research not found
