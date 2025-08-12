@@ -1,0 +1,272 @@
+{
+  "analysis_metadata": {
+    "timestamp": "2025-08-09T18:34:32.040366",
+    "total_jtbds": 25,
+    "total_reddit_threads": 529,
+    "total_zones_discovered": 7,
+    "pain_dimensions_analyzed": [
+      "timing_coordination",
+      "financial_stress",
+      "communication_gaps",
+      "process_complexity",
+      "trust_issues",
+      "technology_gaps",
+      "decision_anxiety",
+      "market_dynamics"
+    ]
+  },
+  "opportunity_zones": [
+    {
+      "zone_id": "OZ_003",
+      "name": "Property Viewing & Neighborhood Discovery Platform for First-Time Buyers",
+      "jtbds_addressed": [
+        "JTBD_003",
+        "JTBD_004",
+        "JTBD_010",
+        "JTBD_017",
+        "JTBD_019",
+        "JTBD_020",
+        "JTBD_023"
+      ],
+      "jtbd_descriptions": [
+        "Schedule property viewings without coordinating multiple calendar systems...",
+        "When I'm buying my first home, I want step-by-step guidance through the process, so I can avoid comm...",
+        "When I'm relocating to Richmond, I want to explore neighborhoods virtually, so I can narrow my searc...",
+        "Schedule home inspections without playing phone tag...",
+        "Monitor market trends without manually compiling multiple data sources...",
+        "When I'm selling an investment property, I want to estimate net proceeds accurately, so I can plan m...",
+        "Process rental applications while ensuring compliance with fair housing laws..."
+      ],
+      "evidence_strength": {
+        "total_threads": 150,
+        "total_engagement": 75653,
+        "avg_score_per_thread": 359.6533333333333
+      },
+      "pain_dimensions": {
+        "timing_coordination": 0.33,
+        "financial_stress": 0.8,
+        "communication_gaps": 0.43,
+        "process_complexity": 0.6,
+        "trust_issues": 0.71,
+        "decision_anxiety": 0.75
+      },
+      "solution_requirements": [
+        "Calendar sync API that aggregates availability across agents, inspectors, and buyers into unified booking system",
+        "Virtual neighborhood tour platform with street-level imagery, crime data overlay, and school ratings integration",
+        "Automated fair housing compliance checker for rental applications with audit trail",
+        "Market analytics engine that combines MLS data, public records, and economic indicators into customizable reports",
+        "Step-by-step transaction workflow system with integrated document collection and milestone tracking"
+      ],
+      "market_opportunity_score": 0.71
+    },
+    {
+      "zone_id": "OZ_002",
+      "name": "Financial Management & Decision Support Platform for Retirement Property Transitions",
+      "jtbds_addressed": [
+        "JTBD_005",
+        "JTBD_008",
+        "JTBD_011",
+        "JTBD_012",
+        "JTBD_024"
+      ],
+      "jtbd_descriptions": [
+        "Share property documents securely while maintaining version control...",
+        "When I'm downsizing for retirement, I want to understand all my equity options, so I can maintain my...",
+        "Track transaction progress without making multiple phone calls...",
+        "When I'm upgrading to a larger home, I want to coordinate the sale and purchase timing, so I can avo...",
+        "When I'm expanding my service area, I want to understand hyperlocal market dynamics, so I can provid..."
+      ],
+      "evidence_strength": {
+        "total_threads": 106,
+        "total_engagement": 39275,
+        "avg_score_per_thread": 270.0188679245283
+      },
+      "pain_dimensions": {
+        "timing_coordination": 0.39,
+        "financial_stress": 0.7,
+        "process_complexity": 0.3,
+        "trust_issues": 0.48,
+        "decision_anxiety": 0.58,
+        "market_dynamics": 0.55
+      },
+      "solution_requirements": [
+        "Document vault with version control and permission-based sharing",
+        "Automated sale-purchase timing calculator with contingency planning",
+        "Market data aggregator showing price trends and time-on-market by neighborhood",
+        "Multi-party milestone tracking system with automated status updates",
+        "Equity scenario modeling tool comparing downsizing options with cost projections"
+      ],
+      "market_opportunity_score": 0.69
+    },
+    {
+      "zone_id": "OZ_001",
+      "name": "Decision Support & Transaction Coordination Platform for Luxury Property Marketing",
+      "jtbds_addressed": [
+        "JTBD_014",
+        "JTBD_018",
+        "JTBD_022",
+        "JTBD_025"
+      ],
+      "jtbd_descriptions": [
+        "When I'm managing client relationships, I want to automate routine communications, so I can focus on...",
+        "When I'm preparing for closing, I want to review all documents beforehand, so I can understand what ...",
+        "When I'm marketing a luxury property, I want to showcase unique features virtually, so I can attract...",
+        "Generate market analysis reports without manual data entry..."
+      ],
+      "evidence_strength": {
+        "total_threads": 55,
+        "total_engagement": 15826,
+        "avg_score_per_thread": 180.92727272727274
+      },
+      "pain_dimensions": {
+        "timing_coordination": 0.57,
+        "financial_stress": 0.5,
+        "communication_gaps": 0.37,
+        "process_complexity": 0.45,
+        "trust_issues": 0.5,
+        "decision_anxiety": 0.77
+      },
+      "solution_requirements": [
+        "Automated email/text scheduling system with customizable templates for client milestone notifications",
+        "Document review interface that highlights key terms and aggregates all closing paperwork with e-signature capability",
+        "360-degree virtual tour platform with hotspot tagging for property features and defects",
+        "API integration with MLS databases for automated market analysis report generation",
+        "Multi-party task tracking system with automated deadline reminders and status updates"
+      ],
+      "market_opportunity_score": 0.67
+    },
+    {
+      "zone_id": "OZ_004",
+      "name": "Real Estate Market Intelligence & Decision Support Platform",
+      "jtbds_addressed": [
+        "JTBD_001"
+      ],
+      "jtbd_descriptions": [
+        "When I'm searching for properties, I want to instantly compare real-time market values across neighb..."
+      ],
+      "evidence_strength": {
+        "total_threads": 24,
+        "total_engagement": 12862,
+        "avg_score_per_thread": 432.8333333333333
+      },
+      "pain_dimensions": {
+        "timing_coordination": 0.63,
+        "financial_stress": 0.88,
+        "communication_gaps": 0.69,
+        "process_complexity": 0.68,
+        "trust_issues": 0.69,
+        "technology_gaps": 0.53,
+        "decision_anxiety": 0.72
+      },
+      "solution_requirements": [
+        "Automated real-time property value comparison engine pulling from multiple MLS databases",
+        "Interactive neighborhood price trend visualization with historical data overlay",
+        "Payment verification system with multi-step confirmation and detailed transaction logging",
+        "Financial planning calculator with downsizing scenario modeling capabilities"
+      ],
+      "market_opportunity_score": 0.67
+    },
+    {
+      "zone_id": "OZ_007",
+      "name": "Trust & Verification & Communication Hub Platform for Digital Home Sale Documentation",
+      "jtbds_addressed": [
+        "JTBD_002",
+        "JTBD_009"
+      ],
+      "jtbd_descriptions": [
+        "When I'm selling my home, I want to track all ongoing marketing activities and showings in one place...",
+        "Complete transaction paperwork digitally while meeting all legal requirements..."
+      ],
+      "evidence_strength": {
+        "total_threads": 46,
+        "total_engagement": 10410,
+        "avg_score_per_thread": 148.7826086956522
+      },
+      "pain_dimensions": {
+        "timing_coordination": 0.51,
+        "financial_stress": 0.53,
+        "communication_gaps": 0.64,
+        "process_complexity": 0.48,
+        "trust_issues": 0.84,
+        "decision_anxiety": 0.6
+      },
+      "solution_requirements": [
+        "Digital offer tracking system with mandatory written documentation and timestamp verification",
+        "Centralized showing calendar with automated activity logging and notification system",
+        "Document signing platform with version control and error detection for incorrect/mismatched signatures",
+        "Secure communication portal that records all agent-client interactions and offer discussions",
+        "Automated compliance checker for state-specific real estate regulations and required disclosures"
+      ],
+      "market_opportunity_score": 0.65
+    },
+    {
+      "zone_id": "OZ_005",
+      "name": "Real Estate Marketing & Cost Analysis Decision Platform",
+      "jtbds_addressed": [
+        "JTBD_007",
+        "JTBD_013",
+        "JTBD_015",
+        "JTBD_021"
+      ],
+      "jtbd_descriptions": [
+        "Generate professional listing materials without waiting for marketing team availability...",
+        "Access property history and maintenance records while touring homes...",
+        "Calculate total buying costs without consulting multiple service providers...",
+        "Coordinate moving services while managing the closing process..."
+      ],
+      "evidence_strength": {
+        "total_threads": 99,
+        "total_engagement": 27976,
+        "avg_score_per_thread": 206.13131313131314
+      },
+      "pain_dimensions": {
+        "financial_stress": 0.67,
+        "process_complexity": 0.32,
+        "decision_anxiety": 0.48
+      },
+      "solution_requirements": [
+        "Automated property listing generator with MLS data integration and customizable templates",
+        "Digital property maintenance log system with searchable history and document scanning",
+        "Interactive cost calculator combining mortgage, taxes, insurance, and closing fees with local rate APIs",
+        "Task management system linking closing milestones to moving service scheduling",
+        "Document storage vault with OCR for historical property records and maintenance receipts"
+      ],
+      "market_opportunity_score": 0.56
+    },
+    {
+      "zone_id": "OZ_006",
+      "name": "Real Estate Investment Analysis & Decision Support Platform",
+      "jtbds_addressed": [
+        "JTBD_006",
+        "JTBD_016"
+      ],
+      "jtbd_descriptions": [
+        "When I'm managing multiple investment properties, I want to analyze potential ROI before making offe...",
+        "When I'm evaluating mortgage options, I want to compare rates and terms side-by-side, so I can choos..."
+      ],
+      "evidence_strength": {
+        "total_threads": 49,
+        "total_engagement": 5054,
+        "avg_score_per_thread": 48.63265306122449
+      },
+      "pain_dimensions": {
+        "financial_stress": 0.83,
+        "process_complexity": 0.68,
+        "decision_anxiety": 0.75
+      },
+      "solution_requirements": [
+        "Side-by-side mortgage comparison calculator with customizable terms, rates, and fees",
+        "Property ROI analyzer that factors in location-specific expenses, taxes, and market appreciation",
+        "Cash flow projection tool with monthly/annual breakdowns including all operating costs",
+        "Investment scenario modeling system that compares different financing strategies (extra payments vs. investing)",
+        "Multi-property portfolio dashboard showing aggregate metrics and property-specific performance"
+      ],
+      "market_opportunity_score": 0.34
+    }
+  ],
+  "zone_summary": {
+    "highest_opportunity": "Property Viewing & Neighborhood Discovery Platform for First-Time Buyers",
+    "total_market_coverage": 1.0,
+    "strongest_pain_dimension": "financial_stress"
+  }
+}

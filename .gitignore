@@ -68,3 +68,10 @@ samconfig.toml
 reddit_embeddings_*.npy
 reddit_analysis_*.xlsx
 reddit_cluster_report_*.xlsx
+
+infrastructure/layers/python/
+infrastructure/layers/python/*
+infrastructure/layers/llm-sdks/
+infrastructure/layers/llm-sdks/*
+infrastructure/layers/ml-stack/
+infrastructure/layers/ml-stack/*

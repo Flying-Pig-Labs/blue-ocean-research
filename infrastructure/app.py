@@ -14,13 +14,13 @@ env_name = app.node.try_get_context("env") or "dev"
 
 # Create the stack
 stack = MultiStepLLMBatchStack(
-    app, 
+    app,
     f"MultiStepLLMBatch-{env_name}",
     env={
         "account": os.environ.get("CDK_DEFAULT_ACCOUNT"),
-        "region": os.environ.get("CDK_DEFAULT_REGION", "us-east-1")
+        "region": os.environ.get("CDK_DEFAULT_REGION", "us-east-1"),
     },
-    description=f"Multi-Step LLM Pipeline Batch Infrastructure ({env_name})"
+    description=f"Multi-Step LLM Pipeline Batch Infrastructure ({env_name})",
 )
 
 # Add tags

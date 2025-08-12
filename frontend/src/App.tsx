@@ -1,3 +1,42 @@
+/**
+ * Multi-Step LLM Pipeline Frontend - Main Application Component
+ * 
+ * Purpose: Root component that orchestrates the entire pipeline visualization interface,
+ *          providing real-time monitoring and control of AWS Batch pipeline executions.
+ * 
+ * This component serves as the central hub for the innovation pipeline frontend,
+ * managing execution state, GraphQL subscriptions, and coordinating all child
+ * components for a seamless monitoring experience.
+ * 
+ * Key Responsibilities:
+ * 1. Manage global application state (selected job, stage, modals)
+ * 2. Handle GraphQL queries and mutations for execution management
+ * 3. Coordinate component interactions and data flow
+ * 4. Provide responsive layout with collapsible sidebar
+ * 5. Display real-time execution status and progress
+ * 
+ * Component Architecture:
+ * - ExecutionListPanel: Sidebar showing all pipeline executions
+ * - PipelineFlowVisualization: Main canvas with ReactFlow pipeline diagram
+ * - NewExecutionModal: Form for starting new pipeline runs
+ * - StageDetailModal: Detailed view of individual stage outputs
+ * 
+ * GraphQL Integration:
+ * - Queries: ListExecutions, GetExecution
+ * - Mutations: StartExecution
+ * - Subscriptions: Real-time updates handled in child components
+ * 
+ * State Management:
+ * - selectedJobId: Currently selected pipeline execution
+ * - selectedStageId: Currently selected stage for detail view
+ * - showNewExecutionModal: Controls new execution modal visibility
+ * - showExecutionList: Controls sidebar visibility
+ * 
+ * @author Multi-Step LLM Pipeline Team
+ * @version 2.0.0
+ * @date January 2025
+ */
+
 import React, { useState, useCallback } from 'react';
 import { PipelineFlowVisualization } from './components/PipelineFlowVisualization';
 import { StageDetailModal } from './components/StageDetailModal';
@@ -15,7 +54,9 @@ function App() {
   const [showNewExecutionModal, setShowNewExecutionModal] = useState(false);
   const [showExecutionList, setShowExecutionList] = useState(true);
 
-  // Get list of executions
+  // GraphQL query to fetch all pipeline executions
+  // Returns up to 20 most recent executions with metadata and progress info
+  // Used to populate the sidebar execution list panel
   const { 
     data: executionsData, 
     loading: executionsLoading, 
@@ -50,12 +91,16 @@ function App() {
     `
   );
 
-  // Start new execution mutation
+  // GraphQL mutation for starting new pipeline executions
+  // Triggers AWS Batch job submission and returns job ID
+  // Used by NewExecutionModal when user submits the form
   const { executeMutation: startExecution, loading: startingExecution } = useGraphQLMutation<{
     startExecution: ExecutionUpdate;
   }>();
 
-  // Get current execution details if one is selected
+  // GraphQL query for detailed execution data of selected job
+  // Fetches complete stage information, outputs, and results
+  // Only runs when selectedJobId is set (conditional query)
   const { data: currentExecutionData } = useGraphQLQuery<{ getExecution: ExecutionUpdate }>(
     `
     query GetExecution($jobId: ID!) {
@@ -124,15 +169,37 @@ function App() {
   const executions = executionsData?.listExecutions?.items || [];
   const currentExecution = currentExecutionData?.getExecution;
 
+  /**
+   * Handle execution selection from the sidebar panel.
+   * Updates selected job and clears any selected stage.
+   * Triggers re-fetch of execution details via GraphQL.
+   * 
+   * @param jobId - AWS Batch job ID to select
+   */
   const handleExecutionSelect = useCallback((jobId: string) => {
     setSelectedJobId(jobId);
-    setSelectedStageId(null);
+    setSelectedStageId(null); // Clear stage selection when switching executions
   }, []);
 
+  /**
+   * Handle stage node click from the pipeline visualization.
+   * Opens the stage detail modal with outputs and logs.
+   * 
+   * @param stageId - Pipeline stage ID (1-7)
+   */
   const handleStageClick = useCallback((stageId: number) => {
     setSelectedStageId(stageId);
   }, []);
 
+  /**
+   * Handle new execution submission from modal form.
+   * Executes GraphQL mutation to start AWS Batch job.
+   * Updates UI state and refreshes execution list on success.
+   * 
+   * @param input - Execution parameters (research ID, configuration)
+   * @returns Promise that resolves when execution starts
+   * @throws Error if mutation fails (handled by mutation hook)
+   */
   const handleNewExecution = useCallback(async (input: StartExecutionInput) => {
     try {
       const mutation = `
@@ -165,9 +232,17 @@ function App() {
     }
   }, [startExecution, refetchExecutions]);
 
+  /**
+   * Compute selected stage data from execution state.
+   * Checks both completed stages and current running stage.
+   * Memoized to prevent unnecessary re-renders.
+   * 
+   * @returns Stage data for modal display or null if not found
+   */
   const selectedStage = React.useMemo(() => {
     if (!currentExecution || !selectedStageId) return null;
     
+    // First check completed stages, then check if it's the current running stage
     return currentExecution.completedStages.find(stage => stage.stageId === selectedStageId) ||
            (currentExecution.currentStageUpdate?.stageId === selectedStageId 
              ? currentExecution.currentStageUpdate 

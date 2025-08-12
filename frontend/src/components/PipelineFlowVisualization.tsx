@@ -1,3 +1,41 @@
+/**
+ * Pipeline Flow Visualization Component - ReactFlow-based Pipeline Diagram
+ * 
+ * Purpose: Renders an interactive flow diagram of the 7-stage innovation pipeline,
+ *          showing real-time progress, stage connections, and execution status.
+ * 
+ * This component creates a visual representation of the pipeline execution using
+ * ReactFlow library. It subscribes to GraphQL for real-time updates and animates
+ * the flow as stages complete. Each stage is clickable for detailed information.
+ * 
+ * Key Features:
+ * 1. Real-time stage status updates via GraphQL subscription
+ * 2. Animated edges showing active data flow
+ * 3. Color-coded stage nodes (pending, running, completed, failed)
+ * 4. Progress bars and time estimates for each stage
+ * 5. Interactive nodes with click handlers for details
+ * 
+ * Pipeline Structure:
+ * - Stage 1: Research Analysis (parallel LLM processing)
+ * - Stage 2: JTBD Research (Reddit API integration)
+ * - Stage 3: Pain Point Clustering (ML clustering)
+ * - Stage 4: Value Curve Mapping (competitive analysis)
+ * - Stage 5: Product Idea Generation (ERRC framework)
+ * - Stage 6: Idea Consolidation (portfolio creation)
+ * - Stage 7: GitHub Integration (repository creation)
+ * 
+ * Visual Design:
+ * - Nodes arranged in logical flow pattern
+ * - Smoothstep edges for clean connections
+ * - Animated edges for active transitions
+ * - Color coding: gray (pending), blue (running), green (completed), red (failed)
+ * 
+ * @component
+ * @author Multi-Step LLM Pipeline Team
+ * @version 2.0.0
+ * @date January 2025
+ */
+
 import React, { useState, useEffect, useCallback } from 'react';
 import ReactFlow, {
   Node,
@@ -16,15 +54,20 @@ import { useGraphQLSubscription } from '../hooks/useGraphQLSubscription';
 import { PipelineStageNode } from './PipelineStageNode';
 import { ExecutionUpdate, StageStatus } from '../types/graphql';
 
+// Custom node type registration for pipeline stages
+// PipelineStageNode is a custom component that renders stage details
 const nodeTypes: NodeTypes = {
   pipelineStage: PipelineStageNode,
 };
 
 interface PipelineFlowVisualizationProps {
-  jobId: string;
-  onStageClick?: (stageId: number) => void;
+  jobId: string;                           // AWS Batch job ID to monitor
+  onStageClick?: (stageId: number) => void; // Callback when stage node is clicked
 }
 
+// Initial node configuration for the 7-stage pipeline
+// Positions are carefully calculated for optimal visual flow
+// Each node contains metadata about the stage including estimates and I/O
 const initialNodes: Node[] = [
   {
     id: 'stage-1',
@@ -133,6 +176,9 @@ const initialNodes: Node[] = [
   },
 ];
 
+// Edge configuration connecting pipeline stages
+// Uses smoothstep type for aesthetic curved connections
+// Animation is controlled dynamically based on execution state
 const initialEdges: Edge[] = [
   {
     id: 'e1-2',
@@ -182,11 +228,17 @@ export const PipelineFlowVisualization: React.FC<PipelineFlowVisualizationProps>
   jobId,
   onStageClick,
 }) => {
+  // ReactFlow state management for nodes and edges
+  // Nodes represent pipeline stages, edges represent data flow
   const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
+  
+  // Local state for execution updates from GraphQL subscription
   const [executionUpdate, setExecutionUpdate] = useState<ExecutionUpdate | null>(null);
 
-  // Subscribe to real-time execution updates
+  // GraphQL subscription for real-time pipeline updates
+  // Receives updates every time a stage progresses or completes
+  // Includes stage outputs, errors, and timing information
   const { data: subscriptionData, error: subscriptionError } = useGraphQLSubscription(
     `
     subscription OnExecutionUpdate($jobId: ID!) {
@@ -245,17 +297,24 @@ export const PipelineFlowVisualization: React.FC<PipelineFlowVisualizationProps>
     { jobId }
   );
 
-  // Update nodes when subscription data changes
+  /**
+   * Effect to update visual state when subscription data changes.
+   * Updates node status, progress, and outputs based on execution state.
+   * Also animates edges between completed and running stages.
+   */
   useEffect(() => {
     if (subscriptionData?.onExecutionUpdate) {
       const update = subscriptionData.onExecutionUpdate;
       setExecutionUpdate(update);
 
+      // Update node data with latest execution information
+      // Each node's visual state reflects its execution status
       setNodes((prevNodes) =>
         prevNodes.map((node) => {
-          const stageId = parseInt(node.id.split('-')[1]);
+          const stageId = parseInt(node.id.split('-')[1]); // Extract numeric stage ID
           const stageUpdate = update.completedStages.find(s => s.stageId === stageId);
           
+          // Update completed stages with final data
           if (stageUpdate) {
             return {
               ...node,
@@ -272,7 +331,8 @@ export const PipelineFlowVisualization: React.FC<PipelineFlowVisualizationProps>
             };
           }
           
-          // Highlight current stage
+          // Update currently running stage with live progress
+          // Shows intermediate outputs and progress percentage
           if (stageId === update.currentStage && update.currentStageUpdate) {
             return {
               ...node,
@@ -289,7 +349,9 @@ export const PipelineFlowVisualization: React.FC<PipelineFlowVisualizationProps>
         })
       );
 
-      // Update edge animations based on completion status
+      // Dynamic edge styling based on pipeline flow
+      // Animates edges between completed source and running target
+      // Changes color to green for completed connections
       setEdges((prevEdges) =>
         prevEdges.map((edge) => {
           const sourceStageId = parseInt(edge.source.split('-')[1]);
@@ -314,15 +376,26 @@ export const PipelineFlowVisualization: React.FC<PipelineFlowVisualizationProps>
     }
   }, [subscriptionData, setNodes, setEdges]);
 
+  /**
+   * Handle new edge connections (not used in production).
+   * Included for ReactFlow completeness but pipeline has fixed topology.
+   */
   const onConnect = useCallback(
     (params: Connection) => setEdges((eds) => addEdge(params, eds)),
     [setEdges]
   );
 
+  /**
+   * Handle clicks on stage nodes to show detailed information.
+   * Extracts stage ID from node ID and triggers parent callback.
+   * 
+   * @param event - Mouse event (unused)
+   * @param node - Clicked node containing stage data
+   */
   const handleNodeClick = useCallback(
     (event: React.MouseEvent, node: Node) => {
       const stageId = parseInt(node.id.split('-')[1]);
-      onStageClick?.(stageId);
+      onStageClick?.(stageId); // Trigger parent component's handler
     },
     [onStageClick]
   );

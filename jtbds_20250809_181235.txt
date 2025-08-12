@@ -1,0 +1,27 @@
+# Jobs-to-be-Done extracted from analysis
+
+1. When I'm searching for properties, I want to instantly compare real-time market values across neighborhoods, so I can make confident offers based on accurate data.
+2. When I'm selling my home, I want to track all ongoing marketing activities and showings in one place, so I can stay informed without constantly calling my agent.
+3. Schedule property viewings without coordinating multiple calendar systems
+4. When I'm buying my first home, I want step-by-step guidance through the process, so I can avoid common mistakes and feel confident.
+5. Share property documents securely while maintaining version control
+6. When I'm managing multiple investment properties, I want to analyze potential ROI before making offers, so I can make data-driven decisions quickly.
+7. Generate professional listing materials without waiting for marketing team availability
+8. When I'm downsizing for retirement, I want to understand all my equity options, so I can maintain my lifestyle while reducing maintenance burden.
+9. Complete transaction paperwork digitally while meeting all legal requirements
+10. When I'm relocating to Richmond, I want to explore neighborhoods virtually, so I can narrow my search before visiting in person.
+11. Track transaction progress without making multiple phone calls
+12. When I'm upgrading to a larger home, I want to coordinate the sale and purchase timing, so I can avoid temporary housing.
+13. Access property history and maintenance records while touring homes
+14. When I'm managing client relationships, I want to automate routine communications, so I can focus on high-value interactions.
+15. Calculate total buying costs without consulting multiple service providers
+16. When I'm evaluating mortgage options, I want to compare rates and terms side-by-side, so I can choose the best financing solution.
+17. Schedule home inspections without playing phone tag
+18. When I'm preparing for closing, I want to review all documents beforehand, so I can understand what I'm signing.
+19. Monitor market trends without manually compiling multiple data sources
+20. When I'm selling an investment property, I want to estimate net proceeds accurately, so I can plan my next investment.
+21. Coordinate moving services while managing the closing process
+22. When I'm marketing a luxury property, I want to showcase unique features virtually, so I can attract qualified buyers efficiently.
+23. Process rental applications while ensuring compliance with fair housing laws
+24. When I'm expanding my service area, I want to understand hyperlocal market dynamics, so I can provide accurate guidance to clients.
+25. Generate market analysis reports without manual data entry
