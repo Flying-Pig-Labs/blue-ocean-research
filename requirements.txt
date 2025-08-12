@@ -20,6 +20,7 @@ pydantic>=2.0.0
 PyYAML>=6.0.0
 dataclasses>=0.6
 PyGithub>=2.1.0
+openpyxl>=3.1.0
 
 # Real-time updates and GraphQL integration
 gql>=3.4.1

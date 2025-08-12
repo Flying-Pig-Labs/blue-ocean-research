@@ -1,3 +1,49 @@
+/**
+ * Pipeline Stage Node Component - Custom ReactFlow Node for Pipeline Stages
+ * 
+ * Purpose: Renders individual stage nodes in the pipeline visualization,
+ *          displaying real-time status, progress, outputs, and timing information.
+ * 
+ * This component is a custom ReactFlow node that represents one of the 7 stages
+ * in the innovation pipeline. It provides rich visual feedback about stage
+ * execution including progress bars, status icons, file outputs, and error states.
+ * 
+ * Visual Features:
+ * 1. Color-coded border based on status (gray, blue, green, red)
+ * 2. Animated pulse effect when running
+ * 3. Progress bar with percentage display
+ * 4. Real-time timing information (estimated vs actual)
+ * 5. File output previews with sizes
+ * 6. Error message display for failed stages
+ * 7. Input/output summary for pending stages
+ * 
+ * Status States:
+ * - PENDING: Gray, shows expected inputs/outputs
+ * - RUNNING: Blue with pulse animation, shows progress
+ * - COMPLETED: Green, shows outputs and actual time
+ * - FAILED: Red, shows error message
+ * - SKIPPED: Gray, dimmed appearance
+ * 
+ * Data Display:
+ * - Stage number badge (1-7)
+ * - Stage name and description
+ * - Progress percentage (0-100%)
+ * - Time estimates and actuals
+ * - Generated file outputs with previews
+ * - Error messages if failed
+ * 
+ * ReactFlow Integration:
+ * - Input handle on left (except stage 1)
+ * - Output handle on right (except stage 7)
+ * - Handles styled with indigo color
+ * - Selected state with ring highlight
+ * 
+ * @component
+ * @author Multi-Step LLM Pipeline Team
+ * @version 2.0.0
+ * @date January 2025
+ */
+
 import React, { memo } from 'react';
 import { Handle, Position, NodeProps } from 'reactflow';
 import { 
@@ -31,6 +77,13 @@ interface PipelineStageNodeData {
   }>;
 }
 
+/**
+ * Get Tailwind CSS classes for node border and background based on status.
+ * Provides visual differentiation between stage states.
+ * 
+ * @param status - Current stage execution status
+ * @returns Tailwind class string for border and background colors
+ */
 const getStatusColor = (status: StageStatus): string => {
   switch (status) {
     case 'RUNNING':
@@ -46,6 +99,13 @@ const getStatusColor = (status: StageStatus): string => {
   }
 };
 
+/**
+ * Get appropriate icon component based on stage status.
+ * Icons provide quick visual indication of stage state.
+ * 
+ * @param status - Current stage execution status
+ * @returns React icon component with appropriate styling
+ */
 const getStatusIcon = (status: StageStatus): React.ReactElement => {
   switch (status) {
     case 'RUNNING':
@@ -61,18 +121,40 @@ const getStatusIcon = (status: StageStatus): React.ReactElement => {
   }
 };
 
+/**
+ * Format duration in minutes to human-readable string.
+ * Handles sub-minute durations and pluralization.
+ * 
+ * @param minutes - Duration in minutes
+ * @returns Formatted string (e.g., "5min", "<1min")
+ */
 const formatDuration = (minutes: number): string => {
   if (minutes < 1) return '<1min';
   if (minutes === 1) return '1min';
   return `${minutes}min`;
 };
 
+/**
+ * Format file size in bytes to human-readable string.
+ * Automatically selects appropriate unit (B, KB, MB).
+ * 
+ * @param bytes - File size in bytes
+ * @returns Formatted string with unit (e.g., "1.5MB", "256KB")
+ */
 const formatFileSize = (bytes: number): string => {
   if (bytes < 1024) return `${bytes}B`;
   if (bytes < 1048576) return `${Math.round(bytes / 1024)}KB`;
   return `${Math.round(bytes / 1048576 * 10) / 10}MB`;
 };
 
+/**
+ * Pipeline Stage Node Component.
+ * Memoized for performance optimization in ReactFlow.
+ * 
+ * @param data - Stage data including status, progress, outputs
+ * @param selected - Whether node is currently selected
+ * @returns React component rendering the stage node
+ */
 export const PipelineStageNode = memo<NodeProps<PipelineStageNodeData>>(({ data, selected }) => {
   const {
     stageId,
@@ -102,7 +184,8 @@ export const PipelineStageNode = memo<NodeProps<PipelineStageNodeData>>(({ data,
       ${isRunning ? 'animate-pulse' : ''}
       min-w-[280px] max-w-[320px]
     `}>
-      {/* Input Handle */}
+      {/* Input Handle - Connection point for incoming data flow */}
+      {/* Only stages 2-7 have inputs (stage 1 starts the pipeline) */}
       {stageId > 1 && (
         <Handle
           type="target"
@@ -116,7 +199,7 @@ export const PipelineStageNode = memo<NodeProps<PipelineStageNodeData>>(({ data,
         />
       )}
 
-      {/* Header */}
+      {/* Header Section - Stage number, name, description, and status icon */}
       <div className="flex items-start justify-between mb-3">
         <div className="flex items-center space-x-2">
           <div className="flex items-center justify-center w-6 h-6 rounded-full bg-indigo-100 text-indigo-600 text-xs font-medium">
@@ -132,7 +215,8 @@ export const PipelineStageNode = memo<NodeProps<PipelineStageNodeData>>(({ data,
         </div>
       </div>
 
-      {/* Progress Bar */}
+      {/* Progress Bar - Shows execution progress for active/completed stages */}
+      {/* Color changes based on status: blue (running), green (complete), red (failed) */}
       {(isRunning || isCompleted) && (
         <div className="mb-3">
           <div className="flex items-center justify-between mb-1">
@@ -150,7 +234,8 @@ export const PipelineStageNode = memo<NodeProps<PipelineStageNodeData>>(({ data,
         </div>
       )}
 
-      {/* Timing Information */}
+      {/* Timing Information - Estimated vs actual duration and timestamps */}
+      {/* Shows when stage started and completed for tracking performance */}
       <div className="flex items-center justify-between mb-3 text-xs text-gray-600">
         <div className="flex items-center space-x-1">
           <ClockIcon className="h-3 w-3" />
@@ -176,7 +261,8 @@ export const PipelineStageNode = memo<NodeProps<PipelineStageNodeData>>(({ data,
         </div>
       )}
 
-      {/* Stage Outputs */}
+      {/* Stage Outputs - Files generated by this stage */}
+      {/* Shows filename, size, and content preview for each output */}
       {stageOutputs && stageOutputs.length > 0 && (
         <div className="mb-3">
           <div className="text-xs font-medium text-gray-700 mb-2">Outputs:</div>
@@ -229,7 +315,8 @@ export const PipelineStageNode = memo<NodeProps<PipelineStageNodeData>>(({ data,
         </div>
       )}
 
-      {/* Output Handle */}
+      {/* Output Handle - Connection point for outgoing data flow */}
+      {/* Only stages 1-6 have outputs (stage 7 is the final stage) */}
       {stageId < 7 && (
         <Handle
           type="source"

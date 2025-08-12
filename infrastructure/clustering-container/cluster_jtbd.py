@@ -66,6 +66,7 @@ load_dotenv()
 # Import and load AWS secrets if available
 try:
     from src.utils.secrets_manager import load_aws_secrets
+
     load_aws_secrets(profile="mvp")
 except ImportError:
     pass  # Allow running without AWS secrets if keys are already in env
@@ -104,7 +105,7 @@ class JTBDClusterer:
         """
         # Load LLM configuration
         self.config_loader = ConfigLoader()
-        
+
         # Cohere setup
         self.cohere_api_key = os.getenv("COHERE_API_KEY")
         if not self.cohere_api_key:
@@ -126,12 +127,14 @@ class JTBDClusterer:
         try:
             openai.api_key = self.openai_api_key
             self.openai_client = openai.OpenAI(api_key=self.openai_api_key)
-            
+
             # Get model settings from config
-            naming_settings = self.config_loader.get_model_settings('clustering', 'naming')
-            self.model = naming_settings.get('model', 'gpt-4o')
-            self.temperature = naming_settings.get('temperature', 0.5)
-            self.max_tokens = naming_settings.get('max_tokens', 1500)
+            naming_settings = self.config_loader.get_model_settings(
+                "clustering", "naming"
+            )
+            self.model = naming_settings.get("model", "gpt-4o")
+            self.temperature = naming_settings.get("temperature", 0.5)
+            self.max_tokens = naming_settings.get("max_tokens", 1500)
         except Exception as e:
             console.print(f"[red]Error initializing OpenAI client: {e}[/red]")
             sys.exit(1)
@@ -242,7 +245,9 @@ class JTBDClusterer:
         # HDBSCAN with auto-tuned parameters for production
         # More adaptive: works with small (10+) and large (1000+) datasets
         clusterer = HDBSCAN(
-            min_cluster_size=max(3, min(20, len(embeddings) // 10)),  # Adaptive: 3-20 based on size
+            min_cluster_size=max(
+                3, min(20, len(embeddings) // 10)
+            ),  # Adaptive: 3-20 based on size
             min_samples=2,  # Lower threshold for denser clusters
             metric="euclidean",
             cluster_selection_epsilon=0.0,
@@ -272,25 +277,29 @@ class JTBDClusterer:
 
         # FALLBACK: If no clusters found, use KMeans to force clustering
         if n_clusters == 0:
-            console.print("[yellow]⚠️  No clusters found with HDBSCAN, falling back to KMeans...[/yellow]")
+            console.print(
+                "[yellow]⚠️  No clusters found with HDBSCAN, falling back to KMeans...[/yellow]"
+            )
             from sklearn.cluster import KMeans
-            
+
             # Determine optimal number of clusters (5-8 for good diversity)
             n_target_clusters = min(8, max(5, len(embeddings) // 20))
-            
+
             kmeans = KMeans(n_clusters=n_target_clusters, random_state=42, n_init=10)
             labels = kmeans.fit_predict(embeddings)
-            
+
             # Recalculate metrics
             n_clusters = len(set(labels))
             n_noise = 0  # KMeans has no noise points
-            
+
             try:
                 silhouette = silhouette_score(embeddings, labels)
             except Exception:
                 silhouette = -1
-                
-            console.print(f"[green]✅ Created {n_clusters} clusters using KMeans fallback[/green]")
+
+            console.print(
+                f"[green]✅ Created {n_clusters} clusters using KMeans fallback[/green]"
+            )
             console.print(f"[blue]📊 Silhouette score: {silhouette:.3f}[/blue]")
 
         return labels, silhouette
@@ -329,7 +338,7 @@ class JTBDClusterer:
                 # Use ALL texts for better context, but limit character count for prompt
                 # This ensures GPT-4o sees the full diversity of the cluster
                 all_texts_str = chr(10).join([f"- {t}" for t in texts])
-                
+
                 # If the full text is too long (>8000 chars), use intelligent sampling
                 if len(all_texts_str) > 8000:
                     # Take a diverse sample: first few, middle few, last few
@@ -338,12 +347,12 @@ class JTBDClusterer:
                         # Take first 10, middle 10, last 10
                         sample_texts.extend(texts[:10])
                         mid_point = len(texts) // 2
-                        sample_texts.extend(texts[mid_point-5:mid_point+5])
+                        sample_texts.extend(texts[mid_point - 5 : mid_point + 5])
                         sample_texts.extend(texts[-10:])
                     else:
                         # For smaller clusters, take all
                         sample_texts = texts
-                    
+
                     cluster_items_str = chr(10).join([f"- {t}" for t in sample_texts])
                 else:
                     # Use all texts if they fit
@@ -352,9 +361,7 @@ class JTBDClusterer:
 
                 # Format prompt using config loader
                 prompt = self.config_loader.format_prompt(
-                    'clustering', 
-                    'naming',
-                    cluster_items=cluster_items_str
+                    "clustering", "naming", cluster_items=cluster_items_str
                 )
 
                 try:

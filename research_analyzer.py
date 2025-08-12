@@ -70,7 +70,7 @@ from src.utils.debug_logger import initialize_debug_logger, close_debug_logger
 from src.utils.debug_aware_component import DebugAwareComponent
 
 # Import config loader for LLM configurations
-from config_loader import ConfigLoader
+from src.config_loader import ConfigLoader
 
 # Load environment variables
 load_dotenv()
@@ -155,7 +155,8 @@ class ResearchAnalyzer(DebugAwareComponent):
         Raises:
             SystemExit: If ANTHROPIC_API_KEY is not found in environment variables
         """
-        # Initialize debug-aware component
+        # Initialize debug-aware component for cost tracking and model substitution
+        # In debug mode, uses cheaper models (haiku) to reduce costs during development
         super().__init__(ComponentType.RESEARCH_ANALYZER, logger)
 
         # Initialize logger if not provided
@@ -164,7 +165,7 @@ class ResearchAnalyzer(DebugAwareComponent):
             # Initialize a new logger for this component
             config = Config()
             self.logger = initialize_logger(config)
-        
+
         # Load LLM configuration from YAML
         self.config_loader = ConfigLoader()
 
@@ -176,7 +177,8 @@ class ResearchAnalyzer(DebugAwareComponent):
         if self.debug_enabled:
             console.print("[yellow]🐛 Research Analyzer: DEBUG MODE ENABLED[/yellow]")
 
-        # Anthropic setup
+        # Anthropic setup - Critical for all LLM operations
+        # This API key must be present or the entire pipeline fails
         self.api_key = os.getenv("ANTHROPIC_API_KEY")
         if not self.api_key:
             self.logger.error(
@@ -189,15 +191,32 @@ class ResearchAnalyzer(DebugAwareComponent):
         try:
             self.client = anthropic.Anthropic(api_key=self.api_key)
 
-            # Get models from config
-            verticals_config = self.config_loader.get_model_settings('research_analysis', 'verticals')
-            pain_points_config = self.config_loader.get_model_settings('research_analysis', 'pain_points')
-            
-            # Production models from config
-            self.production_model_sonnet = verticals_config.get('model', 'claude-3-5-sonnet-20241022')
-            self.production_model_opus = pain_points_config.get('model', 'claude-3-5-haiku-20241022')
+            # Get models from config - allows centralized model management
+            # Model settings are defined in src/config/llm_models.yaml
+            # This enables easy model updates without code changes
+            verticals_config = self.config_loader.get_model_settings(
+                "research_analysis", "verticals"
+            )
+            pain_points_config = self.config_loader.get_model_settings(
+                "research_analysis", "pain_points"
+            )
 
-            # Get debug-aware models
+            # Production models from config with fallback defaults
+            # Sonnet: Used for structured extraction tasks (verticals, personas)
+            # Opus/Haiku: Used for complex analysis tasks (pain points, solutions)
+            # Note: Opus was originally used but Haiku is now default for cost
+            self.production_model_sonnet = verticals_config.get(
+                "model", "claude-3-5-sonnet-20241022"
+            )
+            self.production_model_opus = pain_points_config.get(
+                "model",
+                "claude-3-5-haiku-20241022",  # Was Opus, now Haiku for cost
+            )
+
+            # Get debug-aware models - substitutes cheaper models in debug mode
+            # Debug mode uses Haiku for all calls to reduce costs during development
+            # Production: Sonnet/Opus, Debug: Haiku/Haiku
+            # This can save $5-10 per pipeline run during development
             self.model_sonnet = self.get_debug_model(
                 self.production_model_sonnet, "research_analysis"
             )
@@ -229,12 +248,17 @@ class ResearchAnalyzer(DebugAwareComponent):
             console.print(f"[red]Error initializing Anthropic client: {e}[/red]")
             sys.exit(1)
 
-        # AWS S3 setup
+        # AWS S3 setup - Optional but recommended for production use
+        # S3 integration allows pulling research documents from cloud storage
+        # This is the preferred method for AWS Batch deployments
+        # Environment variables can be set via .env file or AWS Secrets Manager
         self.aws_access_key = os.getenv("AWS_ACCESS_KEY_ID")
         self.aws_secret_key = os.getenv("AWS_SECRET_ACCESS_KEY")
-        self.aws_region = os.getenv("AWS_REGION", "us-east-1")
-        self.bucket_name = os.getenv("S3_BUCKET_NAME")
-        self.file_key = os.getenv("S3_FILE_KEY")
+        self.aws_region = os.getenv("AWS_REGION", "us-east-1")  # Default to us-east-1
+        self.bucket_name = os.getenv("S3_BUCKET_NAME")  # e.g., "blue-ocean-research"
+        self.file_key = os.getenv(
+            "S3_FILE_KEY"
+        )  # e.g., "research-docs/market-analysis.json"
 
         if not all([self.aws_access_key, self.aws_secret_key, self.bucket_name]):
             self.logger.warning(
@@ -317,11 +341,9 @@ class ResearchAnalyzer(DebugAwareComponent):
             try:
                 response = self.s3_client.get_object(Bucket=bucket, Key=key)
                 content = response["Body"].read().decode("utf-8")
-                
+
                 # Just wrap the markdown content
-                data = {
-                    "content": content
-                }
+                data = {"content": content}
 
                 # Update operation metadata
                 op.output_data_size = len(content)
@@ -385,14 +407,12 @@ class ResearchAnalyzer(DebugAwareComponent):
                     file_content = f.read()
 
                 # Just wrap the markdown content
-                data = {
-                    "content": file_content
-                }
-                
+                data = {"content": file_content}
+
                 # Update operation metadata
                 op.output_data_size = len(file_content)
                 op.records_processed = 1
-                
+
                 self.logger.info(
                     f"Successfully loaded file ({len(file_content)} bytes)",
                     ComponentType.RESEARCH_ANALYZER,
@@ -506,45 +526,59 @@ class ResearchAnalyzer(DebugAwareComponent):
             List[AnalysisTask]: List of four configured analysis tasks
         """
         # Get prompts from config
-        verticals_prompt = self.config_loader.get_prompt('research_analysis', 'verticals')
-        personas_prompt = self.config_loader.get_prompt('research_analysis', 'personas')
-        pain_points_prompt = self.config_loader.get_prompt('research_analysis', 'pain_points')
-        solution_types_prompt = self.config_loader.get_prompt('research_analysis', 'solution_types')
-        
+        verticals_prompt = self.config_loader.get_prompt(
+            "research_analysis", "verticals"
+        )
+        personas_prompt = self.config_loader.get_prompt("research_analysis", "personas")
+        pain_points_prompt = self.config_loader.get_prompt(
+            "research_analysis", "pain_points"
+        )
+        solution_types_prompt = self.config_loader.get_prompt(
+            "research_analysis", "solution_types"
+        )
+
         # Get model settings from config
-        verticals_settings = self.config_loader.get_model_settings('research_analysis', 'verticals')
-        personas_settings = self.config_loader.get_model_settings('research_analysis', 'personas')
-        pain_points_settings = self.config_loader.get_model_settings('research_analysis', 'pain_points')
-        solution_types_settings = self.config_loader.get_model_settings('research_analysis', 'solution_types')
-        
+        verticals_settings = self.config_loader.get_model_settings(
+            "research_analysis", "verticals"
+        )
+        personas_settings = self.config_loader.get_model_settings(
+            "research_analysis", "personas"
+        )
+        pain_points_settings = self.config_loader.get_model_settings(
+            "research_analysis", "pain_points"
+        )
+        solution_types_settings = self.config_loader.get_model_settings(
+            "research_analysis", "solution_types"
+        )
+
         return [
             AnalysisTask(
                 name="Industry Verticals",
                 prompt=verticals_prompt,  # Will be formatted with research_content later
                 model="sonnet",
-                max_tokens=verticals_settings.get('max_tokens', 2000),
-                temperature=verticals_settings.get('temperature', 0.7),
+                max_tokens=verticals_settings.get("max_tokens", 2000),
+                temperature=verticals_settings.get("temperature", 0.7),
             ),
             AnalysisTask(
                 name="User Personas",
                 prompt=personas_prompt,  # Will be formatted with research_content later
                 model="sonnet",
-                max_tokens=personas_settings.get('max_tokens', 2000),
-                temperature=personas_settings.get('temperature', 0.7),
+                max_tokens=personas_settings.get("max_tokens", 2000),
+                temperature=personas_settings.get("temperature", 0.7),
             ),
             AnalysisTask(
                 name="Pain Points",
                 prompt=pain_points_prompt,  # Will be formatted with research_content later
                 model="opus",
-                max_tokens=pain_points_settings.get('max_tokens', 3000),
-                temperature=pain_points_settings.get('temperature', 0.8),
+                max_tokens=pain_points_settings.get("max_tokens", 3000),
+                temperature=pain_points_settings.get("temperature", 0.8),
             ),
             AnalysisTask(
                 name="Solution Types",
                 prompt=solution_types_prompt,  # Will be formatted with research_content later
                 model="opus",
-                max_tokens=solution_types_settings.get('max_tokens', 3000),
-                temperature=solution_types_settings.get('temperature', 0.8),
+                max_tokens=solution_types_settings.get("max_tokens", 3000),
+                temperature=solution_types_settings.get("temperature", 0.8),
             ),
         ]
 
@@ -582,20 +616,18 @@ class ResearchAnalyzer(DebugAwareComponent):
             task.system_prompt += self.create_debug_prompt_suffix()
 
         # Format the prompt with research content using config loader
-        task_key = task.name.lower().replace(' ', '_')
-        if task_key == 'industry_verticals':
-            task_key = 'verticals'
-        elif task_key == 'user_personas':
-            task_key = 'personas'
-        elif task_key == 'pain_points':
-            task_key = 'pain_points'
-        elif task_key == 'solution_types':
-            task_key = 'solution_types'
-        
+        task_key = task.name.lower().replace(" ", "_")
+        if task_key == "industry_verticals":
+            task_key = "verticals"
+        elif task_key == "user_personas":
+            task_key = "personas"
+        elif task_key == "pain_points":
+            task_key = "pain_points"
+        elif task_key == "solution_types":
+            task_key = "solution_types"
+
         full_prompt = self.config_loader.format_prompt(
-            'research_analysis', 
-            task_key,
-            research_content=research_content
+            "research_analysis", task_key, research_content=research_content
         )
 
         # Check token limits before proceeding
@@ -781,22 +813,145 @@ class ResearchAnalyzer(DebugAwareComponent):
 
             return results
 
-    def combine_results(self, results: Dict[str, str]) -> str:
+    def extract_company_metadata(self, research_content: str) -> Dict[str, str]:
+        """
+        Extract company metadata from the research content.
+
+        Searches for company name, domain/industry, and description from the research.
+        This metadata is critical for maintaining context throughout the pipeline.
+
+        Args:
+            research_content: The raw research content
+
+        Returns:
+            Dict containing company_name, domain, description, and executive_summary
+        """
+        import re
+
+        metadata = {
+            "company_name": "Unknown Company",
+            "domain": "Unknown Domain",
+            "company_description": "",
+            "executive_summary": "",
+        }
+
+        # Extract company name patterns
+        # Look for "Providence Hill" or similar company names
+        company_patterns = [
+            r"Providence Hill(?:\s+(?:Group|Real Estate|Realty|Company|Corp|LLC))?",
+            r"Comprehensive Competitive Disruption Analysis:\s*([^-\n]+)",
+            r"Analysis:\s*([A-Z][A-Za-z0-9\s&]+(?:Group|Company|Corp|LLC|Inc))",
+            r"(?:Company|Business|Organization):\s*([A-Z][A-Za-z0-9\s&]+)",
+            r"# [^#\n]*?([A-Z][A-Za-z0-9\s&]+(?:Group|Company|Corp|LLC|Inc))[^#\n]*Market",
+            r"intelligence analysis reveals ([A-Z][A-Za-z0-9\s&]+(?:Real Estate|Group|Company))",
+        ]
+
+        for pattern in company_patterns:
+            match = re.search(pattern, research_content, re.IGNORECASE)
+            if match:
+                metadata["company_name"] = (
+                    match.group(1) if match.lastindex else match.group(0)
+                )
+                metadata["company_name"] = metadata["company_name"].strip()
+                break
+
+        # Extract domain/industry
+        domain_patterns = [
+            r"(?:Domain|Industry|Sector|Market):\s*([^\n]+)",
+            r"Richmond(?:,)?\s*(?:VA|Virginia)?\s*(?:real estate|market)",
+            r"(?:operates?|operating|business)\s+in\s+([^\n,]+(?:industry|market|sector))",
+        ]
+
+        for pattern in domain_patterns:
+            match = re.search(pattern, research_content, re.IGNORECASE)
+            if match:
+                metadata["domain"] = (
+                    match.group(1) if match.lastindex else match.group(0)
+                )
+                metadata["domain"] = metadata["domain"].strip()
+                break
+
+        # Extract executive summary (first paragraph or section)
+        summary_patterns = [
+            r"This exhaustive competitive intelligence analysis reveals ([^.]+\.[^.]+\.)",  # Get 2 sentences
+            r"exhaustive competitive intelligence analysis reveals ([^.]+\.[^.]+\.)",
+            r"^([^#\n]{100,800})",  # First substantial paragraph (increased size)
+            r"Executive Summary[:\s]*([^\n#]+(?:\n[^\n#]+)*)",
+        ]
+
+        for pattern in summary_patterns:
+            match = re.search(pattern, research_content, re.MULTILINE | re.IGNORECASE)
+            if match:
+                metadata["executive_summary"] = match.group(1).strip()
+                break
+
+        # Extract company description
+        desc_patterns = [
+            r"(?:is|represents?|operates as)\s+a?\s*([^.]+(?:brokerage|company|organization|firm)[^.]+\.)",
+            r"Founded in \d{4}[^.]+\.",
+        ]
+
+        for pattern in desc_patterns:
+            match = re.search(pattern, research_content, re.IGNORECASE)
+            if match:
+                metadata["company_description"] = match.group(0).strip()
+                break
+
+        # Special handling for Providence Hill
+        if "Providence Hill" in research_content:
+            metadata["company_name"] = "Providence Hill Group"
+            if (
+                "Richmond" in research_content
+                and "real estate" in research_content.lower()
+            ):
+                metadata["domain"] = "Real Estate Brokerage - Richmond, VA Market"
+                metadata["company_description"] = (
+                    "Providence Hill Real Estate is a rapidly growing residential brokerage in Richmond, VA, founded in 2021 by industry veterans from SRMF Real Estate."
+                )
+
+        return metadata
+
+    def combine_results(
+        self, results: Dict[str, str], research_content: str = None
+    ) -> str:
         """
         Combine all analysis results into a single document.
 
         Merges the four analysis results into a well-formatted markdown document
-        with clear sections, timestamps, and visual separators.
+        with clear sections, timestamps, visual separators, and company metadata.
 
         Args:
             results: Dictionary mapping task names to analysis results
+            research_content: Original research content for metadata extraction
 
         Returns:
             str: Combined markdown document with all analysis results
         """
         combined = f"# Research Analysis Results\n\n"
         combined += f"Generated on: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n"
-        combined += "---\n\n"
+
+        # Extract and add company metadata if research content provided
+        if research_content:
+            metadata = self.extract_company_metadata(research_content)
+            combined += "## Company Context\n\n"
+            combined += f"**Company:** {metadata['company_name']}\n"
+            combined += f"**Domain/Industry:** {metadata['domain']}\n"
+            if metadata["company_description"]:
+                combined += f"**Description:** {metadata['company_description']}\n"
+            if metadata["executive_summary"]:
+                combined += (
+                    f"\n**Executive Summary:** {metadata['executive_summary']}\n"
+                )
+            combined += "\n---\n\n"
+
+            # Also save metadata to JSON for pipeline stages
+            import json
+
+            with open("research_metadata.json", "w") as f:
+                json.dump(metadata, f, indent=2)
+            console.print(
+                "[green]✅ Saved company metadata to research_metadata.json[/green]"
+            )
 
         # Add each analysis section
         for task_name, content in results.items():
@@ -910,7 +1065,7 @@ class ResearchAnalyzer(DebugAwareComponent):
                 ComponentType.RESEARCH_ANALYZER,
                 "research_analysis_pipeline",
             )
-            combined_results = self.combine_results(results)
+            combined_results = self.combine_results(results, research_content)
             op.output_data_size = len(combined_results)
             op.records_processed = len(results)
 
@@ -961,8 +1116,9 @@ class ResearchAnalyzer(DebugAwareComponent):
 
             # Check if we're in interactive mode
             import sys
-            is_interactive = '--interactive' in sys.argv
-            
+
+            is_interactive = "--interactive" in sys.argv
+
             if is_interactive:
                 # In interactive mode, ask the user
                 if (

@@ -1,10 +1,19 @@
 #!/usr/bin/env python3
 """
-GitHub Integration Module - Innovation Portfolio Publishing
+GitHub Integration Module - Stage 6 of 7 - Innovation Portfolio Publishing
 
-This module handles the final stage of the innovation pipeline, transforming 
-analysis results into a comprehensive GitHub repository with documentation 
-and trackable issues for each product idea.
+Purpose: The grand finale of the pipeline - transforms the entire innovation journey
+         into a living GitHub repository with actionable issues for implementation.
+
+This module represents the bridge between AI-driven innovation and real-world execution,
+creating a GitHub repository that serves as both documentation and project management hub.
+It leverages GPT-5 for premium content generation and creative naming.
+
+ARCHITECTURAL SIGNIFICANCE:
+- This is the ONLY module that creates external artifacts (GitHub repos)
+- Uses GPT-5 for README and issue descriptions (11 total API calls)
+- Can create in organizations or personal accounts
+- Handles rate limiting and error recovery gracefully
 
 Key Responsibilities:
 - Creates public or private GitHub repositories in specified organization
@@ -47,10 +56,62 @@ logger = logging.getLogger(__name__)
 
 
 class GitHubIntegration:
-    """Handles GitHub repository creation and management."""
+    """
+    Orchestrates GitHub repository creation with comprehensive documentation.
 
-    def __init__(self, github_token: Optional[str] = None, organization: str = "ocean-studio-repos"):
-        """Initialize GitHub integration with authentication."""
+    This class manages all GitHub operations, from repository creation to issue
+    generation, label management, and documentation publishing. It handles both
+    organization and personal repositories with intelligent fallback logic.
+
+    The integration creates a complete project structure:
+    1. Repository with creative naming (via GPT-3.5-turbo)
+    2. Comprehensive README with all research insights (via GPT-5)
+    3. Individual issues for each product idea (via GPT-5)
+    4. Smart labeling system for project management
+    5. Cross-references between issues and source data
+
+    Attributes:
+        github: PyGithub client instance
+        user: Authenticated GitHub user
+        organization: Target organization (if accessible)
+        openai_client: OpenAI client for content generation
+        perplexity_api_key: For deep research validation (optional)
+
+    Methods:
+        create_github_project: Main orchestration method
+        generate_creative_repo_name: Creates unique project names
+        create_repository: Handles repo creation with retry logic
+        generate_comprehensive_readme: GPT-5 powered documentation
+        create_product_issue: Creates detailed GitHub issues
+        apply_smart_labels: Manages label taxonomy
+    """
+
+    def __init__(
+        self,
+        github_token: Optional[str] = None,
+        organization: str = "ocean-studio-repos",
+    ):
+        """
+        Initialize GitHub integration with authentication and API clients.
+
+        Sets up authenticated connections to GitHub, OpenAI, and optionally
+        Perplexity APIs. Handles organization access with graceful fallback
+        to personal repositories if organization is inaccessible.
+
+        Args:
+            github_token: GitHub Personal Access Token. If not provided,
+                        uses GITHUB_TOKEN environment variable.
+            organization: Target GitHub organization name. Defaults to
+                        "ocean-studio-repos" for Ocean Studio projects.
+
+        Raises:
+            ValueError: If no GitHub token is available
+
+        Environment Variables:
+            GITHUB_TOKEN: GitHub PAT with repo creation permissions
+            OPENAI_API_KEY: For creative naming and content generation
+            PERPLEXITY_API_KEY: Optional, for research validation
+        """
         self.token = github_token or os.getenv("GITHUB_TOKEN")
         if not self.token:
             raise ValueError(
@@ -60,27 +121,42 @@ class GitHubIntegration:
         self.github = Github(self.token)
         self.user = self.github.get_user()
         self.organization_name = organization
-        
+
         try:
             self.organization = self.github.get_organization(organization)
-            logger.info(f"Authenticated as GitHub user: {self.user.login}, targeting organization: {organization}")
+            logger.info(
+                f"Authenticated as GitHub user: {self.user.login}, targeting organization: {organization}"
+            )
         except Exception as e:
             logger.warning(f"Could not access organization '{organization}': {e}")
             logger.info(f"Falling back to user account: {self.user.login}")
             self.organization = None
-        
-        # Initialize OpenAI for creative name generation (using GPT-3.5-turbo for cost efficiency)
+
+        # Initialize OpenAI for creative name generation and content creation
+        # GPT-3.5-turbo: Used for creative repo naming (cost-efficient)
+        # GPT-5: Used for README and issue generation (premium quality)
         self.openai_api_key = os.getenv("OPENAI_API_KEY")
         if self.openai_api_key:
             self.openai_client = openai.OpenAI(api_key=self.openai_api_key)
-        
+
         # Initialize Perplexity API key for deep research
         self.perplexity_api_key = os.getenv("PERPLEXITY_API_KEY")
         if self.perplexity_api_key:
             logger.info("✅ Perplexity API key loaded for deep research validation")
 
     def check_repo_exists(self, repo_name: str) -> bool:
-        """Check if a repository with the given name already exists."""
+        """
+        Check if a repository with the given name already exists.
+
+        Queries both organization and user repositories to prevent
+        naming conflicts. Used before attempting to create new repos.
+
+        Args:
+            repo_name: Name to check for existence
+
+        Returns:
+            bool: True if repository exists, False otherwise
+        """
         try:
             if self.organization:
                 self.organization.get_repo(repo_name)
@@ -91,41 +167,53 @@ class GitHubIntegration:
             return False
 
     def generate_creative_repo_name(
-        self, 
-        research_context: Dict[str, Any], 
-        max_attempts: int = 5
+        self, research_context: Dict[str, Any], max_attempts: int = 5
     ) -> str:
         """
-        Generate a creative, unique repository name based on the research content.
-        
+        Generate a creative, unique repository name using GPT-3.5-turbo.
+
+        Creates Silicon Valley-style project codenames that are memorable,
+        exciting, and convey innovation. Falls back to timestamp-based names
+        if OpenAI is unavailable or all generated names are taken.
+
         Args:
-            research_context: Dictionary containing research data (market, ideas, themes, etc.)
-            max_attempts: Maximum number of attempts to generate a unique name
-            
+            research_context: Dictionary containing:
+                - market_domain: Target market or industry
+                - key_themes: Main themes from research
+                - top_ideas: Best product ideas generated
+                - industry: Industry vertical
+                - innovation_focus: Core innovation area
+            max_attempts: Maximum attempts to generate unique name (default: 5)
+
         Returns:
-            A unique, creative repository name
+            str: Unique, creative repository name (e.g., "nexus-velocity",
+                "quantum-forge", "atlas-prime")
+
+        Examples:
+            Real names generated: "skybridge-nexus", "velocity-core",
+            "prism-labs", "zenith-forge", "nova-collective"
         """
         if not self.openai_api_key:
             # Fallback to timestamp-based name if no OpenAI key
             timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
             return f"innovation-portfolio-{timestamp}"
-        
+
         # Extract key themes from research
         market_domain = research_context.get("market_domain", "innovation")
         key_themes = research_context.get("key_themes", [])
         top_ideas = research_context.get("top_ideas", [])
         industry = research_context.get("industry", "")
         innovation_focus = research_context.get("innovation_focus", "")
-        
+
         # Build context for the LLM
         context_summary = f"""
         Market Domain: {market_domain}
         Industry: {industry}
-        Key Themes: {', '.join(key_themes[:3]) if key_themes else 'innovation, technology, solutions'}
+        Key Themes: {", ".join(key_themes[:3]) if key_themes else "innovation, technology, solutions"}
         Innovation Focus: {innovation_focus}
-        Top Product Ideas: {', '.join([idea.get('name', '') for idea in top_ideas[:3]]) if top_ideas else 'various innovations'}
+        Top Product Ideas: {", ".join([idea.get("name", "") for idea in top_ideas[:3]]) if top_ideas else "various innovations"}
         """
-        
+
         for attempt in range(max_attempts):
             try:
                 # Use GPT-3.5-turbo with HIGH creativity
@@ -166,36 +254,45 @@ OUTPUT ONLY THE NAME (lowercase with hyphens):"""
                 response = self.openai_client.chat.completions.create(
                     model="gpt-3.5-turbo",
                     messages=[
-                        {"role": "system", "content": "You are an EXTREMELY creative Silicon Valley startup namer. Be BOLD, WILD, and MEMORABLE! Think like you're naming a secret Google X project or the next unicorn startup. NO BORING NAMES!"},
-                        {"role": "user", "content": prompt}
+                        {
+                            "role": "system",
+                            "content": "You are an EXTREMELY creative Silicon Valley startup namer. Be BOLD, WILD, and MEMORABLE! Think like you're naming a secret Google X project or the next unicorn startup. NO BORING NAMES!",
+                        },
+                        {"role": "user", "content": prompt},
                     ],
                     temperature=1.4,  # VERY high temperature for maximum creativity
                     max_tokens=50,
                     presence_penalty=0.8,  # Encourage unique words
-                    frequency_penalty=0.8   # Avoid repetition
+                    frequency_penalty=0.8,  # Avoid repetition
                 )
-                
+
                 repo_name = response.choices[0].message.content.strip().lower()
-                
+
                 # Clean up the name (ensure URL-safe)
-                repo_name = ''.join(c if c.isalnum() or c == '-' else '-' for c in repo_name)
-                repo_name = repo_name.strip('-')[:40]  # Max 40 chars
-                
+                repo_name = "".join(
+                    c if c.isalnum() or c == "-" else "-" for c in repo_name
+                )
+                repo_name = repo_name.strip("-")[:40]  # Max 40 chars
+
                 # Check if repo exists
                 if not self.check_repo_exists(repo_name):
                     logger.info(f"Generated unique repository name: {repo_name}")
                     return repo_name
                 else:
-                    logger.info(f"Repository name {repo_name} already exists, trying again...")
-                    
+                    logger.info(
+                        f"Repository name {repo_name} already exists, trying again..."
+                    )
+
             except Exception as e:
                 logger.warning(f"Error generating creative name: {e}")
-                
+
         # Final fallback with guaranteed uniqueness
         timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
         fallback_name = f"{market_domain[:20]}-innovation-{timestamp}".lower()
-        fallback_name = ''.join(c if c.isalnum() or c == '-' else '-' for c in fallback_name)
-        return fallback_name.strip('-')
+        fallback_name = "".join(
+            c if c.isalnum() or c == "-" else "-" for c in fallback_name
+        )
+        return fallback_name.strip("-")
 
     def create_repository(
         self, repo_name: str, description: str, private: bool = False
@@ -248,16 +345,15 @@ OUTPUT ONLY THE NAME (lowercase with hyphens):"""
         repo_name: str,
     ) -> str:
         """Generate comprehensive README content from analysis results.
-        
+
         This uses Claude Opus or GPT-4o to create a killer README that serves as the foundation
         for all subsequent issue generation.
         """
-        
+
         return self.generate_readme_with_gpt5(
             research_analysis, jtbd_data, zones_data, ideas_data, repo_name
         )
-    
-    
+
     def generate_readme_with_gpt5(
         self,
         research_analysis: Dict,
@@ -267,29 +363,49 @@ OUTPUT ONLY THE NAME (lowercase with hyphens):"""
         repo_name: str,
     ) -> str:
         """Use Claude Opus 4.1 or GPT-5 to generate a comprehensive, pitch-deck quality README."""
-        
+
         # Calculate opportunity zone percentages and idea allocations
         zones_with_percentages = self._calculate_zone_percentages(zones_data)
-        
+
         # Build comprehensive context for ALL zones
         context = self._build_comprehensive_context(
             research_analysis, jtbd_data, zones_data, ideas_data, zones_with_percentages
         )
-        
+
         # Load the FULL original research report if available
         original_research_report = ""
         if os.path.exists("analysis_results.md"):
             with open("analysis_results.md", "r") as f:
                 original_research_report = f.read()
-                logger.info("Loaded full original research report from analysis_results.md")
+                logger.info(
+                    "Loaded full original research report from analysis_results.md"
+                )
         else:
-            logger.warning("analysis_results.md not found - using limited research context")
-        
-        # Extract the original business context from research analysis
-        original_business = research_analysis.get("company_name", "the target business")
-        business_domain = research_analysis.get("domain", research_analysis.get("industry", ""))
-        business_description = research_analysis.get("company_description", "")
-        
+            logger.warning(
+                "analysis_results.md not found - using limited research context"
+            )
+
+        # Load company metadata if available
+        company_metadata = {}
+        if os.path.exists("research_metadata.json"):
+            with open("research_metadata.json", "r") as f:
+                company_metadata = json.load(f)
+                logger.info(
+                    f"Loaded company metadata: {company_metadata.get('company_name', 'Unknown')}"
+                )
+
+        # Extract the original business context from metadata or research analysis
+        original_business = company_metadata.get(
+            "company_name"
+        ) or research_analysis.get("company_name", "the target business")
+        business_domain = company_metadata.get("domain") or research_analysis.get(
+            "domain", research_analysis.get("industry", "")
+        )
+        business_description = company_metadata.get(
+            "company_description"
+        ) or research_analysis.get("company_description", "")
+        executive_summary = company_metadata.get("executive_summary", "")
+
         prompt = f"""You are creating the definitive research report for a comprehensive market analysis that discovered multiple opportunity zones. Present ALL findings systematically.
 
 ================================================================================
@@ -302,6 +418,9 @@ CRITICAL CONTEXT - ORIGINAL BUSINESS TARGET:
 Company/Business: {original_business}
 Domain/Industry: {business_domain}
 Description: {business_description}
+
+Executive Summary of Research:
+{executive_summary}
 
 IMPORTANT: The above research report contains ALL the original insights, pain points, industry verticals, personas, and specific details about {original_business}. 
 You MUST use this original research to ground all your analysis and recommendations.
@@ -316,10 +435,10 @@ Create a comprehensive README with this EXACT structure:
 # 🎯 Market Research & Innovation Portfolio for {original_business}
 
 ## 🏢 Business Context
-Clearly state:
 - **Target Business**: {original_business}
-- **Industry/Domain**: {business_domain}
-- **Strategic Focus**: How this research helps {original_business} navigate market opportunities and challenges
+- **Industry/Domain**: {business_domain if business_domain else "Not specified"}
+- **Business Description**: {business_description if business_description else "Market research analysis"}
+- **Strategic Focus**: Identifying high-value market opportunities and innovation pathways for {original_business}
 
 ## 1️⃣ Research Overview
 Write a narrative explaining what this research was about IN THE CONTEXT OF {original_business}. Include:
@@ -359,7 +478,7 @@ Example format:
 ```
 
 ### 📊 JTBD Distribution
-Show how the {context['metrics']['total_jtbds']} jobs break down by opportunity level
+Show how the {context["metrics"]["total_jtbds"]} jobs break down by opportunity level
 
 ## 5️⃣ Zeitgeist Clustering & Opportunity Zones
 
@@ -417,9 +536,9 @@ The following 10 ideas were selected based on weighted market opportunity and st
 
 ### Immediate Actions
 Based on this research, {original_business} should:
-1. **Defend Market Position**: Address competitive threats that pose disruption risk
-2. **Optimize Operations**: Implement efficiency improvements for quick gains
-3. **Expand Strategically**: Launch new ventures in highest-opportunity zones
+1. **Capitalize on Market Opportunities**: Focus on highest-value opportunity zones
+2. **Build Innovation Pipeline**: Develop products addressing key unmet needs
+3. **Establish Market Leadership**: Launch initiatives in emerging market segments
 
 ### Competitive Positioning
 - How {original_business} can leverage its strengths in {business_domain}
@@ -433,12 +552,12 @@ Based on this research, {original_business} should:
 gantt
     title Strategic Implementation Timeline for {original_business}
     dateFormat  YYYY-MM-DD
-    section Defense (RED)
-    Threat Mitigation    :2024-01-01, 60d
-    section Efficiency (BLACK)
-    Operational Improvements :2024-02-01, 120d
-    section Growth (WHITE)
-    New Venture Launch :2024-04-01, 180d
+    section Phase 1
+    Quick Wins & Foundation    :2024-01-01, 60d
+    section Phase 2
+    Core Development :2024-02-01, 120d
+    section Phase 3
+    Scale & Expansion :2024-04-01, 180d
 ```
 
 ## 📊 Success Metrics for {original_business}
@@ -454,12 +573,12 @@ gantt
 
 ## 🏁 Executive Summary for {original_business}
 
-This comprehensive market research for {original_business} in {business_domain} analyzed {context['validation_evidence']['reddit_discussions_analyzed']} Reddit discussions, extracted {context['metrics']['total_jtbds']} jobs-to-be-done, identified {len(zones_with_percentages)} opportunity zones, and generated {context['metrics']['total_ideas_generated']} product ideas.
+This comprehensive market research for {original_business} in {business_domain} analyzed {context["validation_evidence"]["reddit_discussions_analyzed"]} Reddit discussions, extracted {context["metrics"]["total_jtbds"]} jobs-to-be-done, identified {len(zones_with_percentages)} opportunity zones, and generated {context["metrics"]["total_ideas_generated"]} product ideas.
 
 **Key Takeaways for {original_business}:**
-- **Competitive threats to monitor**: [Summarize key disruption risks]
-- **Efficiency opportunities identified**: [Summarize operational improvements]  
-- **Growth ventures to pursue**: [Summarize expansion opportunities]
+- **Market opportunities identified**: [Summarize key opportunities]
+- **Strategic priorities**: [Summarize main focus areas]  
+- **Innovation pathways**: [Summarize product/service innovations]
 
 The research provides a strategic roadmap for {original_business} to maintain competitive advantage in {business_domain} while identifying new growth opportunities.
 
@@ -469,16 +588,17 @@ The research provides a strategic roadmap for {original_business} to maintain co
 
 Generate this README with:
 - Clear connection to {original_business} throughout
-- Strategic framing (RED/BLACK/WHITE team perspectives)
+- Market opportunity framing
 - Actual data from the context
 - Mermaid diagrams where specified
 - All zones covered with business relevance explained
 - Every idea positioned relative to {original_business}'s strategic needs
 
 CRITICAL: Every section must explicitly relate back to {original_business} and their strategic position in {business_domain}. Don't let the analysis drift into generic market opportunities - keep it grounded in the original business context."""
-        
+
         # Use Claude Opus 4.1 for superior narrative quality
         import anthropic
+
         anthropic_key = os.getenv("ANTHROPIC_API_KEY")
         if anthropic_key:
             client = anthropic.Anthropic(api_key=anthropic_key)
@@ -487,92 +607,119 @@ CRITICAL: Every section must explicitly relate back to {original_business} and t
                 max_tokens=8000,
                 temperature=0.7,
                 system="You are a market research analyst creating a comprehensive report. Cover ALL opportunity zones equally. Use strategic emojis for visual hierarchy. Include actual data, scores, and metrics from the provided context. Create Mermaid diagrams as specified.",
-                messages=[
-                    {"role": "user", "content": prompt}
-                ]
+                messages=[{"role": "user", "content": prompt}],
             )
             readme_content = response.content[0].text
             logger.info("✅ Generated comprehensive README with Claude Opus 4.1")
-            
+
             # Store the README for use as context in issue generation
             self.gpt5_readme_context = readme_content
-            
+
             return readme_content
         else:
             # Use GPT-4o if no Anthropic key
             response = self.openai_client.chat.completions.create(
                 model="gpt-4o",
                 messages=[
-                    {"role": "system", "content": "You are a market research analyst creating a comprehensive report. Cover ALL opportunity zones equally. Use strategic emojis for visual hierarchy. Include actual data, scores, and metrics from the provided context. Create Mermaid diagrams as specified."},
-                    {"role": "user", "content": prompt}
+                    {
+                        "role": "system",
+                        "content": "You are a market research analyst creating a comprehensive report. Cover ALL opportunity zones equally. Use strategic emojis for visual hierarchy. Include actual data, scores, and metrics from the provided context. Create Mermaid diagrams as specified.",
+                    },
+                    {"role": "user", "content": prompt},
                 ],
                 temperature=0.7,
-                max_tokens=8000
+                max_tokens=8000,
             )
-            
+
             readme_content = response.choices[0].message.content
             logger.info("✅ Generated comprehensive README with GPT-4o")
-            
+
             # Store the README for use as context in issue generation
             self.gpt5_readme_context = readme_content
-            
+
             return readme_content
-    
+
     def _calculate_zone_percentages(self, zones_data: Dict) -> List[Dict]:
         """Calculate market opportunity percentages for each zone."""
         zones = zones_data.get("clustered_zones", {})
-        
+
         # Calculate total market opportunity score
         total_score = sum(
-            zone.get("market_opportunity_score", 0.5) 
-            for zone in zones.values()
+            zone.get("market_opportunity_score", 0.5) for zone in zones.values()
         )
-        
+
         zones_with_percentages = []
         for zone_key, zone_data in zones.items():
             score = zone_data.get("market_opportunity_score", 0.5)
             percentage = (score / total_score * 100) if total_score > 0 else 0
-            
+
             # Calculate idea allocation (out of 10 total)
-            idea_allocation = max(1, round(10 * percentage / 100)) if percentage > 10 else 0
-            
-            zones_with_percentages.append({
-                "zone_id": zone_key,
-                "name": zone_data.get("name", "Opportunity Zone"),
-                "market_opportunity_percentage": round(percentage, 1),
-                "idea_allocation": idea_allocation,
-                "score": score,
-                "pain_dimensions": zone_data.get("pain_dimensions", {}),
-                "solution_requirements": zone_data.get("solution_requirements", []),
-                "key_themes": zone_data.get("key_themes", []),
-                "jtbds_addressed": zone_data.get("jtbds_addressed", []),
-                "market_size": zone_data.get("market_size", "N/A"),
-                "evidence_strength": zone_data.get("evidence_strength", {})
-            })
-        
+            idea_allocation = (
+                max(1, round(10 * percentage / 100)) if percentage > 10 else 0
+            )
+
+            zones_with_percentages.append(
+                {
+                    "zone_id": zone_key,
+                    "name": zone_data.get("name", "Opportunity Zone"),
+                    "market_opportunity_percentage": round(percentage, 1),
+                    "idea_allocation": idea_allocation,
+                    "score": score,
+                    "pain_dimensions": zone_data.get("pain_dimensions", {}),
+                    "solution_requirements": zone_data.get("solution_requirements", []),
+                    "key_themes": zone_data.get("key_themes", []),
+                    "jtbds_addressed": zone_data.get("jtbds_addressed", []),
+                    "market_size": zone_data.get("market_size", "N/A"),
+                    "evidence_strength": zone_data.get("evidence_strength", {}),
+                }
+            )
+
         # Sort by percentage (highest first)
-        zones_with_percentages.sort(key=lambda x: x["market_opportunity_percentage"], reverse=True)
-        
+        zones_with_percentages.sort(
+            key=lambda x: x["market_opportunity_percentage"], reverse=True
+        )
+
         return zones_with_percentages
-    
-    def _build_comprehensive_context(self, research_analysis, jtbd_data, zones_data, ideas_data, zones_with_percentages):
+
+    def _build_comprehensive_context(
+        self,
+        research_analysis,
+        jtbd_data,
+        zones_data,
+        ideas_data,
+        zones_with_percentages,
+    ):
         """Build comprehensive context covering ALL zones and findings."""
-        
+
         # Extract actual metrics from the data
         jobs_list = jtbd_data.get("jtbd_data", {}).get("jobs_list", [])
-        top_jobs = sorted(jobs_list, key=lambda x: x.get("opportunity_score", 0), reverse=True)[:10]
-        
+        top_jobs = sorted(
+            jobs_list, key=lambda x: x.get("opportunity_score", 0), reverse=True
+        )[:10]
+
         # Calculate actual underserved metrics
-        avg_importance = sum(j.get("importance", 0) for j in jobs_list) / len(jobs_list) if jobs_list else 0
-        avg_satisfaction = sum(j.get("satisfaction", 0) for j in jobs_list) / len(jobs_list) if jobs_list else 0
-        avg_opportunity = sum(j.get("opportunity_score", 0) for j in jobs_list) / len(jobs_list) if jobs_list else 0
-        
+        avg_importance = (
+            sum(j.get("importance", 0) for j in jobs_list) / len(jobs_list)
+            if jobs_list
+            else 0
+        )
+        avg_satisfaction = (
+            sum(j.get("satisfaction", 0) for j in jobs_list) / len(jobs_list)
+            if jobs_list
+            else 0
+        )
+        avg_opportunity = (
+            sum(j.get("opportunity_score", 0) for j in jobs_list) / len(jobs_list)
+            if jobs_list
+            else 0
+        )
+
         # Get ALL zones with full details
         all_zones_data = []
         for zone_info in zones_with_percentages:
             zone_id = zone_info["zone_id"]
             zone_raw = zones_data.get("clustered_zones", {}).get(zone_id, {})
-            
+
             # Get ERRC data for this zone
             errc_data = None
             if "errc_grids" in ideas_data:
@@ -580,7 +727,7 @@ CRITICAL: Every section must explicitly relate back to {original_business} and t
                     if errc.get("zone_name") == zone_info["name"]:
                         errc_data = errc
                         break
-            
+
             # Get ideas for this zone
             zone_ideas = []
             selected_ideas = []
@@ -590,31 +737,33 @@ CRITICAL: Every section must explicitly relate back to {original_business} and t
                     # Check if this idea is in the final 10
                     if idea in ideas_data.get("product_ideas", [])[:10]:
                         selected_ideas.append(idea)
-            
-            all_zones_data.append({
-                "zone_info": zone_info,
-                "raw_data": zone_raw,
-                "errc_grid": errc_data,
-                "all_ideas": zone_ideas,
-                "selected_ideas": selected_ideas,
-                "selected_count": len(selected_ideas)
-            })
-        
+
+            all_zones_data.append(
+                {
+                    "zone_info": zone_info,
+                    "raw_data": zone_raw,
+                    "errc_grid": errc_data,
+                    "all_ideas": zone_ideas,
+                    "selected_ideas": selected_ideas,
+                    "selected_count": len(selected_ideas),
+                }
+            )
+
         # Count total ideas generated across all zones
         total_ideas_generated = sum(len(z["all_ideas"]) for z in all_zones_data)
-        
+
         return {
             # Research foundation
             "research_analysis": research_analysis,
-            
             # All JTBDs data
             "jtbd_data": {
                 "all_jobs": jobs_list,
                 "top_jobs": top_jobs,
-                "high_opportunity_jobs": [j for j in jobs_list if j.get("opportunity_score", 0) > 10],
-                "methodology": jtbd_data.get("jtbd_data", {}).get("methodology", "")
+                "high_opportunity_jobs": [
+                    j for j in jobs_list if j.get("opportunity_score", 0) > 10
+                ],
+                "methodology": jtbd_data.get("jtbd_data", {}).get("methodology", ""),
             },
-            
             # Comprehensive metrics
             "metrics": {
                 "total_jtbds": len(jobs_list),
@@ -624,33 +773,41 @@ CRITICAL: Every section must explicitly relate back to {original_business} and t
                 "avg_importance": round(avg_importance, 1),
                 "avg_satisfaction": round(avg_satisfaction, 1),
                 "avg_opportunity_score": round(avg_opportunity, 1),
-                "underserved_gap": round(avg_importance - avg_satisfaction, 1)
+                "underserved_gap": round(avg_importance - avg_satisfaction, 1),
             },
-            
             # All zones with complete data
             "all_zones": all_zones_data,
             "zones_summary": zones_with_percentages,
-            
             # Market data
             "market": {
-                "tam": ideas_data.get("viability_analysis", {}).get("market_assessment", {}).get("total_addressable_market", "Not specified"),
-                "sam": ideas_data.get("viability_analysis", {}).get("market_assessment", {}).get("serviceable_addressable_market", "Not specified"),
-                "som": ideas_data.get("viability_analysis", {}).get("market_assessment", {}).get("serviceable_obtainable_market", "Not specified"),
-                "growth_rate": ideas_data.get("viability_analysis", {}).get("market_assessment", {}).get("market_growth_rate", "Not specified"),
-                "time_to_market": ideas_data.get("viability_analysis", {}).get("financial_projections", {}).get("time_to_market", "Not specified")
+                "tam": ideas_data.get("viability_analysis", {})
+                .get("market_assessment", {})
+                .get("total_addressable_market", "Not specified"),
+                "sam": ideas_data.get("viability_analysis", {})
+                .get("market_assessment", {})
+                .get("serviceable_addressable_market", "Not specified"),
+                "som": ideas_data.get("viability_analysis", {})
+                .get("market_assessment", {})
+                .get("serviceable_obtainable_market", "Not specified"),
+                "growth_rate": ideas_data.get("viability_analysis", {})
+                .get("market_assessment", {})
+                .get("market_growth_rate", "Not specified"),
+                "time_to_market": ideas_data.get("viability_analysis", {})
+                .get("financial_projections", {})
+                .get("time_to_market", "Not specified"),
             },
-            
             # Final selected ideas
             "selected_ideas": ideas_data.get("product_ideas", [])[:10],
-            
             # Validation evidence
             "validation_evidence": {
-                "reddit_discussions_analyzed": jtbd_data.get("jtbd_data", {}).get("reddit_evidence", {}).get("total_discussions", "500+"),
+                "reddit_discussions_analyzed": jtbd_data.get("jtbd_data", {})
+                .get("reddit_evidence", {})
+                .get("total_discussions", "500+"),
                 "methodology": "Zeitgeist clustering with 8-dimensional pain analysis",
-                "clustering_approach": "K-means clustering on Reddit discussions and JTBD patterns"
-            }
+                "clustering_approach": "K-means clustering on Reddit discussions and JTBD patterns",
+            },
         }
-    
+
     def _generate_mermaid_pie_chart(self, zones_with_percentages):
         """Generate Mermaid pie chart data for zones."""
         lines = []
@@ -658,24 +815,26 @@ CRITICAL: Every section must explicitly relate back to {original_business} and t
             name = zone["name"].replace('"', "'")
             percentage = zone["market_opportunity_percentage"]
             lines.append(f'    "{name}" : {percentage}')
-        return '\n'.join(lines)
-    
+        return "\n".join(lines)
+
     def _generate_zone_details_template(self, zones_with_percentages):
         """Generate template for zone details section."""
         template_parts = []
         for i, zone in enumerate(zones_with_percentages, 1):
-            emoji = ["1️⃣", "2️⃣", "3️⃣", "4️⃣", "5️⃣", "6️⃣", "7️⃣", "8️⃣", "9️⃣"][i-1] if i <= 9 else "🔟"
+            emoji = (
+                ["1️⃣", "2️⃣", "3️⃣", "4️⃣", "5️⃣", "6️⃣", "7️⃣", "8️⃣", "9️⃣"][i - 1] if i <= 9 else "🔟"
+            )
             template_parts.append(f"""
-### {emoji} Zone {i}: {zone['name']}
-- **Market Share**: {zone['market_opportunity_percentage']}% of total opportunity
-- **Ideas Allocated**: {zone['idea_allocation']} of 10 total
-- **Market Size**: {zone.get('market_size', 'TBD')}
-- **Key Themes**: {', '.join(zone.get('key_themes', [])[:3])}
+### {emoji} Zone {i}: {zone["name"]}
+- **Market Share**: {zone["market_opportunity_percentage"]}% of total opportunity
+- **Ideas Allocated**: {zone["idea_allocation"]} of 10 total
+- **Market Size**: {zone.get("market_size", "TBD")}
+- **Key Themes**: {", ".join(zone.get("key_themes", [])[:3])}
 - **Pain Dimensions**: Detail the 8 pain scores
 - **Solution Requirements**: List key requirements
 - **JTBDs Addressed**: Count and examples""")
-        return '\n'.join(template_parts)
-    
+        return "\n".join(template_parts)
+
     def _generate_errc_grid_template(self, zones_data, ideas_data):
         """Generate ERRC grid template for all zones."""
         return """Present the ERRC grid for each zone showing:
@@ -685,7 +844,7 @@ CRITICAL: Every section must explicitly relate back to {original_business} and t
 - What to Create
 
 Use actual data from the ERRC analysis performed."""
-    
+
     def _generate_ideas_by_zone_template(self, zones_data, ideas_data):
         """Generate template for ideas organized by zone."""
         return """List ALL ideas generated for each zone, marking selected ones with ⭐:
@@ -695,24 +854,26 @@ For each zone:
 - Mark selected ideas with ⭐
 - Include brief description of each idea
 - Show innovation metrics"""
-    
+
     def _generate_selected_ideas_list(self, ideas_data):
         """Generate the final selected ideas list."""
         return """List the 10 selected ideas with:
 1. ⭐ [Idea Name] - [Zone] - [Brief Description]
 2. ⭐ [Idea Name] - [Zone] - [Brief Description]
 ... (continue for all 10)"""
-    
+
     def _format_zone_distribution(self, zone_distribution):
         """Format zone distribution for the prompt."""
         lines = []
         for zone in zone_distribution:
-            lines.append(f"- {zone['zone_name']}: {zone['percentage']:.1f}% of market → {zone['ideas_allocated']} ideas")
+            lines.append(
+                f"- {zone['zone_name']}: {zone['percentage']:.1f}% of market → {zone['ideas_allocated']} ideas"
+            )
         return "\n".join(lines)
-    
+
     def submit_to_perplexity_deep_research(self, readme_content: str) -> Dict[str, Any]:
         """Submit README to Perplexity Deep Research for validation and gap analysis.
-        
+
         This performs critical market validation to identify:
         - Research gaps and blind spots
         - Validation requirements before development
@@ -720,13 +881,17 @@ For each zone:
         - Customer discovery priorities
         - Risk factors and kill-switch questions
         """
-        
+
         if not self.perplexity_api_key:
-            logger.warning("No Perplexity API key found - skipping deep research validation")
+            logger.warning(
+                "No Perplexity API key found - skipping deep research validation"
+            )
             return None
-        
-        logger.info("🔬 Submitting to Perplexity Deep Research for validation (this takes 5-6 minutes)...")
-        
+
+        logger.info(
+            "🔬 Submitting to Perplexity Deep Research for validation (this takes 5-6 minutes)..."
+        )
+
         # Build the research prompt with the README content
         research_prompt = f"""Market Discovery Report (COMPLETED):
 {readme_content}
@@ -884,91 +1049,97 @@ Pay special attention to discrepancies between claimed innovation and market rea
 Question whether "moonshot" classifications are justified or aspirational
 
 Now, analyze the provided market discovery report and deliver your comprehensive research gap analysis and recommendations."""
-        
+
         # Prepare the API request
         url = "https://api.perplexity.ai/chat/completions"
-        
+
         payload = {
             "model": "sonar-deep-research",
-            "messages": [
-                {"role": "user", "content": research_prompt}
-            ]
+            "messages": [{"role": "user", "content": research_prompt}],
         }
-        
+
         headers = {
             "Authorization": f"Bearer {self.perplexity_api_key}",
             "Content-Type": "application/json",
         }
-        
+
         try:
             # Make the API request
             start_time = time.time()
             response = requests.post(url, json=payload, headers=headers)
             response.raise_for_status()
-            
+
             elapsed_time = time.time() - start_time
-            logger.info(f"✅ Perplexity Deep Research completed in {elapsed_time:.1f} seconds")
-            
+            logger.info(
+                f"✅ Perplexity Deep Research completed in {elapsed_time:.1f} seconds"
+            )
+
             # Parse the response
             research_data = response.json()
-            
+
             # Extract the research content
             if research_data.get("choices") and len(research_data["choices"]) > 0:
                 research_content = research_data["choices"][0]["message"]["content"]
-                
+
                 # Log statistics
                 if "usage" in research_data:
                     usage = research_data["usage"]
                     logger.info(f"📊 Research Statistics:")
                     logger.info(f"  - Total tokens: {usage.get('total_tokens', 0):,}")
-                    logger.info(f"  - Search queries: {usage.get('num_search_queries', 0)}")
-                    logger.info(f"  - Reasoning tokens: {usage.get('reasoning_tokens', 0):,}")
-                    logger.info(f"  - Citations: {len(research_data.get('search_results', []))}")
-                
+                    logger.info(
+                        f"  - Search queries: {usage.get('num_search_queries', 0)}"
+                    )
+                    logger.info(
+                        f"  - Reasoning tokens: {usage.get('reasoning_tokens', 0):,}"
+                    )
+                    logger.info(
+                        f"  - Citations: {len(research_data.get('search_results', []))}"
+                    )
+
                 return {
                     "success": True,
                     "content": research_content,
                     "search_results": research_data.get("search_results", []),
                     "usage": research_data.get("usage", {}),
-                    "elapsed_time": elapsed_time
+                    "elapsed_time": elapsed_time,
                 }
             else:
                 logger.error("No content in Perplexity response")
                 return None
-                
+
         except requests.exceptions.RequestException as e:
             logger.error(f"❌ Perplexity API error: {e}")
             return None
         except Exception as e:
             logger.error(f"❌ Unexpected error during Perplexity research: {e}")
             return None
-    
+
     def synthesize_v2_readme(self, original_readme: str, research_results: Dict) -> str:
         """Synthesize v2 README that blends original content with deep research insights.
-        
+
         Uses Claude Opus 4.1 to intelligently merge:
         - Original market discovery findings
         - Perplexity's validation research
         - Gap analysis and risk assessment
         - Enhanced market context
         """
-        
+
         if not research_results or not research_results.get("success"):
             logger.warning("No research results available - using original README")
             return original_readme
-        
+
         logger.info("🎯 Synthesizing v2 README with research validation insights...")
-        
+
         synthesis_prompt = f"""You are creating the definitive v2 version of a market research README that blends original findings with critical validation research.
 
 ORIGINAL README:
 {original_readme}
 
 VALIDATION RESEARCH (from Perplexity Deep Research):
-{research_results['content']}
+{research_results["content"]}
 
 SEARCH SOURCES REFERENCED:
-{json.dumps(research_results.get('search_results', []), indent=2)}
+{json.dumps(research_results.get("search_results", []), indent=2)}
 
 YOUR TASK:
 Create an enhanced v2 README that:
@@ -1062,9 +1233,10 @@ IMPORTANT INSTRUCTIONS:
 7. Cite specific sources from the search results where relevant
 
 Generate the enhanced v2 README that makes this research investment-ready:"""
-        
+
         # Use Claude Opus 4.1 for synthesis
         import anthropic
+
         anthropic_key = os.getenv("ANTHROPIC_API_KEY")
         if anthropic_key:
             client = anthropic.Anthropic(api_key=anthropic_key)
@@ -1073,9 +1245,7 @@ Generate the enhanced v2 README that makes this research investment-ready:"""
                 max_tokens=8000,
                 temperature=0.7,
                 system="You are a strategic market analyst synthesizing original research with validation insights. Maintain all original ideas while adding critical validation context. Be honest about gaps and risks while preserving the opportunity narrative. Your goal is to create an investment-ready document that acknowledges unknowns while building confidence through a clear validation path.",
-                messages=[
-                    {"role": "user", "content": synthesis_prompt}
-                ]
+                messages=[{"role": "user", "content": synthesis_prompt}],
             )
             v2_readme = response.content[0].text
             logger.info("✅ Synthesized v2 README with research validation")
@@ -1085,11 +1255,14 @@ Generate the enhanced v2 README that makes this research investment-ready:"""
             response = self.openai_client.chat.completions.create(
                 model="gpt-4o",
                 messages=[
-                    {"role": "system", "content": "You are a strategic market analyst synthesizing original research with validation insights. Create an investment-ready document."},
-                    {"role": "user", "content": synthesis_prompt}
+                    {
+                        "role": "system",
+                        "content": "You are a strategic market analyst synthesizing original research with validation insights. Create an investment-ready document.",
+                    },
+                    {"role": "user", "content": synthesis_prompt},
                 ],
                 temperature=0.7,
-                max_tokens=8000
+                max_tokens=8000,
             )
             v2_readme = response.choices[0].message.content
             logger.info("✅ Synthesized v2 README with GPT-4o")
@@ -1099,22 +1272,28 @@ Generate the enhanced v2 README that makes this research investment-ready:"""
         self, idea: Dict, idea_number: int, jtbd_data: Dict, zone_data: Dict = None
     ) -> Dict[str, str]:
         """Use Claude or GPT to generate a killer GitHub issue that's like a pitch deck in markdown.
-        
+
         This now uses the comprehensive README as context for richer issue generation.
         """
-        
-        # Load the FULL original research report if available  
+
+        # Load the FULL original research report if available
         original_research_report = ""
         if os.path.exists("analysis_results.md"):
             with open("analysis_results.md", "r") as f:
                 original_research_report = f.read()
-        
+
+        # Load company metadata if available
+        company_metadata = {}
+        if os.path.exists("research_metadata.json"):
+            with open("research_metadata.json", "r") as f:
+                company_metadata = json.load(f)
+
         # Get the zone's percentage and allocation info
         zones_with_percentages = self._calculate_zone_percentages(
             {"clustered_zones": {"zone": zone_data}} if zone_data else {}
         )
         zone_info = zones_with_percentages[0] if zones_with_percentages else {}
-        
+
         # Prepare comprehensive context, including README context
         idea_context = {
             "idea": idea,
@@ -1123,18 +1302,20 @@ Generate the enhanced v2 README that makes this research investment-ready:"""
                 "market_percentage": zone_info.get("market_opportunity_percentage", 0),
                 "idea_allocation": zone_info.get("idea_allocation", 1),
                 "pain_dimensions": zone_info.get("pain_dimensions", {}),
-                "solution_requirements": zone_info.get("solution_requirements", [])
+                "solution_requirements": zone_info.get("solution_requirements", []),
             },
             "jtbd_context": jtbd_data.get("jtbd_data", {}).get("jobs_list", [])[:5],
             "market_signals": {
                 "total_addressable_market": idea.get("market_size", "$10B+"),
                 "growth_rate": "25-30% CAGR",
-                "competitive_landscape": idea.get("competitive_advantage", "Blue ocean opportunity")
+                "competitive_landscape": idea.get(
+                    "competitive_advantage", "Blue ocean opportunity"
+                ),
             },
-            "readme_context": getattr(self, "gpt5_readme_context", "")
+            "readme_context": getattr(self, "gpt5_readme_context", ""),
         }
-        
-        prompt = f"""You are creating a GitHub issue that serves as a complete pitch deck for a breakthrough product idea. This issue is part of a portfolio where this opportunity zone represents {zone_info.get('market_percentage', 0):.1f}% of the total market opportunity and has been allocated {zone_info.get('idea_allocation', 1)} of 10 total innovation slots.
+
+        prompt = f"""You are creating a GitHub issue that serves as a complete pitch deck for a breakthrough product idea. This issue is part of a portfolio where this opportunity zone represents {zone_info.get("market_percentage", 0):.1f}% of the total market opportunity and has been allocated {zone_info.get("idea_allocation", 1)} of 10 total innovation slots.
 
 ================================================================================
 ORIGINAL BUSINESS RESEARCH - CRITICAL CONTEXT
@@ -1146,12 +1327,18 @@ COMPREHENSIVE CONTEXT:
 {json.dumps(idea_context, indent=2, default=str)}
 
 CRITICAL CONTEXT FROM RESEARCH:
-- This idea addresses an opportunity zone that represents {zone_info.get('market_percentage', 0):.1f}% of the total market
-- The zone has {zone_info.get('idea_allocation', 1)} idea slots allocated based on its market importance
-- Key pain dimensions in this zone: {', '.join(list(zone_info.get('pain_dimensions', {}).keys())[:3])}
-- Solution requirements: {', '.join(zone_info.get('solution_requirements', [])[:3])}
+- This idea addresses an opportunity zone that represents {zone_info.get("market_percentage", 0):.1f}% of the total market
+- The zone has {zone_info.get("idea_allocation", 1)} idea slots allocated based on its market importance
+- Key pain dimensions in this zone: {", ".join(list(zone_info.get("pain_dimensions", {}).keys())[:3])}
+- Solution requirements: {", ".join(zone_info.get("solution_requirements", [])[:3])}
 
 IMPORTANT: The original research report above contains the specific business context. Use it to ground this idea in the reality of the target business and their market.
+
+Company Context from Research:
+- Company: {company_metadata.get("company_name", "Unknown")}
+- Domain: {company_metadata.get("domain", "Unknown")}
+- Description: {company_metadata.get("company_description", "")}
+- Executive Summary: {company_metadata.get("executive_summary", "")[:500]}
 
 Create an EXCEPTIONAL GitHub issue that serves as a complete pitch deck. This should be so comprehensive that an investor could make a funding decision based solely on this issue.
 
@@ -1166,7 +1353,7 @@ STRUCTURE YOUR ISSUE AS:
 [How this idea relates to the original business in the research report and their strategic position]
 
 ## 📊 Market Context & Zone Analysis
-- Position within opportunity portfolio (this is idea X of {zone_info.get('idea_allocation', 1)} in a zone representing {zone_info.get('market_percentage', 0):.1f}% of market)
+- Position within opportunity portfolio (this is idea X of {zone_info.get("idea_allocation", 1)} in a zone representing {zone_info.get("market_percentage", 0):.1f}% of market)
 - Why this zone matters
 - Evidence strength and market signals
 
@@ -1223,14 +1410,15 @@ graph LR
 [Clear next steps for stakeholders]
 
 ---
-*This opportunity represents {zone_info.get('market_percentage', 0):.1f}% of our total addressable market and is 1 of {zone_info.get('idea_allocation', 1)} strategic initiatives in this zone.*
+*This opportunity represents {zone_info.get("market_percentage", 0):.1f}% of our total addressable market and is 1 of {zone_info.get("idea_allocation", 1)} strategic initiatives in this zone.*
 
 Make this issue VISUALLY STUNNING and COMPELLING. Use the README context to maintain consistency.
 
 Output the complete markdown content that will be the issue body:"""
-        
+
         # Use Claude Opus 4.1 for superior narrative quality
         import anthropic
+
         anthropic_key = os.getenv("ANTHROPIC_API_KEY")
         if anthropic_key:
             client = anthropic.Anthropic(api_key=anthropic_key)
@@ -1239,49 +1427,54 @@ Output the complete markdown content that will be the issue body:"""
                 max_tokens=8000,
                 temperature=0.8,
                 system="You are a world-class venture strategist creating definitive pitch decks for breakthrough innovations. Each issue should tell a compelling story that builds excitement and confidence in the opportunity.",
-                messages=[
-                    {"role": "user", "content": prompt}
-                ]
+                messages=[{"role": "user", "content": prompt}],
             )
             gpt5_content = response.content[0].text
-            logger.info(f"✅ Generated compelling issue #{idea_number} with Claude Opus 4.1")
+            logger.info(
+                f"✅ Generated compelling issue #{idea_number} with Claude Opus 4.1"
+            )
         else:
             # Use GPT-4o if no Anthropic key
             response = self.openai_client.chat.completions.create(
                 model="gpt-4o",
                 messages=[
-                    {"role": "system", "content": "You are a world-class venture strategist creating definitive pitch decks for breakthrough innovations. Each issue should tell a compelling story that builds excitement and confidence in the opportunity."},
-                    {"role": "user", "content": prompt}
+                    {
+                        "role": "system",
+                        "content": "You are a world-class venture strategist creating definitive pitch decks for breakthrough innovations. Each issue should tell a compelling story that builds excitement and confidence in the opportunity.",
+                    },
+                    {"role": "user", "content": prompt},
                 ],
                 temperature=0.8,
-                max_tokens=8000
+                max_tokens=8000,
             )
             gpt5_content = response.choices[0].message.content
             logger.info(f"✅ Generated compelling issue #{idea_number} with GPT-4o")
-        
+
         # Extract title from the content or generate one
-        title = idea.get('name', f'Product Idea {idea_number}')
-        if gpt5_content.startswith('#'):
+        title = idea.get("name", f"Product Idea {idea_number}")
+        if gpt5_content.startswith("#"):
             # Try to extract title from first line
-            first_line = gpt5_content.split('\n')[0]
-            if first_line.startswith('# '):
+            first_line = gpt5_content.split("\n")[0]
+            if first_line.startswith("# "):
                 title = first_line[2:].strip()
-        
+
         return {
             "title": title if title.startswith("🚀") else f"🚀 {title}",
-            "body": gpt5_content
+            "body": gpt5_content,
         }
-    
+
     def create_issue_content(
         self, idea: Dict, idea_number: int, jtbd_data: Dict, zone_data: Dict = None
     ) -> Dict[str, str]:
         """Generate issue title and body for a product idea with comprehensive business pitch."""
-        
-        return self.create_issue_content_with_gpt5(idea, idea_number, jtbd_data, zone_data)
 
+        return self.create_issue_content_with_gpt5(
+            idea, idea_number, jtbd_data, zone_data
+        )
 
     def create_labels(self, repo: Any) -> Dict[str, Any]:
         """Create standard labels for the repository."""
+        logger.info(f"Starting label creation for repo: {repo.name}")
         labels = [
             {
                 "name": "shark ready 🦈",
@@ -1377,11 +1570,32 @@ Output the complete markdown content that will be the issue body:"""
                         label = repo.get_label(label_data["name"])
                         created_labels[label_data["name"]] = label
                         logger.info(f"Label already exists: {label_data['name']}")
-                    except Exception:
-                        pass
+                    except Exception as get_error:
+                        logger.warning(
+                            f"Could not get existing label {label_data['name']}: {get_error}"
+                        )
                 else:
                     logger.error(f"Error creating label {label_data['name']}: {e}")
+                    # For shark ready label, try harder to create it
+                    if label_data["name"] == "shark ready 🦈":
+                        logger.info("Retrying shark ready label creation...")
+                        try:
+                            # Try without emoji in the name
+                            label = repo.create_label(
+                                name="shark-ready",
+                                color=label_data["color"],
+                                description=label_data["description"],
+                            )
+                            created_labels["shark-ready"] = label
+                            logger.info("Created shark-ready label (without emoji)")
+                        except Exception as retry_error:
+                            logger.error(
+                                f"Failed to create shark-ready label: {retry_error}"
+                            )
 
+        logger.info(
+            f"Label creation complete. Successfully created: {list(created_labels.keys())}"
+        )
         return created_labels
 
     def create_github_project(
@@ -1395,7 +1609,7 @@ Output the complete markdown content that will be the issue body:"""
         private: bool = False,
     ) -> Dict[str, Any]:
         """Create complete GitHub project with repo, README, and issues.
-        
+
         Enhanced workflow:
         1. Generate initial README with Claude Opus 4.1
         2. Submit to Perplexity Deep Research for validation (5-6 minutes)
@@ -1419,20 +1633,26 @@ Output the complete markdown content that will be the issue body:"""
                 ideas_data=ideas_data,
                 repo_name=repo_name,
             )
-            
+
             # Step 2: Submit to Perplexity Deep Research for validation
-            logger.info("🔬 Step 2: Submitting to Perplexity Deep Research for validation...")
+            logger.info(
+                "🔬 Step 2: Submitting to Perplexity Deep Research for validation..."
+            )
             research_results = self.submit_to_perplexity_deep_research(initial_readme)
-            
+
             # Step 3: Synthesize v2 README with research insights
             if research_results and research_results.get("success"):
-                logger.info("🎯 Step 3: Synthesizing v2 README with research validation...")
-                readme_content = self.synthesize_v2_readme(initial_readme, research_results)
+                logger.info(
+                    "🎯 Step 3: Synthesizing v2 README with research validation..."
+                )
+                readme_content = self.synthesize_v2_readme(
+                    initial_readme, research_results
+                )
                 logger.info("✅ Using research-validated v2 README for repository")
             else:
                 logger.warning("⚠️ Deep research unavailable - using initial README")
                 readme_content = initial_readme
-            
+
             # Step 4: Create repository
             logger.info("📦 Step 4: Creating GitHub repository...")
             repo = self.create_repository(
@@ -1443,7 +1663,9 @@ Output the complete markdown content that will be the issue body:"""
             results["repo_url"] = repo.html_url
 
             # Create labels
-            self.create_labels(repo)
+            logger.info("Creating repository labels...")
+            created_labels = self.create_labels(repo)
+            logger.info(f"Created {len(created_labels)} labels for repository")
 
             # Step 5: Create README in repository
             logger.info("📄 Step 5: Creating README.md in repository...")
@@ -1472,21 +1694,31 @@ Output the complete markdown content that will be the issue body:"""
             # Step 6: Create issues for each product idea
             if create_issues:
                 ideas_list = ideas_data.get("product_ideas", [])
-                logger.info(f"📋 Step 6: Creating GitHub issues for {len(ideas_list)} product ideas...")
+                logger.info(
+                    f"📋 Step 6: Creating GitHub issues for {len(ideas_list)} product ideas..."
+                )
                 for i, idea in enumerate(ideas_list, 1):
                     try:
                         # Find the zone data for this idea
                         zone_data = None
                         idea_zone_name = idea.get("zone_name", "")
-                        for zone_key, zone_info in zones_data.get("clustered_zones", {}).items():
+                        for zone_key, zone_info in zones_data.get(
+                            "clustered_zones", {}
+                        ).items():
                             if zone_info.get("name", "") == idea_zone_name:
                                 zone_data = zone_info
                                 break
-                        
+
                         # Create issue with zone context
-                        logger.info(f"Creating issue #{i} for idea: {idea.get('name', 'Unnamed')}")
-                        issue_data = self.create_issue_content(idea, i, jtbd_data, zone_data)
-                        logger.info(f"Issue data created with title: {issue_data.get('title', 'No title')}")
+                        logger.info(
+                            f"Creating issue #{i} for idea: {idea.get('name', 'Unnamed')}"
+                        )
+                        issue_data = self.create_issue_content(
+                            idea, i, jtbd_data, zone_data
+                        )
+                        logger.info(
+                            f"Issue data created with title: {issue_data.get('title', 'No title')}"
+                        )
 
                         # Determine labels for this issue
                         issue_labels = ["product-idea"]

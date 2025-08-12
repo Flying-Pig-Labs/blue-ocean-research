@@ -1,7 +1,37 @@
 #!/usr/bin/env python3
 """
-Idea Consolidator - Final Pipeline Step
-Consolidates all filtered product ideas into a comprehensive JSON structure with exhaustive details
+Idea Consolidator - Stage 5 of 7 - Final Portfolio Enrichment
+
+Purpose: Consolidates and enriches the 10 selected product ideas into a comprehensive
+         innovation portfolio with complete metadata, journey tracking, and strategic insights.
+
+This module serves as the final enrichment stage before GitHub publication, taking the
+filtered ideas from Stage 4 and transforming them into a complete innovation portfolio.
+It adds metadata, creates comprehensive documentation, and prepares the data for GitHub.
+
+Key Responsibilities:
+1. Load the 10 filtered product ideas from Stage 4
+2. Extract complete pipeline journey metadata
+3. Enrich each idea with exhaustive details and structure
+4. Create portfolio-level strategic insights
+5. Generate markdown summary for human consumption
+6. Export final JSON for GitHub integration
+
+Dependencies:
+- Input: product_ideas.json from product_idea_generator.py (Stage 4)
+- Output: final_innovation_portfolio.json and summary markdown
+
+Integration Points:
+- Called by: run_pipeline.py orchestrator
+- Feeds into: github_integration.py (Stage 6)
+- Uses data from: All previous stages through metadata preservation
+
+Data Enrichment:
+- Adds unique IDs for tracking (IDEA-XXX-YYY format)
+- Preserves complete scoring history
+- Includes ERRC strategy context
+- Maintains zone allocation rationale
+- Adds implementation guidance
 """
 
 import sys
@@ -22,14 +52,65 @@ console = Console()
 
 
 class IdeaConsolidator:
-    """Consolidate all filtered ideas into final comprehensive JSON"""
+    """
+    Consolidates filtered product ideas into a comprehensive innovation portfolio.
+
+    This class takes the 10 carefully selected product ideas from Stage 4 and
+    transforms them into a rich, structured portfolio suitable for executive
+    review and development team implementation. It preserves the complete
+    journey from research to idea, maintaining traceability.
+
+    The consolidator performs several enrichment operations:
+    1. Adds unique tracking IDs for project management
+    2. Preserves complete scoring and filtering history
+    3. Includes strategic context (ERRC grids, zone analysis)
+    4. Adds implementation metadata (timelines, resources)
+    5. Creates both JSON and markdown outputs
+
+    Attributes:
+        timestamp: ISO format timestamp for tracking
+
+    Methods:
+        load_product_ideas: Loads Stage 4 output
+        extract_complete_journey: Compiles pipeline metadata
+        create_exhaustive_idea_details: Enriches individual ideas
+        consolidate: Main orchestration method
+        save_outputs: Exports JSON and markdown files
+    """
 
     def __init__(self):
-        """Initialize consolidator"""
-        self.timestamp = datetime.now().isoformat()
+        """
+        Initialize the idea consolidator.
+
+        Sets up timestamp for tracking and prepares the consolidation environment.
+        The timestamp is used to track when the portfolio was finalized and
+        appears in all output files for version control.
+        """
+        self.timestamp = datetime.now().isoformat()  # ISO 8601 format for consistency
 
     def load_product_ideas(self, filepath: str) -> Dict:
-        """Load product ideas from previous step"""
+        """
+        Load product ideas from Stage 4 output.
+
+        Reads the product_ideas.json file containing the 10 filtered ideas
+        along with their complete metadata, scoring history, and zone context.
+
+        Args:
+            filepath: Path to product_ideas.json (default: "product_ideas.json")
+
+        Returns:
+            Dict containing ideas array and metadata
+
+        Raises:
+            SystemExit: If file not found or JSON parsing fails
+
+        Expected Structure:
+            {
+                "ideas": [...10 product ideas...],
+                "metadata": {zone info, filtering stats, etc.},
+                "zone_results": [...complete zone analysis...]
+            }
+        """
         try:
             with open(filepath, "r") as f:
                 data = json.load(f)
@@ -43,7 +124,26 @@ class IdeaConsolidator:
             sys.exit(1)
 
     def extract_complete_journey(self, data: Dict) -> Dict:
-        """Extract the complete journey metadata from all previous steps"""
+        """
+        Extract complete pipeline journey metadata.
+
+        Compiles metadata from all previous pipeline stages to create a
+        comprehensive journey record. This provides traceability from
+        initial research through to final idea selection.
+
+        Args:
+            data: Product ideas data with embedded metadata
+
+        Returns:
+            Dict containing complete journey statistics and milestones
+
+        Journey Tracking Includes:
+        - Pipeline completion timestamp
+        - Total zones analyzed (typically 7)
+        - Ideas generated vs. filtered (70 → 10)
+        - Pipeline version for reproducibility
+        - Complete list of pipeline steps executed
+        """
         metadata = data.get("metadata", {})
 
         # Try to load additional context from other pipeline outputs if available
@@ -68,7 +168,32 @@ class IdeaConsolidator:
     def create_exhaustive_idea_details(
         self, idea: Dict, zone: Dict, errc_grid: str, zone_index: int, idea_index: int
     ) -> Dict:
-        """Create exhaustive details for a single idea"""
+        """
+        Create exhaustive enriched details for a single product idea.
+
+        Transforms a filtered idea into a comprehensive data structure with
+        all metadata, scores, strategic context, and implementation guidance.
+        This becomes the canonical record for the idea throughout development.
+
+        Args:
+            idea: Original idea dictionary from Stage 4
+            zone: Opportunity zone this idea addresses
+            errc_grid: ERRC strategy that guided idea generation
+            zone_index: Numerical index of the zone (for ID generation)
+            idea_index: Index of idea within zone (for ID generation)
+
+        Returns:
+            Dict with exhaustive idea details in standardized format
+
+        Structure Created:
+        - idea_id: Unique identifier (IDEA-XXX-YYY)
+        - metadata: Generation context and zone info
+        - core_concept: Name, value prop, differentiation
+        - scores: All scoring dimensions with history
+        - strategic_context: ERRC grid and zone strategy
+        - implementation: Timeline, resources, risks
+        - github_integration: Labels and priority for issues
+        """
         return {
             "idea_id": f"IDEA-{zone_index:03d}-{idea_index:03d}",
             "metadata": {
@@ -381,17 +506,21 @@ class IdeaConsolidator:
 
     # REMOVED: _create_roadmap was making incorrect assumption that all ideas would be built
     # Companies choose 1-2 ideas to pursue, not implement entire portfolio
-    
+
     def _REMOVED_create_roadmap(self, ideas: List[Dict]) -> Dict:
         """Create implementation roadmap - distribute ALL ideas across phases"""
         # Sort ideas by viability score to prioritize implementation
-        sorted_ideas = sorted(ideas, key=lambda x: x.get("scores", {}).get("viability_score", 0), reverse=True)
-        
+        sorted_ideas = sorted(
+            ideas,
+            key=lambda x: x.get("scores", {}).get("viability_score", 0),
+            reverse=True,
+        )
+
         # Distribute ALL ideas across phases intelligently
         total_ideas = len(sorted_ideas)
         if total_ideas == 0:
             return {"phase_1": {}, "phase_2": {}, "phase_3": {}}
-        
+
         # Dynamic distribution based on total count
         if total_ideas <= 3:
             phase1_ideas = sorted_ideas
@@ -406,9 +535,9 @@ class IdeaConsolidator:
             phase1_count = max(2, total_ideas // 5)
             phase2_count = max(2, total_ideas // 3)
             phase1_ideas = sorted_ideas[:phase1_count]
-            phase2_ideas = sorted_ideas[phase1_count:phase1_count+phase2_count]
-            phase3_ideas = sorted_ideas[phase1_count+phase2_count:]
-        
+            phase2_ideas = sorted_ideas[phase1_count : phase1_count + phase2_count]
+            phase3_ideas = sorted_ideas[phase1_count + phase2_count :]
+
         return {
             "phase_1": {
                 "duration": "0-3 months",
@@ -429,7 +558,7 @@ class IdeaConsolidator:
 
     # REMOVED: _suggest_resource_allocation assumed building all ideas simultaneously
     # In reality, companies evaluate and choose specific ideas to pursue
-    
+
     def _REMOVED_suggest_resource_allocation(self, ideas: List[Dict]) -> Dict:
         """Suggest resource allocation across ideas"""
         total_ideas = len(ideas)
