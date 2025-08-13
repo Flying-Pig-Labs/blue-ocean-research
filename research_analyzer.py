@@ -815,9 +815,10 @@ class ResearchAnalyzer(DebugAwareComponent):
 
     def extract_company_metadata(self, research_content: str) -> Dict[str, str]:
         """
-        Extract company metadata from the research content.
+        Extract company metadata from input JSON metadata or research content.
 
-        Searches for company name, domain/industry, and description from the research.
+        First checks if metadata was provided in the input JSON.
+        If not, attempts to extract from research content using regex patterns.
         This metadata is critical for maintaining context throughout the pipeline.
 
         Args:
@@ -828,12 +829,43 @@ class ResearchAnalyzer(DebugAwareComponent):
         """
         import re
 
+        # Start with defaults
         metadata = {
             "company_name": "Unknown Company",
             "domain": "Unknown Domain",
             "company_description": "",
             "executive_summary": "",
         }
+        
+        # First, check if metadata was provided in input JSON
+        if hasattr(self, 'input_metadata') and self.input_metadata:
+            input_meta = self.input_metadata
+            # Use input metadata if available
+            if input_meta.get("company_name"):
+                metadata["company_name"] = input_meta["company_name"]
+            if input_meta.get("company"):
+                metadata["company_name"] = input_meta["company"]
+            if input_meta.get("business_name"):
+                metadata["company_name"] = input_meta["business_name"]
+            if input_meta.get("domain"):
+                metadata["domain"] = input_meta["domain"]
+            if input_meta.get("industry"):
+                metadata["domain"] = input_meta["industry"]
+            if input_meta.get("company_description"):
+                metadata["company_description"] = input_meta["company_description"]
+            if input_meta.get("description"):
+                metadata["company_description"] = input_meta["description"]
+            if input_meta.get("executive_summary"):
+                metadata["executive_summary"] = input_meta["executive_summary"]
+            
+            # If we got a company name from metadata, log it
+            if metadata["company_name"] != "Unknown Company":
+                console.print(
+                    f"[green]✅ Using company metadata from input JSON: {metadata['company_name']}[/green]"
+                )
+                # If we have a company name from metadata, skip regex extraction
+                # and return what we have from metadata
+                return metadata
 
         # Extract company name patterns - Enhanced patterns for better extraction
         # Look for various company name formats in the research content
@@ -1066,14 +1098,18 @@ class ResearchAnalyzer(DebugAwareComponent):
             else:
                 data = self.load_local_file(source)
 
-            # Step 2: Extract content
+            # Step 2: Extract content and metadata
             self.logger.info(
-                "Step 2: Extracting content",
+                "Step 2: Extracting content and metadata",
                 ComponentType.RESEARCH_ANALYZER,
                 "research_analysis_pipeline",
             )
             research_content = self.extract_content(data)
             op.input_data_size = len(research_content)
+            
+            # Extract metadata from JSON if available
+            input_metadata = data.get("metadata", {})
+            self.input_metadata = input_metadata  # Store for later use
 
             self.logger.info(
                 f"Extracted research content ({len(research_content)} characters)",
