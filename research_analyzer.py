@@ -835,15 +835,36 @@ class ResearchAnalyzer(DebugAwareComponent):
             "executive_summary": "",
         }
 
-        # Extract company name patterns
-        # Look for "Providence Hill" or similar company names
+        # Extract company name patterns - Enhanced patterns for better extraction
+        # Look for various company name formats in the research content
         company_patterns = [
+            # Special case for known companies
             r"Providence Hill(?:\s+(?:Group|Real Estate|Realty|Company|Corp|LLC))?",
+            
+            # Look for formal company declarations
+            r"(?:Company|Business|Organization|Client|Customer)(?:\s+Name)?:\s*([A-Z][A-Za-z0-9\s&\-\.]+?)(?:\n|,|\.|$)",
+            r"(?:For|About|Regarding)\s+([A-Z][A-Za-z0-9\s&\-\.]+?(?:Group|Company|Corp|LLC|Inc|Ltd|Partners|Ventures|Systems|Solutions|Technologies|Services))",
+            
+            # Headers and titles
+            r"^#\s*([A-Z][A-Za-z0-9\s&\-\.]+?(?:Group|Company|Corp|LLC|Inc|Ltd))",
             r"Comprehensive Competitive Disruption Analysis:\s*([^-\n]+)",
-            r"Analysis:\s*([A-Z][A-Za-z0-9\s&]+(?:Group|Company|Corp|LLC|Inc))",
-            r"(?:Company|Business|Organization):\s*([A-Z][A-Za-z0-9\s&]+)",
-            r"# [^#\n]*?([A-Z][A-Za-z0-9\s&]+(?:Group|Company|Corp|LLC|Inc))[^#\n]*Market",
-            r"intelligence analysis reveals ([A-Z][A-Za-z0-9\s&]+(?:Real Estate|Group|Company))",
+            r"Market Analysis for\s+([A-Z][A-Za-z0-9\s&\-\.]+)",
+            r"Research Report:\s*([A-Z][A-Za-z0-9\s&\-\.]+)",
+            
+            # Within analysis context
+            r"Analysis:\s*([A-Z][A-Za-z0-9\s&\-\.]+(?:Group|Company|Corp|LLC|Inc))",
+            r"intelligence analysis reveals ([A-Z][A-Za-z0-9\s&\-\.]+(?:Real Estate|Group|Company))",
+            r"competitive landscape for\s+([A-Z][A-Za-z0-9\s&\-\.]+)",
+            
+            # JSON or structured data
+            r'"company_name":\s*"([^"]+)"',
+            r'"businessName":\s*"([^"]+)"',
+            r'"name":\s*"([^"]+(?:Group|Company|Corp|LLC|Inc|Ltd))"',
+            
+            # Markdown metadata
+            r"^\*\*Company\*\*:\s*([^\n]+)",
+            r"^Company:\s*([^\n]+)",
+            r"^Business:\s*([^\n]+)",
         ]
 
         for pattern in company_patterns:
@@ -933,6 +954,18 @@ class ResearchAnalyzer(DebugAwareComponent):
         # Extract and add company metadata if research content provided
         if research_content:
             metadata = self.extract_company_metadata(research_content)
+            
+            # CRITICAL: Fail if company name is not extracted
+            if metadata['company_name'] == "Unknown Company":
+                error_msg = (
+                    "❌ CRITICAL ERROR: Failed to extract company name from research content.\n"
+                    "The company name is required for proper synthesis and cannot be 'Unknown Company'.\n"
+                    "Please ensure the research content contains identifiable company information."
+                )
+                console.print(f"[red]{error_msg}[/red]")
+                self.logger.error(error_msg, ComponentType.RESEARCH_ANALYZER, "metadata_extraction_failure")
+                raise ValueError(error_msg)
+            
             combined += "## Company Context\n\n"
             combined += f"**Company:** {metadata['company_name']}\n"
             combined += f"**Domain/Industry:** {metadata['domain']}\n"
