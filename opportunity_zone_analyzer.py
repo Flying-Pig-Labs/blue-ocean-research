@@ -575,17 +575,80 @@ Return ONLY the enhanced name (no quotes, no explanation)."""
         top_pains = sorted(pain_dims.items(), key=lambda x: x[1], reverse=True)[:3]
         pain_focus = ", ".join([dim.replace('_', ' ') for dim, _ in top_pains])
         
-        # Create focused research prompt
-        prompt = f\"\"\"Research the market landscape for {zone_name} solutions in real estate technology.
+        # Create focused research prompt using Dynamic Deep-Dive Framework
+        prompt = f\"\"\"The Dynamic Deep-Dive Framework: Final Version
+Analyze {zone_name} solutions in real estate technology using this systematic approach:
 
-Focus Areas:
-1. Market Analysis: Current market size, growth trends, and key players for solutions addressing {pain_focus}
-2. Competitive Intelligence: Existing products, their strengths/weaknesses, pricing models, and market gaps
-3. Technology Trends: Emerging technologies and approaches relevant to: {'; '.join(solution_reqs[:3])}
-4. Implementation Insights: Common challenges, success factors, and integration requirements for these solutions
-5. Regulatory Environment: Compliance requirements and regulatory trends affecting this market segment
+Step 1: Identify the Core Opportunity Mechanism
+• What is the fundamental economic/behavioral shift creating this opportunity?
+• Is it regulatory change, technology disruption, demographic shift, market inefficiency, etc.?
+• What's the pain multiplier? How much worse does this problem get if left unsolved? (Exponential pain = exponential opportunity. Linear pain = commodity business)
 
-Prioritize recent data (2023-2024), quantitative insights, and actionable market intelligence for product development decisions.\"\"\"
+Step 2: Apply Domain-Specific Interrogation Layers
+
+Regulatory/Legal Layer:
+• What permissions, licenses, or compliance requirements exist?
+• Are regulations tightening or loosening? What's in the pipeline?
+• Who are the regulatory capture players that might block new entrants?
+• What regulatory arbitrage exists between jurisdictions?
+• What's currently illegal that won't be in 3 years?
+
+Economic Structure Layer:
+• Where does the money actually flow in this ecosystem?
+• At what point does each additional customer become pure profit?
+• Who captures the highest margin pieces and why?
+• Who's making stupid money in adjacent spaces that this could cannibalize?
+• What's the working capital requirement and cash conversion cycle?
+
+Competitive Dynamics Layer:
+• Who's already solving adjacent problems and could pivot into this space?
+• What would prevent incumbents from crushing new entrants?
+• Are there network effects, switching costs, or other defensibility moats?
+• What unfair advantage could we create or acquire?
+• Which sleeping giant's lunch are we eating, and when will they wake up?
+• What would it take to become the infrastructure everyone else has to use?
+
+Implementation Reality Layer:
+• What operational capabilities would someone actually need to execute this?
+• What's the minimum viable scale to be profitable?
+• What could go wrong that isn't obvious from the surface trend?
+• What's the 'Oh shit' scenario that kills 90% of attempts?
+• What expertise is actually scarce vs. what just seems hard?
+
+Market Timing Layer:
+• Is this opportunity early, mature, or cyclical?
+• What external factors could accelerate or kill the trend?
+• How long is the window before it becomes commoditized?
+• What Black Swan could 10x this opportunity overnight?
+• Is this a vitamin, painkiller, or addiction? (nice-to-have vs. must-have vs. can't-live-without)
+
+Step 3: Find the Trojan Horse
+• What boring/established business could be the delivery mechanism for this disruption?
+• What industry desperately needs this but doesn't know it yet?
+• How could this be repackaged to look like something incumbents already buy?
+• How might this opportunity intersect with 2-3 other industries or trends?
+• What second-order effects might create larger opportunities than the obvious first-order play?
+
+Step 4: The Bullshit Filter
+• Why hasn't someone already done this and gotten rich?
+• If the answer is "technology just became available" - prove it with specifics
+• If the answer is "market wasn't ready" - what measurable indicator shows it's ready now?
+• Name three specific people/companies who tried this and failed - why is now different?
+
+Step 5: The Exit Game
+• Who's the natural acquirer and what multiple would they pay?
+• Could this IPO or is it an acquisition play only?
+• What metrics would need to be true for a 10x exit in 5 years?
+
+Speed to Money Metrics (Apply Throughout):
+• How fast can we get to first revenue?
+• How fast can we get to first profit?
+• How fast can we get to first million?
+• What's the cash flow timeline that determines if we survive long enough to win?
+
+Core Principle: Less "analyze the market" and more "how do we take the market."
+
+Context: Pain Points = {pain_focus} | Solution Requirements = {'; '.join(solution_reqs[:3])}\"\"\"
         
         return prompt
 
@@ -611,31 +674,139 @@ Prioritize recent data (2023-2024), quantitative insights, and actionable market
         # Extract key themes from initial research for focused deep dive
         initial_insights = initial_research[:1000] if initial_research else "No initial research available"
         
-        prompt = f"""Based on this initial market research for {zone_name}, conduct deep strategic analysis:
+        prompt = f"""Signal Extraction & Context Amplification Protocol
+Apply this systematic analysis to extract maximum value from the initial research:
 
 INITIAL RESEARCH FINDINGS:
 {initial_insights}
 
 OPPORTUNITY ZONE CONTEXT:
+- {zone_name}
 - Market Opportunity Score: {market_score}
 - Key Pain Points: {', '.join([f"{dim} ({score:.1f})" for dim, score in sorted(pain_dims.items(), key=lambda x: x[1], reverse=True)[:3]])}
 - Solution Requirements: {'; '.join(solution_reqs[:3])}
 
-DEEP RESEARCH FOCUS AREAS:
+Phase 1: Signal vs. Noise Triage (First 2 Hours)
 
-1. **Investment & Funding Landscape**: What funding trends, investor interest, and capital requirements exist for solutions in this space? Include recent funding rounds, valuations, and investor sentiment.
+The "Holy Shit" Test
+• Pull out any answer that made you stop and re-read it. These are your primary signals.
+• Tag each finding as:
+  - Category A: "Nobody else knows this yet" (maximum alpha)
+  - Category B: "Known but misunderstood" (arbitrage opportunity)  
+  - Category C: "Common knowledge" (table stakes only)
 
-2. **Regulatory Deep Dive**: Detailed regulatory analysis - upcoming changes, compliance costs, regulatory barriers to entry, and how regulations vary by geography/market segment.
+The Contradiction Map
+• Find every place where answers conflict with each other. Contradictions are where the real opportunity lives.
+• Example: "Regulation is loosening" + "Incumbents are investing heavily in compliance" = Someone's wrong, and that gap is worth millions.
 
-3. **Technology Maturity Assessment**: Technical feasibility analysis - which technologies are production-ready vs experimental, implementation timelines, and technical risk factors.
+Kill the Consensus
+• Anything that appears in 3+ different answers is probably noise unless it's quantified differently.
+• Strip out all "AI will transform everything" type platitudes.
+• Focus on specific, uncomfortable truths that people don't want to be true.
 
-4. **Customer Behavior Analytics**: Deep user research - purchasing patterns, adoption barriers, willingness to pay, and customer acquisition costs in this specific market.
+Phase 2: Pattern Recognition & Synthesis (Next 2 Hours)
 
-5. **Partnership & Integration Ecosystem**: Key strategic partnerships, API ecosystems, distribution channels, and integration requirements for successful market entry.
+The Money Flow Map
+Create a single visual showing:
+• Where money enters the system (who pays first?)
+• Where it pools (who holds it longest?)
+• Where it exits (who takes the biggest cut?)
+• Where it leaks (what inefficiency can we exploit?)
 
-6. **Competitive Moats & Differentiation**: Detailed analysis of sustainable competitive advantages, defensibility strategies, and white-space opportunities competitors haven't addressed.
+The Power Player Matrix
+Build a 2x2 grid:
+• Y-axis: "Has money" to "Needs money"
+• X-axis: "Has solution" to "Needs solution"
+• Plot every stakeholder mentioned in the research
+• The magic quadrant is: "Has money + Needs solution"
 
-Prioritize quantitative data, recent developments (2023-2024), and actionable strategic insights for product development and go-to-market planning."""
+The Timing Cascade
+Sequence everything by time sensitivity:
+• What happens in next 90 days that changes the game?
+• What regulatory/competitive shoe drops in 6-12 months?
+• What trend reaches critical mass in 2 years?
+• Create a "strike window" calendar with specific trigger dates.
+
+Phase 3: Context Weaponization (Final 2 Hours)
+
+The Opportunity Thesis (One Page Max)
+Structure it as a betting slip:
+
+THE BET: [Single sentence - what specific change will happen]
+
+THE EDGE: [What we know that others don't or won't act on]
+
+THE PROOF:
+• 3 data points that prove the shift is happening
+• 2 examples of early indicators most people missed
+• 1 "canary in the coal mine" metric to track
+
+THE ANTI-PROOF:
+• Best argument for why this is wrong
+• Why we're betting against that argument
+
+The Innovation Ammunition Kit
+
+1. The "Fuck It, Let's Build This" List
+• 5 specific products/services that could capture value immediately
+• Ranked by: (Speed to Revenue) × (Defensibility) ÷ (Capital Required)
+
+2. The Customer Pain Stack
+Top 10 specific pains mentioned, ranked by:
+• Frequency (how often it hurts)
+• Intensity (how much it hurts)
+• Willingness to pay (what they'd spend to stop the hurt)
+
+3. The Trojan Horse Playbook
+• 3 ways to enter the market that don't look threatening
+• Which existing budget line item we're replacing
+• What we're calling it so nobody realizes it's disruption
+
+4. The Unfair Advantage Shopping List
+• Specific assets/relationships/capabilities we need to acquire
+• Who has them now
+• What it would cost/take to get them
+
+5. The "Oh Shit" Scenario Brief
+• Top 3 ways this could blow up
+• Early warning signals for each
+• Pivot options if each scenario materializes
+
+The Context Transmission Package
+
+For Product Innovation Squads, deliver:
+
+The 2-Minute Story
+• Written like you're explaining to a smart friend at a bar
+• No jargon, just "Here's how we're going to make money"
+
+The Contrarian Truth Sheet
+• 5 things everyone believes that are wrong
+• 5 things nobody believes that are right
+• Evidence for each
+
+The Speed Run Challenge
+• "If you had $100K and 90 days, here's exactly what you'd build"
+• Include specific first 10 customers to call
+
+The Multiplier Moments
+• 3 specific events/triggers that would 10x this opportunity
+• How to position to benefit when they happen
+
+Quality Control: The Bullshit Detector
+
+Before transmitting to product squads, run this final check:
+• Can you explain the opportunity to your grandmother AND a hedge fund manager? If not, you don't understand it.
+• Is there a specific person with a budget who would buy this tomorrow? Name them.
+• What's the one piece of information that would make you reverse your entire thesis? If you can't name it, you're not thinking clearly.
+
+Output Formats
+Package everything in three versions:
+• The Executive Brief: 1 page, 5 bullets, 1 decision required
+• The Builder's Bible: All details, ranked by actionability  
+• The Skeptic's File: Every reason this could fail and why we're doing it anyway
+
+Remember: The goal isn't to document the opportunity. It's to make it impossible for the product squad NOT to build something valuable. Every word should increase their hunger to ship something that makes money."""
         
         return prompt
 
