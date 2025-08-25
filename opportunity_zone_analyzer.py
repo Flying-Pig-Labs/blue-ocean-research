@@ -53,6 +53,10 @@ from sklearn.preprocessing import StandardScaler
 import logging
 from collections import defaultdict
 import time
+import requests
+import asyncio
+import aiohttp
+from concurrent.futures import ThreadPoolExecutor
 
 # Configure logging
 logging.basicConfig(
@@ -188,16 +192,19 @@ class OpportunityZoneAnalyzer:
         ],
     }
 
-    def __init__(self, anthropic_api_key: str = None):
+    def __init__(self, anthropic_api_key: str = None, perplexity_api_key: str = None):
         """
-        Initialize the analyzer with Anthropic client.
+        Initialize the analyzer with Anthropic and Perplexity clients.
 
-        Sets up the Claude API client for LLM-powered zone naming and analysis.
-        Falls back to environment variable if API key not provided directly.
+        Sets up the Claude API client for LLM-powered zone naming and analysis,
+        and the Perplexity API client for market research enrichment.
+        Falls back to environment variables if API keys not provided directly.
 
         Args:
             anthropic_api_key: Optional API key for Claude. If not provided,
                              uses ANTHROPIC_API_KEY environment variable.
+            perplexity_api_key: Optional API key for Perplexity. If not provided,
+                              uses PERPLEXITY_API_KEY environment variable.
 
         Raises:
             ValueError: If no API key available (neither argument nor env var)
@@ -206,6 +213,12 @@ class OpportunityZoneAnalyzer:
         if not self.anthropic_api_key:
             raise ValueError("ANTHROPIC_API_KEY environment variable not set")
         self.client = Anthropic(api_key=self.anthropic_api_key)
+        
+        self.perplexity_api_key = perplexity_api_key or os.getenv("PERPLEXITY_API_KEY")
+        if self.perplexity_api_key:
+            logger.info("Perplexity API key found - market research enrichment enabled")
+        else:
+            logger.warning("PERPLEXITY_API_KEY not set - skipping market research enrichment")
 
     def load_data(
         self, jtbd_file: str, reddit_file: str
@@ -541,6 +554,87 @@ Return ONLY the enhanced name (no quotes, no explanation)."""
             logger.warning(f"Error enhancing zone name: {e}")
             return base_name  # Fall back to base name on error
 
+    def generate_perplexity_research_prompt(self, zone: Dict[str, Any]) -> str:
+        """
+        Generate a targeted research prompt for Perplexity API based on the opportunity zone.
+        
+        Creates a comprehensive research query that covers market intelligence,
+        competitive landscape, technology trends, and solution validation for the zone.
+        
+        Args:
+            zone: Opportunity zone dict containing name, pain dimensions, and solution requirements
+            
+        Returns:
+            Formatted research prompt string optimized for Perplexity API
+        """
+        zone_name = zone.get('name', 'Unknown Zone')
+        pain_dims = zone.get('pain_dimensions', {})
+        solution_reqs = zone.get('solution_requirements', [])
+        
+        # Extract key pain areas (top 3 dimensions)
+        top_pains = sorted(pain_dims.items(), key=lambda x: x[1], reverse=True)[:3]
+        pain_focus = ", ".join([dim.replace('_', ' ') for dim, _ in top_pains])
+        
+        # Create focused research prompt
+        prompt = f\"\"\"Research the market landscape for {zone_name} solutions in real estate technology.
+
+Focus Areas:
+1. Market Analysis: Current market size, growth trends, and key players for solutions addressing {pain_focus}
+2. Competitive Intelligence: Existing products, their strengths/weaknesses, pricing models, and market gaps
+3. Technology Trends: Emerging technologies and approaches relevant to: {'; '.join(solution_reqs[:3])}
+4. Implementation Insights: Common challenges, success factors, and integration requirements for these solutions
+5. Regulatory Environment: Compliance requirements and regulatory trends affecting this market segment
+
+Prioritize recent data (2023-2024), quantitative insights, and actionable market intelligence for product development decisions.\"\"\"
+        
+        return prompt
+
+    def enrich_zones_with_perplexity(self, zones: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        """
+        Enrich opportunity zones with market research from Perplexity API in parallel.
+        
+        For each zone, generates a tailored research prompt and queries Perplexity API
+        for market intelligence, competitive analysis, and technology trends. All queries
+        are executed in parallel for efficiency.
+        
+        Args:
+            zones: List of opportunity zone dictionaries to enrich
+            
+        Returns:
+            Enhanced zones with perplexity_research field added to each zone
+        """
+        if not self.perplexity_api_key:
+            logger.warning("No Perplexity API key - adding empty research fields")
+            for zone in zones:
+                zone['perplexity_research'] = {
+                    'query': 'N/A - No API key provided',
+                    'response': 'Market research enrichment unavailable',
+                    'timestamp': datetime.now().isoformat(),
+                    'key_insights': ['Perplexity API integration disabled']
+                }
+            return zones
+        
+        logger.info(f"Starting Perplexity enrichment for {len(zones)} zones")
+        
+        # Prepare all research queries
+        research_tasks = []
+        for zone in zones:
+            prompt = self.generate_perplexity_research_prompt(zone)
+            zone['perplexity_research'] = {
+                'query': prompt,
+                'response': '',
+                'timestamp': datetime.now().isoformat(),
+                'key_insights': []
+            }
+            research_tasks.append((zone, prompt))
+        
+        # Execute all Perplexity queries in parallel
+        def query_perplexity(zone_prompt_tuple):
+            zone, prompt = zone_prompt_tuple
+            try:
+                logger.info(f\"Querying Perplexity for: {zone['zone_id']}\")\n                \n                headers = {\n                    'Authorization': f'Bearer {self.perplexity_api_key}',\n                    'Content-Type': 'application/json'\n                }\n                \n                payload = {\n                    'model': 'llama-3.1-sonar-large-128k-online',\n                    'messages': [\n                        {\n                            'role': 'system',\n                            'content': 'You are a market research analyst providing comprehensive, data-driven insights for product development decisions.'\n                        },\n                        {\n                            'role': 'user', \n                            'content': prompt\n                        }\n                    ],\n                    'max_tokens': 2000,\n                    'temperature': 0.2,\n                    'return_citations': True,\n                    'return_images': False\n                }\n                \n                response = requests.post(\n                    'https://api.perplexity.ai/chat/completions',\n                    headers=headers,\n                    json=payload,\n                    timeout=60\n                )\n                \n                if response.status_code == 200:\n                    result = response.json()\n                    research_content = result['choices'][0]['message']['content']\n                    \n                    # Extract key insights (first sentence of each paragraph)\n                    insights = []\n                    paragraphs = research_content.split('\\n\\n')\n                    for para in paragraphs[:5]:  # Top 5 paragraphs\n                        if para.strip() and len(para.strip()) > 50:\n                            first_sentence = para.strip().split('.')[0] + '.'\n                            if len(first_sentence) > 20:  # Valid insight\n                                insights.append(first_sentence)\n                    \n                    zone['perplexity_research']['response'] = research_content\n                    zone['perplexity_research']['key_insights'] = insights[:7]  # Max 7 insights\n                    \n                    logger.info(f\"Successfully enriched {zone['zone_id']} with {len(insights)} insights\")\n                    return zone\n                    \n                else:\n                    logger.error(f\"Perplexity API error for {zone['zone_id']}: {response.status_code} - {response.text}\")\n                    zone['perplexity_research']['response'] = f\"API Error: {response.status_code}\"\n                    zone['perplexity_research']['key_insights'] = [f\"Failed to retrieve market research: {response.text[:100]}\"]\n                    return zone\n                    \n            except Exception as e:\n                logger.error(f\"Exception during Perplexity enrichment for {zone['zone_id']}: {e}\")\n                zone['perplexity_research']['response'] = f\"Exception: {str(e)}\"\n                zone['perplexity_research']['key_insights'] = [f\"Research enrichment failed: {str(e)[:100]}\"]\n                return zone
+        \n        # Execute all queries in parallel using ThreadPoolExecutor\n        with ThreadPoolExecutor(max_workers=min(len(zones), 5)) as executor:\n            enriched_zones = list(executor.map(query_perplexity, research_tasks))\n        \n        logger.info(f\"Completed Perplexity enrichment for all {len(enriched_zones)} zones\")\n        return enriched_zones
+
     def analyze_opportunity_zones(
         self,
         jtbd_file: str,
@@ -652,6 +746,10 @@ Return ONLY the enhanced name (no quotes, no explanation)."""
         opportunity_zones.sort(
             key=lambda x: x["market_opportunity_score"], reverse=True
         )
+        
+        # ENHANCEMENT: Enrich zones with Perplexity market research
+        logger.info("Enriching opportunity zones with Perplexity market research")
+        opportunity_zones = self.enrich_zones_with_perplexity(opportunity_zones)
 
         # Build final output
         output = {

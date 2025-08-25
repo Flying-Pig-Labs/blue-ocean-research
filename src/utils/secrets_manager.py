@@ -19,7 +19,7 @@ SECRET_ARNS = {
     "EXA_API_KEY": "arn:aws:secretsmanager:us-east-1:984906149037:secret:exa-key-N7ylem",
     "COHERE_API_KEY": "arn:aws:secretsmanager:us-east-1:984906149037:secret:cohere-key-MxBx6j",
     "GITHUB_TOKEN": "arn:aws:secretsmanager:us-east-1:984906149037:secret:github_token-sIuriy",
-    "PERPLEXITY_KEY": "arn:aws:secretsmanager:us-east-1:984906149037:secret:perplexity-key-rrkmhM",
+    "PERPLEXITY_API_KEY": "arn:aws:secretsmanager:us-east-1:984906149037:secret:perplexity-key-rrkmhM",
 }
 
 

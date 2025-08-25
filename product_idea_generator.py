@@ -799,7 +799,20 @@ Industry Norms & Sacred Cows:
 {zone_analysis.get("industry_norms", "Not available")}
 
 Engineering Spectrum Analysis:
-{zone_analysis.get("engineering_spectrum", "Not available")}
+{zone_analysis.get("engineering_spectrum", "Not available")}"""
+        
+        # ENHANCEMENT: Add Perplexity market research to context
+        perplexity_research = zone_analysis["zone"].get("perplexity_research", {})
+        if perplexity_research.get("response") and perplexity_research["response"] != "Market research enrichment unavailable":
+            context += f"""
+
+Market Intelligence (Perplexity Research):
+{perplexity_research["response"][:1500]}...  # Limit to avoid token overflow
+
+Key Market Insights:
+{chr(10).join(f"• {insight}" for insight in perplexity_research.get("key_insights", [])[:5])}"""
+        
+        context += """
 
 Competitive Intelligence Summary:
 """
@@ -841,15 +854,27 @@ Format as a structured table with clear actionable items."""
             console.print(f"[red]Error generating ERRC grid: {e}[/red]")
             return f"Error generating ERRC grid: {str(e)}"
 
-    def generate_product_ideas(self, zone_name: str, errc_grid: str) -> List[Dict]:
+    def generate_product_ideas(self, zone_name: str, errc_grid: str, perplexity_research: Dict = None) -> List[Dict]:
         """Use Claude Opus to generate 10 product ideas based on ERRC grid"""
         console.print(f"[cyan]💡 Generating 10 product ideas for: {zone_name}[/cyan]")
 
+        # ENHANCEMENT: Include Perplexity research in prompt if available
+        market_intelligence = ""
+        if perplexity_research and perplexity_research.get("response") != "Market research enrichment unavailable":
+            market_intelligence = f"""
+
+MARKET INTELLIGENCE:
+{perplexity_research.get("response", "")[:1000]}...
+
+KEY MARKET INSIGHTS:
+{chr(10).join(f"• {insight}" for insight in perplexity_research.get("key_insights", [])[:4])}
+"""
+
         prompt = f"""Based on this ERRC Grid analysis for the '{zone_name}' opportunity zone:
 
-{errc_grid}
+{errc_grid}{market_intelligence}
 
-Generate exactly 10 innovative product ideas that embody this ERRC strategy. For each idea:
+Generate exactly 10 innovative product ideas that embody this ERRC strategy and leverage the market intelligence above. For each idea:
 
 1. Product Name (catchy and memorable)
 2. Core Value Proposition (one sentence)
@@ -1132,8 +1157,9 @@ Output in a structured format that can be parsed."""
         # Step 1: Generate ERRC Grid (OpenAI o1)
         errc_grid = self.generate_errc_grid(zone_analysis)
 
-        # Step 2: Generate Product Ideas (Claude Opus)
-        product_ideas = self.generate_product_ideas(zone_name, errc_grid)
+        # Step 2: Generate Product Ideas (Claude Opus) - Enhanced with Perplexity research
+        perplexity_research = zone.get("perplexity_research", {})
+        product_ideas = self.generate_product_ideas(zone_name, errc_grid, perplexity_research)
 
         # Step 3: Evaluate Viability (Claude Opus)
         scored_ideas = self.scope_viability(product_ideas, zone_name)

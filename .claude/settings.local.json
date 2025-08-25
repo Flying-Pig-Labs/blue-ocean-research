@@ -1,0 +1,22 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(ls:*)",
+      "Bash(./deploy.sh)",
+      "Bash(open:*)",
+      "Bash(docker:*)",
+      "Bash(/dev/null)",
+      "Bash(sam build:*)",
+      "Bash(cp:*)",
+      "Bash(sam deploy:*)",
+      "Bash(aws s3 mb:*)",
+      "Bash(aws cloudformation delete-stack:*)",
+      "Bash(aws cloudformation wait:*)",
+      "Bash(touch:*)",
+      "Bash(rm:*)",
+      "Bash(gh repo list:*)",
+      "Bash(gh repo delete:*)"
+    ],
+    "deny": []
+  }
+}

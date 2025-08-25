@@ -141,7 +141,7 @@ def load_secrets_from_aws():
         OPENAI_API_KEY: For GPT models including GPT-5
         COHERE_API_KEY: For Cohere embeddings and models
         GITHUB_TOKEN: For repository creation and issue management
-        PERPLEXITY_KEY: For web search capabilities (optional)
+        PERPLEXITY_API_KEY: For Perplexity AI market research capabilities (optional)
 
     Note:
         EXA_API_KEY was removed in Dec 2024 when switching to PRAW-based
@@ -169,7 +169,7 @@ def load_secrets_from_aws():
         "OPENAI_API_KEY": "arn:aws:secretsmanager:us-east-1:984906149037:secret:openai_key-PkoBXY",
         "COHERE_API_KEY": "arn:aws:secretsmanager:us-east-1:984906149037:secret:cohere-key-MxBx6j",
         "GITHUB_TOKEN": "arn:aws:secretsmanager:us-east-1:984906149037:secret:github_token_blue_ocean-uv7Z1l",
-        "PERPLEXITY_KEY": "arn:aws:secretsmanager:us-east-1:984906149037:secret:perplexity-key-rrkmhM",
+        "PERPLEXITY_API_KEY": "arn:aws:secretsmanager:us-east-1:984906149037:secret:perplexity-key-rrkmhM",
         # Note: EXA_API_KEY removed in Dec 2024 - PRAW-based Reddit discovery eliminates this dependency
     }
 
