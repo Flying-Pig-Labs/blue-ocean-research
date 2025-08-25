@@ -589,51 +589,119 @@ Prioritize recent data (2023-2024), quantitative insights, and actionable market
         
         return prompt
 
+    def generate_deep_research_prompt(self, zone: Dict[str, Any], initial_research: str) -> str:
+        """
+        Generate a deep research prompt using the initial market research results.
+        
+        Creates a targeted follow-up research query that builds on the initial findings
+        to provide deeper, more actionable insights for product development decisions.
+        
+        Args:
+            zone: Opportunity zone dict containing all zone details
+            initial_research: Results from the first round of Perplexity research
+            
+        Returns:
+            Deep research prompt string optimized for second-round Perplexity API call
+        """
+        zone_name = zone.get('name', 'Unknown Zone')
+        pain_dims = zone.get('pain_dimensions', {})
+        solution_reqs = zone.get('solution_requirements', [])
+        market_score = zone.get('market_opportunity_score', 0)
+        
+        # Extract key themes from initial research for focused deep dive
+        initial_insights = initial_research[:1000] if initial_research else "No initial research available"
+        
+        prompt = f"""Based on this initial market research for {zone_name}, conduct deep strategic analysis:
+
+INITIAL RESEARCH FINDINGS:
+{initial_insights}
+
+OPPORTUNITY ZONE CONTEXT:
+- Market Opportunity Score: {market_score}
+- Key Pain Points: {', '.join([f"{dim} ({score:.1f})" for dim, score in sorted(pain_dims.items(), key=lambda x: x[1], reverse=True)[:3]])}
+- Solution Requirements: {'; '.join(solution_reqs[:3])}
+
+DEEP RESEARCH FOCUS AREAS:
+
+1. **Investment & Funding Landscape**: What funding trends, investor interest, and capital requirements exist for solutions in this space? Include recent funding rounds, valuations, and investor sentiment.
+
+2. **Regulatory Deep Dive**: Detailed regulatory analysis - upcoming changes, compliance costs, regulatory barriers to entry, and how regulations vary by geography/market segment.
+
+3. **Technology Maturity Assessment**: Technical feasibility analysis - which technologies are production-ready vs experimental, implementation timelines, and technical risk factors.
+
+4. **Customer Behavior Analytics**: Deep user research - purchasing patterns, adoption barriers, willingness to pay, and customer acquisition costs in this specific market.
+
+5. **Partnership & Integration Ecosystem**: Key strategic partnerships, API ecosystems, distribution channels, and integration requirements for successful market entry.
+
+6. **Competitive Moats & Differentiation**: Detailed analysis of sustainable competitive advantages, defensibility strategies, and white-space opportunities competitors haven't addressed.
+
+Prioritize quantitative data, recent developments (2023-2024), and actionable strategic insights for product development and go-to-market planning."""
+        
+        return prompt
+
     def enrich_zones_with_perplexity(self, zones: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         """
-        Enrich opportunity zones with market research from Perplexity API in parallel.
+        TWO-STAGE ENHANCEMENT: Enrich opportunity zones with market research from Perplexity API.
         
-        For each zone, generates a tailored research prompt and queries Perplexity API
-        for market intelligence, competitive analysis, and technology trends. All queries
-        are executed in parallel for efficiency.
+        Stage 1: Initial market intelligence research
+        Stage 2: Deep research using Stage 1 results + zone context for final weighted enrichment
         
         Args:
             zones: List of opportunity zone dictionaries to enrich
             
         Returns:
-            Enhanced zones with perplexity_research field added to each zone
+            Enhanced zones with comprehensive two-stage perplexity research
         """
         if not self.perplexity_api_key:
             logger.warning("No Perplexity API key - adding empty research fields")
             for zone in zones:
                 zone['perplexity_research'] = {
-                    'query': 'N/A - No API key provided',
-                    'response': 'Market research enrichment unavailable',
-                    'timestamp': datetime.now().isoformat(),
-                    'key_insights': ['Perplexity API integration disabled']
+                    'stage1_market_intelligence': {
+                        'query': 'N/A - No API key provided',
+                        'response': 'Market research enrichment unavailable',
+                        'timestamp': datetime.now().isoformat(),
+                        'key_insights': ['Perplexity API integration disabled']
+                    },
+                    'stage2_deep_research': {
+                        'query': 'N/A - No API key provided',
+                        'response': 'Deep research unavailable',
+                        'timestamp': datetime.now().isoformat(),
+                        'strategic_insights': ['Deep research disabled']
+                    }
                 }
             return zones
         
-        logger.info(f"Starting Perplexity enrichment for {len(zones)} zones")
+        logger.info(f"Starting TWO-STAGE Perplexity enrichment for {len(zones)} zones")
         
-        # Prepare all research queries
-        research_tasks = []
+        # STAGE 1: Initial Market Intelligence Research
+        logger.info("🔍 STAGE 1: Conducting initial market intelligence research...")
+        
+        # STAGE 1: Prepare initial market intelligence queries
+        stage1_tasks = []
         for zone in zones:
             prompt = self.generate_perplexity_research_prompt(zone)
             zone['perplexity_research'] = {
-                'query': prompt,
-                'response': '',
-                'timestamp': datetime.now().isoformat(),
-                'key_insights': []
+                'stage1_market_intelligence': {
+                    'query': prompt,
+                    'response': '',
+                    'timestamp': datetime.now().isoformat(),
+                    'key_insights': []
+                },
+                'stage2_deep_research': {
+                    'query': '',
+                    'response': '',
+                    'timestamp': '',
+                    'strategic_insights': []
+                }
             }
-            research_tasks.append((zone, prompt))
+            stage1_tasks.append((zone, prompt))
         
-        # Execute all Perplexity queries in parallel
-        def query_perplexity(zone_prompt_tuple):
+        # STAGE 1: Execute initial market intelligence queries in parallel
+        def query_perplexity_stage1(zone_prompt_tuple):
             zone, prompt = zone_prompt_tuple
             try:
-                logger.info(f\"Querying Perplexity for: {zone['zone_id']}\")\n                \n                headers = {\n                    'Authorization': f'Bearer {self.perplexity_api_key}',\n                    'Content-Type': 'application/json'\n                }\n                \n                payload = {\n                    'model': 'llama-3.1-sonar-large-128k-online',\n                    'messages': [\n                        {\n                            'role': 'system',\n                            'content': 'You are a market research analyst providing comprehensive, data-driven insights for product development decisions.'\n                        },\n                        {\n                            'role': 'user', \n                            'content': prompt\n                        }\n                    ],\n                    'max_tokens': 2000,\n                    'temperature': 0.2,\n                    'return_citations': True,\n                    'return_images': False\n                }\n                \n                response = requests.post(\n                    'https://api.perplexity.ai/chat/completions',\n                    headers=headers,\n                    json=payload,\n                    timeout=60\n                )\n                \n                if response.status_code == 200:\n                    result = response.json()\n                    research_content = result['choices'][0]['message']['content']\n                    \n                    # Extract key insights (first sentence of each paragraph)\n                    insights = []\n                    paragraphs = research_content.split('\\n\\n')\n                    for para in paragraphs[:5]:  # Top 5 paragraphs\n                        if para.strip() and len(para.strip()) > 50:\n                            first_sentence = para.strip().split('.')[0] + '.'\n                            if len(first_sentence) > 20:  # Valid insight\n                                insights.append(first_sentence)\n                    \n                    zone['perplexity_research']['response'] = research_content\n                    zone['perplexity_research']['key_insights'] = insights[:7]  # Max 7 insights\n                    \n                    logger.info(f\"Successfully enriched {zone['zone_id']} with {len(insights)} insights\")\n                    return zone\n                    \n                else:\n                    logger.error(f\"Perplexity API error for {zone['zone_id']}: {response.status_code} - {response.text}\")\n                    zone['perplexity_research']['response'] = f\"API Error: {response.status_code}\"\n                    zone['perplexity_research']['key_insights'] = [f\"Failed to retrieve market research: {response.text[:100]}\"]\n                    return zone\n                    \n            except Exception as e:\n                logger.error(f\"Exception during Perplexity enrichment for {zone['zone_id']}: {e}\")\n                zone['perplexity_research']['response'] = f\"Exception: {str(e)}\"\n                zone['perplexity_research']['key_insights'] = [f\"Research enrichment failed: {str(e)[:100]}\"]\n                return zone
-        \n        # Execute all queries in parallel using ThreadPoolExecutor\n        with ThreadPoolExecutor(max_workers=min(len(zones), 5)) as executor:\n            enriched_zones = list(executor.map(query_perplexity, research_tasks))\n        \n        logger.info(f\"Completed Perplexity enrichment for all {len(enriched_zones)} zones\")\n        return enriched_zones
+                logger.info(f\"STAGE 1: Market intelligence for {zone['zone_id']}\")\n                \n                headers = {\n                    'Authorization': f'Bearer {self.perplexity_api_key}',\n                    'Content-Type': 'application/json'\n                }\n                \n                payload = {\n                    'model': 'llama-3.1-sonar-large-128k-online',\n                    'messages': [\n                        {\n                            'role': 'system',\n                            'content': 'You are a market research analyst providing comprehensive, data-driven insights for product development decisions.'\n                        },\n                        {\n                            'role': 'user', \n                            'content': prompt\n                        }\n                    ],\n                    'max_tokens': 2000,\n                    'temperature': 0.2,\n                    'return_citations': True,\n                    'return_images': False\n                }\n                \n                response = requests.post(\n                    'https://api.perplexity.ai/chat/completions',\n                    headers=headers,\n                    json=payload,\n                    timeout=60\n                )\n                \n                if response.status_code == 200:\n                    result = response.json()\n                    research_content = result['choices'][0]['message']['content']\n                    \n                    # Extract key insights (first sentence of each paragraph)\n                    insights = []\n                    paragraphs = research_content.split('\\n\\n')\n                    for para in paragraphs[:5]:  # Top 5 paragraphs\n                        if para.strip() and len(para.strip()) > 50:\n                            first_sentence = para.strip().split('.')[0] + '.'\n                            if len(first_sentence) > 20:  # Valid insight\n                                insights.append(first_sentence)\n                    \n                    zone['perplexity_research']['stage1_market_intelligence']['response'] = research_content\n                    zone['perplexity_research']['stage1_market_intelligence']['key_insights'] = insights[:7]\n                    \n                    logger.info(f\"STAGE 1 Complete: {zone['zone_id']} - {len(insights)} insights\")\n                    return zone\n                    \n                else:\n                    logger.error(f\"STAGE 1 API error for {zone['zone_id']}: {response.status_code}\")\n                    zone['perplexity_research']['stage1_market_intelligence']['response'] = f\"API Error: {response.status_code}\"\n                    zone['perplexity_research']['stage1_market_intelligence']['key_insights'] = [\"Failed to retrieve market research\"]\n                    return zone\n                    \n            except Exception as e:\n                logger.error(f\"STAGE 1 Exception for {zone['zone_id']}: {e}\")\n                zone['perplexity_research']['stage1_market_intelligence']['response'] = f\"Exception: {str(e)}\"\n                zone['perplexity_research']['stage1_market_intelligence']['key_insights'] = [\"Research failed\"]\n                return zone
+        \n        # Execute Stage 1 in parallel\n        with ThreadPoolExecutor(max_workers=min(len(zones), 5)) as executor:\n            zones_after_stage1 = list(executor.map(query_perplexity_stage1, stage1_tasks))\n        \n        logger.info(f\"✅ STAGE 1 Complete: Market intelligence gathered for all {len(zones_after_stage1)} zones\")\n        \n        # STAGE 2: Deep Research using Stage 1 results\n        logger.info(\"🔬 STAGE 2: Conducting deep strategic research based on initial findings...\")\n        \n        # Prepare Stage 2 deep research tasks\n        stage2_tasks = []\n        for zone in zones_after_stage1:\n            stage1_response = zone['perplexity_research']['stage1_market_intelligence']['response']\n            deep_prompt = self.generate_deep_research_prompt(zone, stage1_response)\n            \n            zone['perplexity_research']['stage2_deep_research']['query'] = deep_prompt\n            zone['perplexity_research']['stage2_deep_research']['timestamp'] = datetime.now().isoformat()\n            \n            stage2_tasks.append((zone, deep_prompt))\n        \n        # STAGE 2: Execute deep research queries in parallel\n        def query_perplexity_stage2(zone_prompt_tuple):\n            zone, prompt = zone_prompt_tuple\n            try:\n                logger.info(f\"STAGE 2: Deep research for {zone['zone_id']}\")\n                \n                headers = {\n                    'Authorization': f'Bearer {self.perplexity_api_key}',\n                    'Content-Type': 'application/json'\n                }\n                \n                payload = {\n                    'model': 'llama-3.1-sonar-large-128k-online',\n                    'messages': [\n                        {\n                            'role': 'system',\n                            'content': 'You are a strategic business analyst providing deep, actionable insights for product development and market entry decisions. Focus on quantitative analysis and strategic recommendations.'\n                        },\n                        {\n                            'role': 'user', \n                            'content': prompt\n                        }\n                    ],\n                    'max_tokens': 2500,  # More tokens for deep research\n                    'temperature': 0.1,   # Lower temperature for more focused analysis\n                    'return_citations': True,\n                    'return_images': False\n                }\n                \n                response = requests.post(\n                    'https://api.perplexity.ai/chat/completions',\n                    headers=headers,\n                    json=payload,\n                    timeout=90  # Longer timeout for deep research\n                )\n                \n                if response.status_code == 200:\n                    result = response.json()\n                    deep_research_content = result['choices'][0]['message']['content']\n                    \n                    # Extract strategic insights (more detailed analysis)\n                    strategic_insights = []\n                    sections = deep_research_content.split('\\n\\n')\n                    for section in sections:\n                        if section.strip() and len(section.strip()) > 100:\n                            # Look for actionable insights (sentences with numbers, percentages, or strategic terms)\n                            sentences = section.split('.')\n                            for sentence in sentences:\n                                if len(sentence.strip()) > 30 and any(keyword in sentence.lower() for keyword in ['$', '%', 'million', 'billion', 'strategy', 'competitive', 'opportunity', 'risk', 'market']):\n                                    strategic_insights.append(sentence.strip() + '.')\n                    \n                    zone['perplexity_research']['stage2_deep_research']['response'] = deep_research_content\n                    zone['perplexity_research']['stage2_deep_research']['strategic_insights'] = strategic_insights[:10]  # Top 10 strategic insights\n                    \n                    logger.info(f\"STAGE 2 Complete: {zone['zone_id']} - {len(strategic_insights)} strategic insights\")\n                    return zone\n                    \n                else:\n                    logger.error(f\"STAGE 2 API error for {zone['zone_id']}: {response.status_code}\")\n                    zone['perplexity_research']['stage2_deep_research']['response'] = f\"API Error: {response.status_code}\"\n                    zone['perplexity_research']['stage2_deep_research']['strategic_insights'] = [\"Failed to retrieve deep research\"]\n                    return zone\n                    \n            except Exception as e:\n                logger.error(f\"STAGE 2 Exception for {zone['zone_id']}: {e}\")\n                zone['perplexity_research']['stage2_deep_research']['response'] = f\"Exception: {str(e)}\"\n                zone['perplexity_research']['stage2_deep_research']['strategic_insights'] = [\"Deep research failed\"]\n                return zone\n        \n        # Execute Stage 2 in parallel\n        with ThreadPoolExecutor(max_workers=min(len(zones_after_stage1), 5)) as executor:\n            final_enriched_zones = list(executor.map(query_perplexity_stage2, stage2_tasks))\n        \n        logger.info(f\"✅ TWO-STAGE ENRICHMENT COMPLETE: All {len(final_enriched_zones)} zones enhanced with deep strategic research\")\n        return final_enriched_zones
 
     def analyze_opportunity_zones(
         self,

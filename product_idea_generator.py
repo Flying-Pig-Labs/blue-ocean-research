@@ -801,16 +801,28 @@ Industry Norms & Sacred Cows:
 Engineering Spectrum Analysis:
 {zone_analysis.get("engineering_spectrum", "Not available")}"""
         
-        # ENHANCEMENT: Add Perplexity market research to context
+        # ENHANCEMENT: Add TWO-STAGE Perplexity market research to context
         perplexity_research = zone_analysis["zone"].get("perplexity_research", {})
-        if perplexity_research.get("response") and perplexity_research["response"] != "Market research enrichment unavailable":
+        stage1 = perplexity_research.get("stage1_market_intelligence", {})
+        stage2 = perplexity_research.get("stage2_deep_research", {})
+        
+        if stage1.get("response") and stage1["response"] != "Market research enrichment unavailable":
             context += f"""
 
-Market Intelligence (Perplexity Research):
-{perplexity_research["response"][:1500]}...  # Limit to avoid token overflow
+Market Intelligence (Stage 1 Research):
+{stage1["response"][:800]}...
 
 Key Market Insights:
-{chr(10).join(f"• {insight}" for insight in perplexity_research.get("key_insights", [])[:5])}"""
+{chr(10).join(f"• {insight}" for insight in stage1.get("key_insights", [])[:3])}"""
+        
+        if stage2.get("response") and stage2["response"] != "Deep research unavailable":
+            context += f"""
+
+Strategic Deep Research (Stage 2):
+{stage2["response"][:800]}...
+
+Strategic Insights:
+{chr(10).join(f"• {insight}" for insight in stage2.get("strategic_insights", [])[:4])}"""
         
         context += """
 
@@ -858,17 +870,27 @@ Format as a structured table with clear actionable items."""
         """Use Claude Opus to generate 10 product ideas based on ERRC grid"""
         console.print(f"[cyan]💡 Generating 10 product ideas for: {zone_name}[/cyan]")
 
-        # ENHANCEMENT: Include Perplexity research in prompt if available
+        # ENHANCEMENT: Include TWO-STAGE Perplexity research in prompt if available
         market_intelligence = ""
-        if perplexity_research and perplexity_research.get("response") != "Market research enrichment unavailable":
-            market_intelligence = f"""
+        if perplexity_research:
+            stage1 = perplexity_research.get("stage1_market_intelligence", {})
+            stage2 = perplexity_research.get("stage2_deep_research", {})
+            
+            if stage1.get("response") and stage1["response"] != "Market research enrichment unavailable":
+                market_intelligence += f"""
 
-MARKET INTELLIGENCE:
-{perplexity_research.get("response", "")[:1000]}...
+MARKET INTELLIGENCE (Stage 1):
+{stage1.get("response", "")[:600]}...
 
-KEY MARKET INSIGHTS:
-{chr(10).join(f"• {insight}" for insight in perplexity_research.get("key_insights", [])[:4])}
-"""
+Key Insights: {', '.join(stage1.get("key_insights", [])[:3])}"""
+            
+            if stage2.get("response") and stage2["response"] != "Deep research unavailable":
+                market_intelligence += f"""
+
+STRATEGIC DEEP RESEARCH (Stage 2):
+{stage2.get("response", "")[:800]}...
+
+Strategic Insights: {', '.join(stage2.get("strategic_insights", [])[:3])}"""
 
         prompt = f"""Based on this ERRC Grid analysis for the '{zone_name}' opportunity zone:
 
