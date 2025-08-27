@@ -414,8 +414,17 @@ Example: {{"timing_coordination": 0.7, "financial_stress": 0.3, ...}}"""
         self, jtbds: List[str], cluster_jtbds: List[int], reddit_df: pd.DataFrame
     ) -> List[str]:
         """Extract solution requirements for a cluster of JTBDs using Claude."""
-        # Gather JTBDs in this cluster
-        cluster_jtbd_texts = [jtbds[idx] for idx in cluster_jtbds]
+        # Gather JTBDs in this cluster - add bounds checking
+        cluster_jtbd_texts = []
+        for idx in cluster_jtbds:
+            if 0 <= idx < len(jtbds):
+                cluster_jtbd_texts.append(jtbds[idx])
+            else:
+                logger.warning(f"JTBD index {idx} out of bounds (max: {len(jtbds)-1})")
+        
+        if not cluster_jtbd_texts:
+            logger.warning("No valid JTBDs found for solution requirements extraction")
+            return ["Unable to extract requirements - no valid JTBDs"]
 
         # Sample Reddit discussions for context
         sample_discussions = []
@@ -950,8 +959,17 @@ Deliver actionable intelligence for product innovation decisions."""
             # Generate base zone name
             base_zone_name = self.generate_zone_name(significant_dims)
 
-            # Get full JTBD texts for this zone
-            zone_jtbd_texts = [jtbds[idx] for idx in zone_jtbd_indices]
+            # Get full JTBD texts for this zone - add bounds checking
+            zone_jtbd_texts = []
+            for idx in zone_jtbd_indices:
+                if 0 <= idx < len(jtbds):
+                    zone_jtbd_texts.append(jtbds[idx])
+                else:
+                    logger.warning(f"Zone {zone_id}: JTBD index {idx} out of bounds (max: {len(jtbds)-1})")
+            
+            if not zone_jtbd_texts:
+                logger.warning(f"Zone {zone_id}: No valid JTBDs found, skipping")
+                continue
 
             # Enhance zone name with LLM to make it unique
             zone_name = self.enhance_zone_name_with_llm(
@@ -964,7 +982,7 @@ Deliver actionable intelligence for product innovation decisions."""
                 "name": zone_name,
                 "jtbds_addressed": [f"JTBD_{idx + 1:03d}" for idx in zone_jtbd_indices],
                 "jtbd_descriptions": [
-                    jtbds[idx][:100] + "..." for idx in zone_jtbd_indices
+                    jtbds[idx][:100] + "..." for idx in zone_jtbd_indices if 0 <= idx < len(jtbds)
                 ],
                 "evidence_strength": {
                     "total_threads": len(zone_reddit),
