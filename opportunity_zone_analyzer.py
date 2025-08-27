@@ -253,7 +253,7 @@ class OpportunityZoneAnalyzer:
 Reddit Discussion:
 {text[:2000]}  # Limit to prevent token overflow
 
-Score each dimension from 0.0 to 1.0 based on how strongly it's expressed:
+Score each dimension from 0.0 to 1.0 based on how strongly it is expressed:
 
 Pain Dimensions:
 - timing_coordination: Issues with scheduling, deadlines, synchronization
@@ -545,7 +545,7 @@ Return ONLY the enhanced name (no quotes, no explanation)."""
             enhanced_name = response.content[0].text.strip()
             # Remove quotes if present
             enhanced_name = enhanced_name.strip('"').strip("'")
-            # Ensure it's not too long
+            # Ensure it is not too long
             if len(enhanced_name) > 100:
                 return base_name  # Fall back to base name if too long
             return enhanced_name
@@ -576,238 +576,103 @@ Return ONLY the enhanced name (no quotes, no explanation)."""
         pain_focus = ", ".join([dim.replace('_', ' ') for dim, _ in top_pains])
         
         # Create focused research prompt using Dynamic Deep-Dive Framework
-        prompt = f\"\"\"The Dynamic Deep-Dive Framework: Final Version
+        prompt = f"""The Dynamic Deep-Dive Framework: Final Version
 Analyze {zone_name} solutions in real estate technology using this systematic approach:
 
 Step 1: Identify the Core Opportunity Mechanism
-• What is the fundamental economic/behavioral shift creating this opportunity?
-• Is it regulatory change, technology disruption, demographic shift, market inefficiency, etc.?
-• What's the pain multiplier? How much worse does this problem get if left unsolved? (Exponential pain = exponential opportunity. Linear pain = commodity business)
+* What is the fundamental economic/behavioral shift creating this opportunity?
+* Is it regulatory change, technology disruption, demographic shift, market inefficiency, etc.?
+* What's the pain multiplier? How much worse does this problem get if left unsolved? (Exponential pain = exponential opportunity. Linear pain = commodity business)
 
 Step 2: Apply Domain-Specific Interrogation Layers
 
 Regulatory/Legal Layer:
-• What permissions, licenses, or compliance requirements exist?
-• Are regulations tightening or loosening? What's in the pipeline?
-• Who are the regulatory capture players that might block new entrants?
-• What regulatory arbitrage exists between jurisdictions?
-• What's currently illegal that won't be in 3 years?
+* What permissions, licenses, or compliance requirements exist?
+* Are regulations tightening or loosening? What's in the pipeline?
+* Who are the regulatory capture players that might block new entrants?
+* What regulatory arbitrage exists between jurisdictions?
+* What's currently illegal that won't be in 3 years?
 
 Economic Structure Layer:
-• Where does the money actually flow in this ecosystem?
-• At what point does each additional customer become pure profit?
-• Who captures the highest margin pieces and why?
-• Who's making stupid money in adjacent spaces that this could cannibalize?
-• What's the working capital requirement and cash conversion cycle?
+* Where does the money actually flow in this ecosystem?
+* At what point does each additional customer become pure profit?
+* Who captures the highest margin pieces and why?
+* Who's making stupid money in adjacent spaces that this could cannibalize?
+* What's the working capital requirement and cash conversion cycle?
 
 Competitive Dynamics Layer:
-• Who's already solving adjacent problems and could pivot into this space?
-• What would prevent incumbents from crushing new entrants?
-• Are there network effects, switching costs, or other defensibility moats?
-• What unfair advantage could we create or acquire?
-• Which sleeping giant's lunch are we eating, and when will they wake up?
-• What would it take to become the infrastructure everyone else has to use?
+* Who's already solving adjacent problems and could pivot into this space?
+* What would prevent incumbents from crushing new entrants?
+* Are there network effects, switching costs, or other defensibility moats?
+* What unfair advantage could we create or acquire?
+* Which sleeping giant's lunch are we eating, and when will they wake up?
+* What would it take to become the infrastructure everyone else has to use?
 
 Implementation Reality Layer:
-• What operational capabilities would someone actually need to execute this?
-• What's the minimum viable scale to be profitable?
-• What could go wrong that isn't obvious from the surface trend?
-• What's the 'Oh shit' scenario that kills 90% of attempts?
-• What expertise is actually scarce vs. what just seems hard?
+* What operational capabilities would someone actually need to execute this?
+* What's the minimum viable scale to be profitable?
+* What could go wrong that isn't obvious from the surface trend?
+* What's the 'Oh shit' scenario that kills 90% of attempts?
+* What expertise is actually scarce vs. what just seems hard?
 
 Market Timing Layer:
-• Is this opportunity early, mature, or cyclical?
-• What external factors could accelerate or kill the trend?
-• How long is the window before it becomes commoditized?
-• What Black Swan could 10x this opportunity overnight?
-• Is this a vitamin, painkiller, or addiction? (nice-to-have vs. must-have vs. can't-live-without)
+* Is this opportunity early, mature, or cyclical?
+* What external factors could accelerate or kill the trend?
+* How long is the window before it becomes commoditized?
+* What Black Swan could 10x this opportunity overnight?
+* Is this a vitamin, painkiller, or addiction? (nice-to-have vs. must-have vs. can't-live-without)
 
 Step 3: Find the Trojan Horse
-• What boring/established business could be the delivery mechanism for this disruption?
-• What industry desperately needs this but doesn't know it yet?
-• How could this be repackaged to look like something incumbents already buy?
-• How might this opportunity intersect with 2-3 other industries or trends?
-• What second-order effects might create larger opportunities than the obvious first-order play?
+* What boring/established business could be the delivery mechanism for this disruption?
+* What industry desperately needs this but doesn't know it yet?
+* How could this be repackaged to look like something incumbents already buy?
+* How might this opportunity intersect with 2-3 other industries or trends?
+* What second-order effects might create larger opportunities than the obvious first-order play?
 
 Step 4: The Bullshit Filter
-• Why hasn't someone already done this and gotten rich?
-• If the answer is "technology just became available" - prove it with specifics
-• If the answer is "market wasn't ready" - what measurable indicator shows it's ready now?
-• Name three specific people/companies who tried this and failed - why is now different?
+* Why hasn't someone already done this and gotten rich?
+* If the answer is "technology just became available" - prove it with specifics
+* If the answer is "market wasn't ready" - what measurable indicator shows it is ready now?
+* Name three specific people/companies who tried this and failed - why is now different?
 
 Step 5: The Exit Game
-• Who's the natural acquirer and what multiple would they pay?
-• Could this IPO or is it an acquisition play only?
-• What metrics would need to be true for a 10x exit in 5 years?
+* Who's the natural acquirer and what multiple would they pay?
+* Could this IPO or is it an acquisition play only?
+* What metrics would need to be true for a 10x exit in 5 years?
 
 Speed to Money Metrics (Apply Throughout):
-• How fast can we get to first revenue?
-• How fast can we get to first profit?
-• How fast can we get to first million?
-• What's the cash flow timeline that determines if we survive long enough to win?
+* How fast can we get to first revenue?
+* How fast can we get to first profit?
+* How fast can we get to first million?
+* What's the cash flow timeline that determines if we survive long enough to win?
 
 Core Principle: Less "analyze the market" and more "how do we take the market."
 
-Context: Pain Points = {pain_focus} | Solution Requirements = {'; '.join(solution_reqs[:3])}\"\"\"
+Context: Pain Points = {pain_focus} | Solution Requirements = {'; '.join(solution_reqs[:3])}"""
         
         return prompt
 
     def generate_deep_research_prompt(self, zone: Dict[str, Any], initial_research: str) -> str:
-        """
-        Generate a deep research prompt using the initial market research results.
-        
-        Creates a targeted follow-up research query that builds on the initial findings
-        to provide deeper, more actionable insights for product development decisions.
-        
-        Args:
-            zone: Opportunity zone dict containing all zone details
-            initial_research: Results from the first round of Perplexity research
-            
-        Returns:
-            Deep research prompt string optimized for second-round Perplexity API call
-        """
+        """Generate a deep research prompt using the initial market research results."""
         zone_name = zone.get('name', 'Unknown Zone')
-        pain_dims = zone.get('pain_dimensions', {})
-        solution_reqs = zone.get('solution_requirements', [])
         market_score = zone.get('market_opportunity_score', 0)
-        
-        # Extract key themes from initial research for focused deep dive
         initial_insights = initial_research[:1000] if initial_research else "No initial research available"
         
-        prompt = f"""Signal Extraction & Context Amplification Protocol
-Apply this systematic analysis to extract maximum value from the initial research:
-
-INITIAL RESEARCH FINDINGS:
-{initial_insights}
-
-OPPORTUNITY ZONE CONTEXT:
-- {zone_name}
-- Market Opportunity Score: {market_score}
-- Key Pain Points: {', '.join([f"{dim} ({score:.1f})" for dim, score in sorted(pain_dims.items(), key=lambda x: x[1], reverse=True)[:3]])}
-- Solution Requirements: {'; '.join(solution_reqs[:3])}
-
-Phase 1: Signal vs. Noise Triage (First 2 Hours)
-
-The "Holy Shit" Test
-• Pull out any answer that made you stop and re-read it. These are your primary signals.
-• Tag each finding as:
-  - Category A: "Nobody else knows this yet" (maximum alpha)
-  - Category B: "Known but misunderstood" (arbitrage opportunity)  
-  - Category C: "Common knowledge" (table stakes only)
-
-The Contradiction Map
-• Find every place where answers conflict with each other. Contradictions are where the real opportunity lives.
-• Example: "Regulation is loosening" + "Incumbents are investing heavily in compliance" = Someone's wrong, and that gap is worth millions.
-
-Kill the Consensus
-• Anything that appears in 3+ different answers is probably noise unless it's quantified differently.
-• Strip out all "AI will transform everything" type platitudes.
-• Focus on specific, uncomfortable truths that people don't want to be true.
-
-Phase 2: Pattern Recognition & Synthesis (Next 2 Hours)
-
-The Money Flow Map
-Create a single visual showing:
-• Where money enters the system (who pays first?)
-• Where it pools (who holds it longest?)
-• Where it exits (who takes the biggest cut?)
-• Where it leaks (what inefficiency can we exploit?)
-
-The Power Player Matrix
-Build a 2x2 grid:
-• Y-axis: "Has money" to "Needs money"
-• X-axis: "Has solution" to "Needs solution"
-• Plot every stakeholder mentioned in the research
-• The magic quadrant is: "Has money + Needs solution"
-
-The Timing Cascade
-Sequence everything by time sensitivity:
-• What happens in next 90 days that changes the game?
-• What regulatory/competitive shoe drops in 6-12 months?
-• What trend reaches critical mass in 2 years?
-• Create a "strike window" calendar with specific trigger dates.
-
-Phase 3: Context Weaponization (Final 2 Hours)
-
-The Opportunity Thesis (One Page Max)
-Structure it as a betting slip:
-
-THE BET: [Single sentence - what specific change will happen]
-
-THE EDGE: [What we know that others don't or won't act on]
-
-THE PROOF:
-• 3 data points that prove the shift is happening
-• 2 examples of early indicators most people missed
-• 1 "canary in the coal mine" metric to track
-
-THE ANTI-PROOF:
-• Best argument for why this is wrong
-• Why we're betting against that argument
-
-The Innovation Ammunition Kit
-
-1. The "Fuck It, Let's Build This" List
-• 5 specific products/services that could capture value immediately
-• Ranked by: (Speed to Revenue) × (Defensibility) ÷ (Capital Required)
-
-2. The Customer Pain Stack
-Top 10 specific pains mentioned, ranked by:
-• Frequency (how often it hurts)
-• Intensity (how much it hurts)
-• Willingness to pay (what they'd spend to stop the hurt)
-
-3. The Trojan Horse Playbook
-• 3 ways to enter the market that don't look threatening
-• Which existing budget line item we're replacing
-• What we're calling it so nobody realizes it's disruption
-
-4. The Unfair Advantage Shopping List
-• Specific assets/relationships/capabilities we need to acquire
-• Who has them now
-• What it would cost/take to get them
-
-5. The "Oh Shit" Scenario Brief
-• Top 3 ways this could blow up
-• Early warning signals for each
-• Pivot options if each scenario materializes
-
-The Context Transmission Package
-
-For Product Innovation Squads, deliver:
-
-The 2-Minute Story
-• Written like you're explaining to a smart friend at a bar
-• No jargon, just "Here's how we're going to make money"
-
-The Contrarian Truth Sheet
-• 5 things everyone believes that are wrong
-• 5 things nobody believes that are right
-• Evidence for each
-
-The Speed Run Challenge
-• "If you had $100K and 90 days, here's exactly what you'd build"
-• Include specific first 10 customers to call
-
-The Multiplier Moments
-• 3 specific events/triggers that would 10x this opportunity
-• How to position to benefit when they happen
-
-Quality Control: The Bullshit Detector
-
-Before transmitting to product squads, run this final check:
-• Can you explain the opportunity to your grandmother AND a hedge fund manager? If not, you don't understand it.
-• Is there a specific person with a budget who would buy this tomorrow? Name them.
-• What's the one piece of information that would make you reverse your entire thesis? If you can't name it, you're not thinking clearly.
-
-Output Formats
-Package everything in three versions:
-• The Executive Brief: 1 page, 5 bullets, 1 decision required
-• The Builder's Bible: All details, ranked by actionability  
-• The Skeptic's File: Every reason this could fail and why we're doing it anyway
-
-Remember: The goal isn't to document the opportunity. It's to make it impossible for the product squad NOT to build something valuable. Every word should increase their hunger to ship something that makes money."""
+        prompt = f"""Deep Strategic Market Analysis
         
+Zone: {zone_name}
+Market Score: {market_score}
+
+Initial Research: {initial_insights}
+
+Please provide:
+1. Market opportunities and threats
+2. Strategic product recommendations  
+3. Revenue models and business opportunities
+4. Risk assessment and mitigation strategies
+5. Key stakeholders and market dynamics
+
+Deliver actionable intelligence for product innovation decisions."""
         return prompt
 
     def enrich_zones_with_perplexity(self, zones: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
@@ -871,8 +736,150 @@ Remember: The goal isn't to document the opportunity. It's to make it impossible
         def query_perplexity_stage1(zone_prompt_tuple):
             zone, prompt = zone_prompt_tuple
             try:
-                logger.info(f\"STAGE 1: Market intelligence for {zone['zone_id']}\")\n                \n                headers = {\n                    'Authorization': f'Bearer {self.perplexity_api_key}',\n                    'Content-Type': 'application/json'\n                }\n                \n                payload = {\n                    'model': 'llama-3.1-sonar-large-128k-online',\n                    'messages': [\n                        {\n                            'role': 'system',\n                            'content': 'You are a market research analyst providing comprehensive, data-driven insights for product development decisions.'\n                        },\n                        {\n                            'role': 'user', \n                            'content': prompt\n                        }\n                    ],\n                    'max_tokens': 2000,\n                    'temperature': 0.2,\n                    'return_citations': True,\n                    'return_images': False\n                }\n                \n                response = requests.post(\n                    'https://api.perplexity.ai/chat/completions',\n                    headers=headers,\n                    json=payload,\n                    timeout=300  # 5 minutes for Deep Research Stage 1\n                )\n                \n                if response.status_code == 200:\n                    result = response.json()\n                    research_content = result['choices'][0]['message']['content']\n                    \n                    # Extract key insights (first sentence of each paragraph)\n                    insights = []\n                    paragraphs = research_content.split('\\n\\n')\n                    for para in paragraphs[:5]:  # Top 5 paragraphs\n                        if para.strip() and len(para.strip()) > 50:\n                            first_sentence = para.strip().split('.')[0] + '.'\n                            if len(first_sentence) > 20:  # Valid insight\n                                insights.append(first_sentence)\n                    \n                    zone['perplexity_research']['stage1_market_intelligence']['response'] = research_content\n                    zone['perplexity_research']['stage1_market_intelligence']['key_insights'] = insights[:7]\n                    \n                    logger.info(f\"STAGE 1 Complete: {zone['zone_id']} - {len(insights)} insights\")\n                    return zone\n                    \n                else:\n                    logger.error(f\"STAGE 1 API error for {zone['zone_id']}: {response.status_code}\")\n                    zone['perplexity_research']['stage1_market_intelligence']['response'] = f\"API Error: {response.status_code}\"\n                    zone['perplexity_research']['stage1_market_intelligence']['key_insights'] = [\"Failed to retrieve market research\"]\n                    return zone\n                    \n            except Exception as e:\n                logger.error(f\"STAGE 1 Exception for {zone['zone_id']}: {e}\")\n                zone['perplexity_research']['stage1_market_intelligence']['response'] = f\"Exception: {str(e)}\"\n                zone['perplexity_research']['stage1_market_intelligence']['key_insights'] = [\"Research failed\"]\n                return zone
-        \n        # Execute Stage 1 in parallel\n        with ThreadPoolExecutor(max_workers=min(len(zones), 5)) as executor:\n            zones_after_stage1 = list(executor.map(query_perplexity_stage1, stage1_tasks))\n        \n        logger.info(f\"✅ STAGE 1 Complete: Market intelligence gathered for all {len(zones_after_stage1)} zones\")\n        \n        # STAGE 2: Deep Research using Stage 1 results\n        logger.info(\"🔬 STAGE 2: Conducting deep strategic research based on initial findings...\")\n        \n        # Prepare Stage 2 deep research tasks\n        stage2_tasks = []\n        for zone in zones_after_stage1:\n            stage1_response = zone['perplexity_research']['stage1_market_intelligence']['response']\n            deep_prompt = self.generate_deep_research_prompt(zone, stage1_response)\n            \n            zone['perplexity_research']['stage2_deep_research']['query'] = deep_prompt\n            zone['perplexity_research']['stage2_deep_research']['timestamp'] = datetime.now().isoformat()\n            \n            stage2_tasks.append((zone, deep_prompt))\n        \n        # STAGE 2: Execute deep research queries in parallel\n        def query_perplexity_stage2(zone_prompt_tuple):\n            zone, prompt = zone_prompt_tuple\n            try:\n                logger.info(f\"STAGE 2: Deep research for {zone['zone_id']}\")\n                \n                headers = {\n                    'Authorization': f'Bearer {self.perplexity_api_key}',\n                    'Content-Type': 'application/json'\n                }\n                \n                payload = {\n                    'model': 'llama-3.1-sonar-large-128k-online',\n                    'messages': [\n                        {\n                            'role': 'system',\n                            'content': 'You are a strategic business analyst providing deep, actionable insights for product development and market entry decisions. Focus on quantitative analysis and strategic recommendations.'\n                        },\n                        {\n                            'role': 'user', \n                            'content': prompt\n                        }\n                    ],\n                    'max_tokens': 2500,  # More tokens for deep research\n                    'temperature': 0.1,   # Lower temperature for more focused analysis\n                    'return_citations': True,\n                    'return_images': False\n                }\n                \n                response = requests.post(\n                    'https://api.perplexity.ai/chat/completions',\n                    headers=headers,\n                    json=payload,\n                    timeout=600  # 10 minutes for Deep Research Stage 2 (high reasoning effort)\n                )\n                \n                if response.status_code == 200:\n                    result = response.json()\n                    deep_research_content = result['choices'][0]['message']['content']\n                    \n                    # Extract strategic insights (more detailed analysis)\n                    strategic_insights = []\n                    sections = deep_research_content.split('\\n\\n')\n                    for section in sections:\n                        if section.strip() and len(section.strip()) > 100:\n                            # Look for actionable insights (sentences with numbers, percentages, or strategic terms)\n                            sentences = section.split('.')\n                            for sentence in sentences:\n                                if len(sentence.strip()) > 30 and any(keyword in sentence.lower() for keyword in ['$', '%', 'million', 'billion', 'strategy', 'competitive', 'opportunity', 'risk', 'market']):\n                                    strategic_insights.append(sentence.strip() + '.')\n                    \n                    zone['perplexity_research']['stage2_deep_research']['response'] = deep_research_content\n                    zone['perplexity_research']['stage2_deep_research']['strategic_insights'] = strategic_insights[:10]  # Top 10 strategic insights\n                    \n                    logger.info(f\"STAGE 2 Complete: {zone['zone_id']} - {len(strategic_insights)} strategic insights\")\n                    return zone\n                    \n                else:\n                    logger.error(f\"STAGE 2 API error for {zone['zone_id']}: {response.status_code}\")\n                    zone['perplexity_research']['stage2_deep_research']['response'] = f\"API Error: {response.status_code}\"\n                    zone['perplexity_research']['stage2_deep_research']['strategic_insights'] = [\"Failed to retrieve deep research\"]\n                    return zone\n                    \n            except Exception as e:\n                logger.error(f\"STAGE 2 Exception for {zone['zone_id']}: {e}\")\n                zone['perplexity_research']['stage2_deep_research']['response'] = f\"Exception: {str(e)}\"\n                zone['perplexity_research']['stage2_deep_research']['strategic_insights'] = [\"Deep research failed\"]\n                return zone\n        \n        # Execute Stage 2 in parallel\n        with ThreadPoolExecutor(max_workers=min(len(zones_after_stage1), 5)) as executor:\n            final_enriched_zones = list(executor.map(query_perplexity_stage2, stage2_tasks))\n        \n        logger.info(f\"✅ TWO-STAGE ENRICHMENT COMPLETE: All {len(final_enriched_zones)} zones enhanced with deep strategic research\")\n        return final_enriched_zones
+                logger.info(f"STAGE 1: Market intelligence for {zone['zone_id']}")
+                
+                headers = {
+                    'Authorization': f'Bearer {self.perplexity_api_key}',
+                    'Content-Type': 'application/json'
+                }
+                
+                payload = {
+                    'model': 'sonar-deep-research',
+                    'messages': [
+                        {
+                            'role': 'user', 
+                            'content': prompt
+                        }
+                    ],
+                    'reasoning_effort': 'medium'  # Medium effort for Stage 1 comprehensive analysis
+                }
+                
+                response = requests.post(
+                    'https://api.perplexity.ai/chat/completions',
+                    headers=headers,
+                    json=payload,
+                    timeout=300  # 5 minutes for Deep Research Stage 1
+                )
+                
+                if response.status_code == 200:
+                    result = response.json()
+                    research_content = result['choices'][0]['message']['content']
+                    
+                    # Extract key insights (first sentence of each paragraph)
+                    insights = []
+                    paragraphs = research_content.split('\n\n')
+                    for para in paragraphs[:5]:  # Top 5 paragraphs
+                        if para.strip() and len(para.strip()) > 50:
+                            first_sentence = para.strip().split('.')[0] + '.'
+                            if len(first_sentence) > 20:  # Valid insight
+                                insights.append(first_sentence)
+                    
+                    zone['perplexity_research']['stage1_market_intelligence']['response'] = research_content
+                    zone['perplexity_research']['stage1_market_intelligence']['key_insights'] = insights[:7]
+                    
+                    logger.info(f"STAGE 1 Complete: {zone['zone_id']} - {len(insights)} insights")
+                    return zone
+                    
+                else:
+                    logger.error(f"STAGE 1 API error for {zone['zone_id']}: {response.status_code}")
+                    zone['perplexity_research']['stage1_market_intelligence']['response'] = f"API Error: {response.status_code}"
+                    zone['perplexity_research']['stage1_market_intelligence']['key_insights'] = ["Failed to retrieve market research"]
+                    return zone
+                    
+            except Exception as e:
+                logger.error(f"STAGE 1 Exception for {zone['zone_id']}: {e}")
+                zone['perplexity_research']['stage1_market_intelligence']['response'] = f"Exception: {str(e)}"
+                zone['perplexity_research']['stage1_market_intelligence']['key_insights'] = ["Research failed"]
+                return zone
+        
+        # Execute Stage 1 in parallel
+        with ThreadPoolExecutor(max_workers=min(len(zones), 5)) as executor:
+            zones_after_stage1 = list(executor.map(query_perplexity_stage1, stage1_tasks))
+        
+        logger.info(f"✅ STAGE 1 Complete: Market intelligence gathered for all {len(zones_after_stage1)} zones")
+        
+        # STAGE 2: Deep Research using Stage 1 results
+        logger.info("🔬 STAGE 2: Conducting deep strategic research based on initial findings...")
+        
+        # Prepare Stage 2 deep research tasks
+        stage2_tasks = []
+        for zone in zones_after_stage1:
+            stage1_response = zone['perplexity_research']['stage1_market_intelligence']['response']
+            deep_prompt = self.generate_deep_research_prompt(zone, stage1_response)
+            
+            zone['perplexity_research']['stage2_deep_research']['query'] = deep_prompt
+            zone['perplexity_research']['stage2_deep_research']['timestamp'] = datetime.now().isoformat()
+            
+            stage2_tasks.append((zone, deep_prompt))
+        
+        # STAGE 2: Execute deep research queries in parallel
+        def query_perplexity_stage2(zone_prompt_tuple):
+            zone, prompt = zone_prompt_tuple
+            try:
+                logger.info(f"STAGE 2: Deep research for {zone['zone_id']}")
+                
+                headers = {
+                    'Authorization': f'Bearer {self.perplexity_api_key}',
+                    'Content-Type': 'application/json'
+                }
+                
+                payload = {
+                    'model': 'sonar-deep-research',
+                    'messages': [
+                        {
+                            'role': 'user', 
+                            'content': prompt
+                        }
+                    ],
+                    'reasoning_effort': 'high'  # High reasoning effort for Stage 2 strategic synthesis
+                }
+                
+                response = requests.post(
+                    'https://api.perplexity.ai/chat/completions',
+                    headers=headers,
+                    json=payload,
+                    timeout=600  # 10 minutes for Deep Research Stage 2 (high reasoning effort)
+                )
+                
+                if response.status_code == 200:
+                    result = response.json()
+                    deep_research_content = result['choices'][0]['message']['content']
+                    
+                    # Extract strategic insights (more detailed analysis)
+                    strategic_insights = []
+                    sections = deep_research_content.split('\n\n')
+                    for section in sections:
+                        if section.strip() and len(section.strip()) > 100:
+                            # Look for actionable insights (sentences with numbers, percentages, or strategic terms)
+                            sentences = section.split('.')
+                            for sentence in sentences:
+                                if len(sentence.strip()) > 30 and any(keyword in sentence.lower() for keyword in ['$', '%', 'million', 'billion', 'strategy', 'competitive', 'opportunity', 'risk', 'market']):
+                                    strategic_insights.append(sentence.strip() + '.')
+                    
+                    zone['perplexity_research']['stage2_deep_research']['response'] = deep_research_content
+                    zone['perplexity_research']['stage2_deep_research']['strategic_insights'] = strategic_insights[:10]  # Top 10 strategic insights
+                    
+                    logger.info(f"STAGE 2 Complete: {zone['zone_id']} - {len(strategic_insights)} strategic insights")
+                    return zone
+                    
+                else:
+                    logger.error(f"STAGE 2 API error for {zone['zone_id']}: {response.status_code}")
+                    zone['perplexity_research']['stage2_deep_research']['response'] = f"API Error: {response.status_code}"
+                    zone['perplexity_research']['stage2_deep_research']['strategic_insights'] = ["Failed to retrieve deep research"]
+                    return zone
+                    
+            except Exception as e:
+                logger.error(f"STAGE 2 Exception for {zone['zone_id']}: {e}")
+                zone['perplexity_research']['stage2_deep_research']['response'] = f"Exception: {str(e)}"
+                zone['perplexity_research']['stage2_deep_research']['strategic_insights'] = ["Deep research failed"]
+                return zone
+        
+        # Execute Stage 2 in parallel
+        with ThreadPoolExecutor(max_workers=min(len(zones_after_stage1), 5)) as executor:
+            final_enriched_zones = list(executor.map(query_perplexity_stage2, stage2_tasks))
+        
+        logger.info(f"✅ TWO-STAGE ENRICHMENT COMPLETE: All {len(final_enriched_zones)} zones enhanced with deep strategic research")
+        return final_enriched_zones
 
     def analyze_opportunity_zones(
         self,

@@ -1459,7 +1459,7 @@ Output the complete markdown content that will be the issue body:"""
                 title = first_line[2:].strip()
 
         return {
-            "title": title if title.startswith("🚀") else f"🚀 {title}",
+            "title": title,
             "body": gpt5_content,
         }
 

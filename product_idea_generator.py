@@ -2049,11 +2049,7 @@ Output in a structured format that can be parsed."""
                 name = idea.get("name", "Unknown")
                 score = idea.get("scoring", {}).get("composite_score", 0)
                 zone = idea.get("zone_name", "Unknown")
-                is_breakthrough = (
-                    "🚀"
-                    if idea.get("scoring", {}).get("is_breakthrough", False)
-                    else ""
-                )
+                is_breakthrough = ""
                 is_moonshot = (
                     "🌙" if idea.get("scoring", {}).get("is_moonshot", False) else ""
                 )

@@ -88,7 +88,7 @@ Create an EXCEPTIONAL GitHub issue that serves as a complete pitch deck. This sh
 
 STRUCTURE YOUR ISSUE AS:
 
-# 🚀 [Product Name] - [Compelling Tagline]
+# [Product Name] - [Compelling Tagline]
 
 ## 🎯 Executive Summary
 [One paragraph that captures everything - the problem, solution, market, and why this wins]
@@ -147,7 +147,7 @@ graph LR
 - [ ] Metric 2: [Target]
 - [ ] Metric 3: [Target]
 
-## 🚀 Call to Action
+## Call to Action
 [Clear next steps for stakeholders]
 
 ---

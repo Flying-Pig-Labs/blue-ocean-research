@@ -1,0 +1,27 @@
+# Jobs-to-be-Done extracted from analysis
+
+1. When I'm coordinating a home sale, I want to automatically track all transaction steps, so I can ensure nothing falls through the cracks
+2. When I'm working with multiple clients, I want to automate routine communications, so I can focus on high-value interactions
+3. Generate market analysis reports without manually gathering data from multiple sources
+4. When I'm expanding to a new market area, I want to quickly understand local trends and regulations, so I can operate confidently
+5. Schedule and manage property showings while on the go
+6. When I'm helping first-time buyers, I want to provide educational resources automatically, so I can scale my support efficiently
+7. Process transaction documents without repetitive manual data entry
+8. When I'm listing a property, I want to automatically create marketing materials, so I can promote listings faster
+9. Track client interactions across teams without losing important details
+10. When I'm managing multiple offers, I want to compare them systematically, so I can help clients make informed decisions
+11. Generate property valuations without extensive manual research
+12. When I'm working with investors, I want to analyze potential returns quickly, so I can help them make timely decisions
+13. Coordinate closing processes while maintaining visibility for all parties
+14. When I'm managing my pipeline, I want to predict future commission income, so I can plan my business effectively
+15. Create listing presentations without starting from scratch each time
+16. When I'm working with sellers, I want to provide real-time market updates, so I can keep them informed of changing conditions
+17. Manage document signatures while away from the office
+18. When I'm prospecting, I want to identify high-potential leads automatically, so I can focus my outreach efforts
+19. Generate performance reports without manual data compilation
+20. When I'm serving luxury clients, I want to provide white-glove service digitally, so I can meet their high expectations
+21. Coordinate with mortgage and title services while minimizing communication delays
+22. When I'm training new agents, I want to track their progress systematically, so I can provide targeted support
+23. Process compliance requirements without reviewing multiple checklists
+24. When I'm managing my team, I want to monitor performance metrics automatically, so I can identify coaching opportunities
+25. Share market insights with clients without creating custom reports each time

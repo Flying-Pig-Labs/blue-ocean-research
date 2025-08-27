@@ -38,8 +38,8 @@ Key Features:
 Pipeline Stages:
 1. Research Analysis (research_analyzer) - Extracts insights from raw market research
 2. JTBD & Reddit Discovery (jobs_to_reddit) - Identifies jobs-to-be-done with authentic user discussions
-3. Opportunity Zone Discovery (opportunity_zone_analyzer) - Clusters JTBDs into market opportunities
-4. Product Idea Generation (product_idea_generator) - Creates innovative product concepts
+3. Opportunity Zone Discovery (opportunity_zone_analyzer) - Clusters JTBDs into market opportunities + Perplexity AI market research enrichment
+4. Product Idea Generation (product_idea_generator) - Creates innovative product concepts using enriched market intelligence
 5. Idea Consolidation (idea_consolidator) - Enriches and packages the innovation portfolio
 6. GitHub Repository Creation (github_integration) - Creates public/private repo with issues
 
@@ -142,10 +142,6 @@ def load_secrets_from_aws():
         COHERE_API_KEY: For Cohere embeddings and models
         GITHUB_TOKEN: For repository creation and issue management
         PERPLEXITY_API_KEY: For Perplexity AI market research capabilities (optional)
-
-    Note:
-        EXA_API_KEY was removed in Dec 2024 when switching to PRAW-based
-        Reddit discovery, eliminating that external dependency.
     """
     print("Loading secrets from AWS Secrets Manager...")
 
@@ -170,7 +166,6 @@ def load_secrets_from_aws():
         "COHERE_API_KEY": "arn:aws:secretsmanager:us-east-1:984906149037:secret:cohere-key-MxBx6j",
         "GITHUB_TOKEN": "arn:aws:secretsmanager:us-east-1:984906149037:secret:github_token_blue_ocean-uv7Z1l",
         "PERPLEXITY_API_KEY": "arn:aws:secretsmanager:us-east-1:984906149037:secret:perplexity-key-rrkmhM",
-        # Note: EXA_API_KEY removed in Dec 2024 - PRAW-based Reddit discovery eliminates this dependency
     }
 
     # Create session with profile if specified
@@ -314,6 +309,11 @@ def run_module(
             # Stage 3: Cluster JTBDs and Reddit discussions into opportunity zones
             # Each zone gets a market opportunity score (percentage) that determines
             # how many of the 10 total ideas it will receive
+            #
+            # ENHANCED: Now includes TWO-STAGE PERPLEXITY INTEGRATION for market research enrichment
+            # - Stage 1: Initial market intelligence with Dynamic Deep-Dive Framework
+            # - Stage 2: Deep strategic research with Signal Extraction & Context Amplification Protocol
+            # - Uses sonar-deep-research model with reasoning_effort: medium/high
             jtbd_file = inputs.get("jtbds", "jtbds_20250806_203749.txt")
             reddit_file = inputs.get("reddit", "reddit_discussions_20250806_203749.csv")
             n_zones = kwargs.get("n_zones", 7)  # Default to 7 opportunity zones
@@ -331,7 +331,7 @@ def run_module(
                 "--output",
                 "opportunity_zones_advanced.json",
             ]
-            opportunity_zone_analyzer.main()  # Creates zones with weighted scoring
+            opportunity_zone_analyzer.main()  # Creates zones with weighted scoring + Perplexity research enrichment
             result = True
 
         elif module_name == "product_idea_generator":
@@ -480,11 +480,11 @@ def main(
     creation, handling caching, error recovery, and user interaction.
 
     EXECUTION FLOW:
-    1. Load AWS secrets for API authentication
+    1. Load AWS secrets for API authentication (including PERPLEXITY_API_KEY)
     2. Stage 1: Analyze research document
     3. Stage 2: Extract JTBDs and find Reddit discussions (PRAW)
-    4. Stage 3: Discover opportunity zones with weighted scoring
-    5. Stage 4: Generate exactly 10 product ideas distributed by zone weights
+    4. Stage 3: Discover opportunity zones with weighted scoring + TWO-STAGE Perplexity AI market research enrichment
+    5. Stage 4: Generate exactly 10 product ideas distributed by zone weights using enriched market intelligence
     6. Stage 5: Consolidate and enrich the innovation portfolio
     7. Stage 6: Create GitHub repository with comprehensive documentation
 
@@ -630,16 +630,24 @@ def main(
     if interactive:
         input("\nPress Enter to continue to Stage 3...")
 
-    # Stage 3: Advanced Opportunity Zone Discovery
+    # Stage 3: Advanced Opportunity Zone Discovery + Perplexity AI Market Research Enhancement
     # This stage performs sophisticated clustering of JTBDs and Reddit discussions
     # into opportunity zones. Each zone is scored across 8 pain dimensions and
     # assigned a market opportunity percentage that determines idea allocation.
     # This is where the "weighted distribution" logic begins.
+    #
+    # ENHANCED: TWO-STAGE PERPLEXITY INTEGRATION adds comprehensive market research:
+    # - Stage 1: Dynamic Deep-Dive Framework for initial market intelligence
+    # - Stage 2: Signal Extraction & Context Amplification Protocol for strategic insights
+    # - Uses sonar-deep-research model with parallel execution (up to 5 workers)
     print(
-        f"\n{Colors.BOLD}📌 Stage 3: Advanced Opportunity Zone Discovery{Colors.RESET}"
+        f"\n{Colors.BOLD}📌 Stage 3: Advanced Opportunity Zone Discovery + Perplexity AI Enhancement{Colors.RESET}"
     )
     print("  🧠 Analyzing pain dimensions across JTBDs and Reddit discussions...")
     print("  📊 Creating weighted opportunity zones...")
+    print("  🔬 Enriching zones with TWO-STAGE Perplexity AI market research...")
+    print("     • Stage 1: Dynamic Deep-Dive Framework (medium reasoning effort)")
+    print("     • Stage 2: Signal Extraction & Context Amplification (high reasoning effort)")
 
     # Check if we should use cached opportunity zones
     if use_cache and os.path.exists("opportunity_zones.json"):
@@ -839,10 +847,10 @@ def main(
 📊 Summary:
    - Stages Completed: {stages_completed}/6
    - Total Time: {total_time:.1f} seconds ({total_time / 60:.1f} minutes)
-   
+
 📁 Generated Files:
    - analysis_results.md               # Stage 1: Research insights
-   - jtbds_*.txt                      # Stage 2: Jobs-to-be-Done list  
+   - jtbds_*.txt                      # Stage 2: Jobs-to-be-Done list
    - reddit_discussions_*.csv         # Stage 2: Reddit data via PRAW API
    - opportunity_zones.json           # Stage 3: Weighted market opportunities
    - product_ideas.json               # Stage 4: Exactly 10 innovative ideas
@@ -853,8 +861,8 @@ def main(
 🎯 Pipeline Flow Used:
    1. Research Analysis → analysis_results.md
    2. JTBD + Reddit (PRAW) → jtbds & discussions
-   3. Opportunity Zones → weighted zones (market % allocation)
-   4. Product Ideas → innovative solutions (10 total, distributed by weight)
+   3. Opportunity Zones + Perplexity AI → weighted zones + market research enrichment
+   4. Product Ideas → innovative solutions (10 total, using enriched market intelligence)
    5. Consolidation → final portfolio
    6. GitHub → repository created (or skipped if cached/disabled)
 

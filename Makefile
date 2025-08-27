@@ -62,8 +62,8 @@ $(VENV):
 .PHONY: install
 install: $(VENV)
 	@echo "Installing dependencies..."
-	$(VENV_ACTIVATE) && pip install --upgrade pip
-	$(VENV_ACTIVATE) && pip install -r requirements.txt
+	$(VENV_ACTIVATE) && python3 -m pip install --upgrade pip
+	$(VENV_ACTIVATE) && python3 -m pip install -r requirements.txt
 	@echo "Dependencies installed successfully!"
 
 # Test AWS secrets access
@@ -173,7 +173,7 @@ clean-all: clean
 .PHONY: deps
 deps: $(VENV)
 	@echo "Updating requirements.txt..."
-	$(VENV_ACTIVATE) && pip freeze > requirements.txt
+	$(VENV_ACTIVATE) && python3 -m pip freeze > requirements.txt
 	@echo "requirements.txt updated!"
 
 # Run individual pipeline stages (PRAW-based flow)
@@ -252,8 +252,8 @@ lint: install
 	$(VENV_ACTIVATE) && flake8 *.py tests/ src/ --max-line-length 120
 
 # AWS Lambda deployment
-.PHONY: deploy
-deploy:
+.PHONY: deploy-sam
+deploy-sam:
 	@echo "Building and deploying to AWS..."
 	sam build
 	sam deploy --guided
@@ -344,8 +344,8 @@ cdk-install:
 	fi
 	@cd infrastructure && \
 		. .venv/bin/activate && \
-		pip install --upgrade pip && \
-		pip install -r requirements-cdk.txt
+		.venv/bin/python -m pip install --upgrade pip && \
+		.venv/bin/python -m pip install -r requirements-cdk.txt
 	@echo "✅ CDK dependencies installed"
 
 # Bootstrap CDK (first time only)
