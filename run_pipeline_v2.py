@@ -87,7 +87,8 @@ class PipelineV2Runner:
         input_file: Optional[str] = None,
         use_cache: bool = False,
         skip_github: bool = False,
-        expand_results: bool = False
+        expand_results: bool = False,
+        flow_type: Optional[str] = None,
     ) -> Dict[str, Any]:
         """
         Run the complete pipeline with V2 enhancements.
@@ -109,10 +110,11 @@ class PipelineV2Runner:
         # Store original arguments for the underlying pipeline
         original_args = {
             'interactive': interactive,
-            'verbose': verbose, 
+            'verbose': verbose,
             'input_file': input_file,
             'use_cache': use_cache,
-            'skip_github': skip_github
+            'skip_github': skip_github,
+            'flow_type': flow_type,
         }
         
         # Apply user configuration to environment/settings
@@ -380,6 +382,7 @@ def main():
     parser.add_argument("--config", type=str, help="User configuration JSON file")
     parser.add_argument("--ui-mode", action="store_true", help="UI-optimized output")
     parser.add_argument("--expand-results", action="store_true", help="Store ALL intermediate results")
+    parser.add_argument("--flow-type", type=str, help="Ideation flow to run")
     
     args = parser.parse_args()
     
@@ -399,7 +402,8 @@ def main():
         input_file=args.input,
         use_cache=args.use_cache,
         skip_github=args.skip_github,
-        expand_results=args.expand_results
+        expand_results=args.expand_results,
+        flow_type=args.flow_type,
     )
     
     # Print V2 summary

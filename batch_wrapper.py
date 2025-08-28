@@ -151,6 +151,7 @@ def main() -> None:
     parser.add_argument('--s3-input', type=str, help='S3 path to input research file')
     parser.add_argument('--research-id', type=str, help='Research ID')
     parser.add_argument('--job-id', type=str, help='Job ID')
+    parser.add_argument('--flow-type', type=str, help='Ideation flow type')
     args, unknown = parser.parse_known_args()
     
     # Get environment variables
@@ -158,6 +159,7 @@ def main() -> None:
     # Use AWS Batch's automatically set job ID
     job_id = args.job_id or os.environ.get('AWS_BATCH_JOB_ID', os.environ.get('JOB_ID', 'unknown'))
     s3_input = args.s3_input or os.environ.get('S3_INPUT_KEY')
+    flow_type = args.flow_type or os.environ.get('IDEATION_TYPE')
     
     print(f"Starting pipeline for Research ID: {research_id}, Job ID: {job_id}")
     
@@ -191,6 +193,9 @@ def main() -> None:
         
         # Build command for pipeline V2
         cmd = ['python', 'run_pipeline_v2.py']
+
+        if flow_type:
+            cmd.extend(['--flow-type', flow_type])
         
         # Add input file if we downloaded one
         if local_input:

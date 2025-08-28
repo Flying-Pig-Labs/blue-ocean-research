@@ -63,6 +63,16 @@ from botocore.exceptions import ClientError
 from typing import List, Dict, Any
 import shutil
 
+# Flow management imports
+from src.ideation_flows import (
+    IdeationFlow,
+    SimpleIdeationFlow,
+    MedicalDeviceFlow,
+    PrivateEquityFlow,
+    CityRevitalizationFlow,
+    DataCenterFlow,
+)
+
 # Import pipeline modules (PRAW-based flow, no Exa dependencies)
 # Each module represents a distinct stage in the innovation pipeline.
 # These modules are designed to be called independently or orchestrated
@@ -466,7 +476,7 @@ def check_file_exists(filepath, description):
         return False
 
 
-def main(
+def _run_innovation_pipeline(
     interactive=False,
     verbose=False,
     input_file=None,
@@ -873,6 +883,39 @@ def main(
 """)
 
 
+
+class InnovationFlow(IdeationFlow):
+    """Full multi-stage innovation pipeline."""
+
+    def run(self, interactive: bool = False, verbose: bool = False,
+             input_file: str | None = None, use_cache: bool = False,
+             skip_github: bool = False) -> None:
+        _run_innovation_pipeline(interactive=interactive, verbose=verbose,
+                                 input_file=input_file, use_cache=use_cache,
+                                 skip_github=skip_github)
+
+
+def main(interactive: bool = False, verbose: bool = False,
+         input_file: str | None = None, use_cache: bool = False,
+         skip_github: bool = False, flow_type: str | None = None) -> None:
+    """Dispatch to the requested ideation flow."""
+    selected = flow_type or os.getenv("IDEATION_TYPE", "innovation")
+    if selected == "innovation":
+        flow: IdeationFlow = InnovationFlow()
+    elif selected == "medical-device":
+        flow = MedicalDeviceFlow()
+    elif selected == "private-equity":
+        flow = PrivateEquityFlow()
+    elif selected == "city-revitalization":
+        flow = CityRevitalizationFlow()
+    elif selected == "data-center":
+        flow = DataCenterFlow()
+    else:
+        flow = SimpleIdeationFlow(selected)
+    flow.run(interactive=interactive, verbose=verbose, input_file=input_file,
+             use_cache=use_cache, skip_github=skip_github)
+
+
 if __name__ == "__main__":
     # Entry point for the pipeline script
     # This block handles command-line argument parsing and invokes the main orchestration
@@ -905,6 +948,11 @@ if __name__ == "__main__":
         action="store_true",
         help="Skip GitHub repository creation (useful for testing)",
     )
+    parser.add_argument(
+        "--flow-type",
+        type=str,
+        help="Ideation flow to run (default: innovation)",
+    )
     args = parser.parse_args()
 
     main(
@@ -913,4 +961,5 @@ if __name__ == "__main__":
         input_file=args.input,
         use_cache=args.use_cache,
         skip_github=args.skip_github,
+        flow_type=args.flow_type,
     )
