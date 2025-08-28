@@ -237,6 +237,170 @@ Return ONLY a numbered list of JTBD statements, one per line. Nothing else."""
             console.print(f"[red]Error extracting JTBDs: {e}[/red]")
             sys.exit(1)
 
+    def extract_jtbds_from_analysis_content(self, analysis_content: str) -> List[str]:
+        """
+        Extract JTBDs directly from analysis content (helper to avoid re-reading file).
+        
+        Args:
+            analysis_content: Raw analysis content string
+            
+        Returns:
+            List[str]: 20-30 JTBD statements
+        """
+        console.print(f"[cyan]📖 Processing analysis content ({len(analysis_content)} chars)...[/cyan]")
+
+        prompt = f"""Based on this comprehensive market analysis, extract 20-30 specific Jobs-to-be-Done (JTBD) statements.
+
+Each JTBD should follow one of these formats:
+1. "When I [situation], I want to [motivation], so I can [expected outcome]"
+2. "[Action verb] [object] without/while/before [constraint or context]"
+
+Focus on extracting JTBDs that represent real customer needs from the pain points, personas, and verticals described.
+Make them specific and actionable.
+
+Analysis document:
+{analysis_content}
+
+Return ONLY a numbered list of JTBD statements, one per line. Nothing else."""
+
+        console.print("[cyan]🤖 Extracting JTBDs with Claude...[/cyan]")
+
+        try:
+            response = self.anthropic_client.messages.create(
+                model="claude-3-5-sonnet-20241022",
+                max_tokens=3000,
+                temperature=0.7,
+                messages=[{"role": "user", "content": prompt}],
+            )
+
+            jtbd_text = response.content[0].text.strip()
+
+            # Parse the numbered list
+            jtbds = []
+            for line in jtbd_text.split("\n"):
+                cleaned = line.strip()
+                if cleaned and (cleaned[0].isdigit() or cleaned.startswith("-")):
+                    # Remove numbering
+                    if ". " in cleaned[:4]:
+                        jtbd = cleaned.split(". ", 1)[1]
+                    elif cleaned.startswith("- "):
+                        jtbd = cleaned[2:]
+                    else:
+                        jtbd = cleaned
+
+                    jtbd = jtbd.strip('"').strip("'").strip()
+                    if len(jtbd) > 10:
+                        jtbds.append(jtbd)
+
+            console.print(f"[green]✅ Extracted {len(jtbds)} JTBDs[/green]")
+            return jtbds
+
+        except Exception as e:
+            console.print(f"[red]Error extracting JTBDs: {e}[/red]")
+            sys.exit(1)
+
+    def discover_relevant_subreddits(self, analysis_content: str) -> List[str]:
+        """
+        Dynamically discover relevant subreddits based on the analysis content.
+        
+        Uses Claude to identify the top 10 subreddits where people would naturally
+        discuss the pain points, challenges, and topics identified in the research.
+        
+        Args:
+            analysis_content: Raw analysis content from research
+            
+        Returns:
+            List[str]: List of 8-10 relevant subreddit names (without r/ prefix)
+            
+        Fallback:
+            Returns hardcoded real estate subreddits if API fails
+        """
+        console.print("[cyan]🎯 Discovering relevant subreddits...[/cyan]")
+        
+        # Extract key context from analysis (first 2000 chars for efficiency)
+        context_snippet = analysis_content[:2000]
+        
+        prompt = f"""You are a JSON generator specializing in Reddit communities. Based on the business analysis below, identify the TOP 10 subreddits where people would naturally discuss the underlying pain points, challenges, and dynamics described.
+
+Analysis Context:
+{context_snippet}
+
+Requirements:
+- Focus on subreddits where REAL USERS discuss problems related to this industry/domain
+- Include both industry-specific and general communities (e.g., personal finance, productivity)
+- Prioritize active communities with high engagement
+- Use actual subreddit names (verify they exist)
+- Return ONLY valid JSON - no explanations or additional text
+
+Example JSON format you MUST return:
+{{
+    "subreddits": [
+        "personalfinance",
+        "SmallBusiness", 
+        "entrepreneur",
+        "investing",
+        "technology",
+        "productivity",
+        "careerguidance",
+        "consulting",
+        "startups",
+        "business"
+    ]
+}}
+
+Return ONLY the JSON structure above with 10 relevant subreddit names. This is critical - no other text."""
+
+        try:
+            response = self.anthropic_client.messages.create(
+                model="claude-3-5-sonnet-20241022",
+                max_tokens=500,
+                temperature=0.3,
+                messages=[{"role": "user", "content": prompt}],
+            )
+            
+            response_text = response.content[0].text.strip()
+            
+            # Clean up response if wrapped in code blocks
+            if "```json" in response_text:
+                response_text = response_text.split("```json")[1].split("```")[0].strip()
+            elif "```" in response_text:
+                response_text = response_text.split("```")[1].split("```")[0].strip()
+            
+            # Parse JSON
+            import json
+            subreddit_data = json.loads(response_text)
+            subreddits = subreddit_data.get("subreddits", [])
+            
+            # Validate and clean subreddit names
+            valid_subreddits = []
+            for sub in subreddits[:10]:  # Max 10
+                # Clean subreddit name (remove r/ prefix if present, special chars)
+                clean_sub = str(sub).replace("r/", "").strip()
+                if clean_sub and len(clean_sub) > 2 and len(clean_sub) < 25:
+                    valid_subreddits.append(clean_sub)
+            
+            if len(valid_subreddits) >= 5:
+                console.print(f"[green]✅ Discovered {len(valid_subreddits)} relevant subreddits[/green]")
+                console.print(f"[dim]Subreddits: {', '.join(f'r/{sub}' for sub in valid_subreddits[:5])}...[/dim]")
+                return valid_subreddits
+            else:
+                console.print(f"[yellow]⚠️ Only found {len(valid_subreddits)} valid subreddits, using fallback[/yellow]")
+                raise ValueError("Insufficient valid subreddits")
+                
+        except Exception as e:
+            console.print(f"[yellow]⚠️ Subreddit discovery failed ({e}), using fallback[/yellow]")
+            # Fallback to original hardcoded list
+            return [
+                "RealEstate",
+                "FirstTimeHomeBuyer", 
+                "realestateinvesting",
+                "Mortgages",
+                "personalfinance",
+                "RealEstateAdvice",
+                "realtors",
+                "HousingMarket"
+            ]
+
     def translate_jtbd_to_reddit_queries(self, jtbd: str) -> List[str]:
         """
         Translate a JTBD statement into authentic Reddit search queries.
@@ -313,24 +477,25 @@ Return ONLY 8 queries, one per line. Keep them SHORT and authentic."""
             return [" ".join(words[i : i + 3]) for i in range(0, len(words) - 2, 2)][:3]
 
     def search_reddit_for_jtbd(
-        self, jtbd: str, queries: List[str]
+        self, jtbd: str, queries: List[str], target_subreddits: List[str] = None
     ) -> List[Dict[str, Any]]:
-        """Search Reddit for discussions matching JTBD"""
+        """Search Reddit for discussions matching JTBD using dynamic or fallback subreddits"""
 
         if not self.reddit:
             return []
 
-        # Target subreddits for real estate
-        target_subreddits = [
-            "RealEstate",
-            "FirstTimeHomeBuyer",
-            "realestateinvesting",
-            "Mortgages",
-            "personalfinance",
-            "RealEstateAdvice",
-            "realtors",
-            "HousingMarket",
-        ]
+        # Use provided subreddits or fallback to hardcoded list
+        if not target_subreddits:
+            target_subreddits = [
+                "RealEstate",
+                "FirstTimeHomeBuyer",
+                "realestateinvesting", 
+                "Mortgages",
+                "personalfinance",
+                "RealEstateAdvice",
+                "realtors",
+                "HousingMarket",
+            ]
 
         results = []
 
@@ -378,8 +543,8 @@ Return ONLY 8 queries, one per line. Keep them SHORT and authentic."""
 
         return results
 
-    def process_all_jtbds(self, jtbds: List[str]) -> pd.DataFrame:
-        """Process all JTBDs and find Reddit discussions"""
+    def process_all_jtbds(self, jtbds: List[str], target_subreddits: List[str] = None) -> pd.DataFrame:
+        """Process all JTBDs and find Reddit discussions using dynamic subreddits"""
 
         all_results = []
 
@@ -406,7 +571,7 @@ Return ONLY 8 queries, one per line. Keep them SHORT and authentic."""
 
                 # Search Reddit
                 if self.reddit:
-                    results = self.search_reddit_for_jtbd(jtbd, queries)
+                    results = self.search_reddit_for_jtbd(jtbd, queries, target_subreddits)
                     all_results.extend(results)
 
                 progress.advance(task)
@@ -528,9 +693,22 @@ Return ONLY 8 queries, one per line. Keep them SHORT and authentic."""
             )
         )
 
-        # Step 1: Extract JTBDs
-        console.print("\n[bold]Step 1: Extracting JTBDs from analysis[/bold]")
-        jtbds = self.extract_jtbds_from_analysis(input_file)
+        # Step 1: Read analysis file and discover relevant subreddits
+        console.print("\n[bold]Step 1: Loading analysis and discovering relevant communities[/bold]")
+        
+        # Read analysis file once for both JTBD extraction and subreddit discovery
+        try:
+            with open(input_file, "r") as f:
+                analysis_content = f.read()
+        except FileNotFoundError:
+            console.print(f"[red]Error: {input_file} not found[/red]")
+            sys.exit(1)
+        
+        # Discover relevant subreddits based on analysis content
+        target_subreddits = self.discover_relevant_subreddits(analysis_content)
+        
+        # Extract JTBDs using existing method (but pass content to avoid re-reading)
+        jtbds = self.extract_jtbds_from_analysis_content(analysis_content)
 
         if max_jtbds:
             jtbds = jtbds[:max_jtbds]
@@ -545,7 +723,7 @@ Return ONLY 8 queries, one per line. Keep them SHORT and authentic."""
 
         # Step 2: Find Reddit discussions
         console.print("\n[bold]Step 2: Finding Reddit discussions[/bold]")
-        df = self.process_all_jtbds(jtbds)
+        df = self.process_all_jtbds(jtbds, target_subreddits)
 
         # Step 3: Save results
         console.print("\n[bold]Step 3: Saving results[/bold]")
