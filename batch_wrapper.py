@@ -189,8 +189,8 @@ def main() -> None:
             download_from_s3(s3_input, local_input)
             print(f"Downloaded input to {local_input}")
         
-        # Build command for pipeline V2
-        cmd = ['python', 'run_pipeline_v2.py']
+        # Build command for pipeline
+        cmd = ['python', 'run_pipeline.py']
         
         # Add input file if we downloaded one
         if local_input:

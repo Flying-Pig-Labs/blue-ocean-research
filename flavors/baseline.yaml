@@ -1,0 +1,237 @@
+name: "baseline"
+description: "Original ERRC-based real estate ideation pipeline - maintains exact baseline behavior"
+version: "1.0.0"
+
+# EXACT baseline behavior reproduction - NO changes from current pipeline
+reddit_strategy:
+  # Uses EXACT dynamic subreddit discovery as in current jobs_to_reddit.py
+  subreddit_discovery_prompt: |
+    You are a JSON generator specializing in Reddit communities. Based on the business analysis below, identify the TOP 10 subreddits where people would naturally discuss the underlying pain points, challenges, and dynamics described.
+    
+    Analysis Context:
+    {analysis_content}
+    
+    Requirements:
+    - Focus on subreddits where REAL USERS discuss problems related to this industry/domain
+    - Include both industry-specific and general communities (e.g., personal finance, productivity)
+    - Prioritize active communities with high engagement
+    - Use actual subreddit names (verify they exist)
+    - Return ONLY valid JSON - no explanations or additional text
+    
+    Example JSON format you MUST return:
+    {{
+        "subreddits": [
+            "personalfinance",
+            "SmallBusiness", 
+            "entrepreneur",
+            "investing",
+            "technology",
+            "productivity",
+            "BusinessFAIL",
+            "startups",
+            "freelance",
+            "digitalnomad"
+        ]
+    }}
+    
+    Return ONLY the JSON structure above with 10 relevant subreddit names. This is critical - no other text.
+  
+  # Fallback subreddits used when dynamic discovery fails (EXACT current fallback)
+  fallback_subreddits:
+    - "RealEstate"
+    - "FirstTimeHomeBuyer"
+    - "realestateinvesting"
+    - "Mortgages"
+    - "personalfinance"
+    - "investing"
+    - "REBubble"
+    - "homeowners"
+    - "Landlord"
+    - "financialindependence"
+    
+  # EXACT search parameters from current jobs_to_reddit.py
+  search_filters:
+    limit: 2  # 2 results per query
+    sort: "relevance"
+    time_filter: "year"
+  
+  # EXACT current behavior: 5 subreddits × 3 queries × 2 results = ~30 posts per JTBD
+  max_subreddits: 5  # Top 5 subreddits
+  max_queries_per_jtbd: 3  # Top 3 queries per subreddit
+  max_posts_per_query: 2  # 2 results per query
+
+framework:
+  framework_type: "errc"
+  output_format: "structured_json"
+  
+  # EXACT ERRC categories as used in current product_idea_generator.py
+  errc_categories:
+    - "eliminate"
+    - "reduce" 
+    - "raise"
+    - "create"
+  
+  # EXACT pain dimensions from current opportunity_zone_analyzer.py
+  analysis_dimensions:
+    - "timing_coordination"
+    - "financial_stress"
+    - "communication_gaps"
+    - "process_complexity"
+    - "trust_issues"
+    - "technology_gaps"
+    - "decision_anxiety"
+    - "market_dynamics"
+
+output:
+  schema_type: "business_idea"
+  required_fields:
+    - "title"
+    - "description"
+    - "target_market"
+    - "value_proposition"
+    - "revenue_model"
+    - "competitive_advantage"
+    - "implementation_timeline"
+    - "risk_factors"
+  optional_fields:
+    - "funding_requirements"
+    - "partnerships_needed"
+    - "technology_stack"
+    - "go_to_market_strategy"
+  repo_naming_pattern: "{flavor_name}-innovation-pipeline-{timestamp}"
+  issue_labels:
+    - "innovation"
+    - "market-opportunity"
+    - "research-backed"
+    - "real-estate"
+    - "errc-framework"
+  use_private_repo: false
+
+default_models:
+  research_analysis: "claude-3-5-sonnet-20241022"
+  reddit_analysis: "claude-3-5-sonnet-20241022" 
+  opportunity_zones: "claude-3-5-sonnet-20241022"
+  idea_generation: "claude-3-opus-20240229"
+  consolidation: "claude-3-5-sonnet-20241022"
+  github_content: "gpt-4o"
+
+stage_overrides:
+  # Stage 1: Research Analysis - EXACT current behavior
+  research_analysis:
+    model: "claude-3-5-sonnet-20241022"
+    max_tokens: 4000
+    temperature: 0.7
+    
+  # Stage 2: JTBD & Reddit - EXACT current behavior
+  jobs_to_reddit:
+    jtbd_extraction_model: "claude-3-5-sonnet-20241022"
+    jtbd_max_tokens: 3000
+    jtbd_temperature: 0.7
+    subreddit_discovery_model: "claude-3-5-sonnet-20241022"
+    subreddit_max_tokens: 500
+    subreddit_temperature: 0.3
+    query_generation_model: "claude-3-5-sonnet-20241022"
+    query_max_tokens: 300
+    query_temperature: 0.8
+    target_jtbds: "20-30"  # EXACT: "20-30 specific JTBD statements"
+    
+  # Stage 3: Opportunity Zone Analysis - EXACT current behavior
+  opportunity_zones:
+    n_zones: 7  # Default from run_pipeline.py line 669
+    max_discussions_per_jtbd: 3  # Default from run_pipeline.py line 670
+    clustering_algorithm: "hierarchical"  # AgglomerativeClustering with ward linkage
+    pain_dimension_threshold: 0.3  # Significant dimensions filter
+    enable_perplexity_enrichment: true  # TWO-STAGE Perplexity integration
+    perplexity_model: "sonar-deep-research"
+    stage1_reasoning_effort: "medium"
+    stage2_reasoning_effort: "high"
+    
+  # Stage 4: Product Idea Generation - EXACT current behavior
+  idea_generation:
+    total_ideas: 10  # Exactly 10 ideas as in baseline
+    ideas_per_zone_strategy: "weighted_distribution"  # Based on market_opportunity_score
+    framework_model: "openai-o1"  # For ERRC strategy analysis
+    idea_model: "claude-3-opus-20240229"  # For creative idea generation
+    
+  # Stage 5: Idea Consolidation - EXACT current behavior
+  idea_consolidation:
+    model: "claude-3-5-sonnet-20241022"
+    
+  # Stage 6: GitHub Integration - EXACT current behavior
+  github_integration:
+    organization: "ocean-studio-repos"
+    create_exactly_10_issues: true  # Critical baseline behavior
+    issue_quality: "pitch_deck_ready"
+    readme_model: "gpt-5"  # 1 call for README
+    issue_model: "gpt-5"  # 10 calls for issues
+
+# EXACT prompts from current codebase - NO modifications
+current_prompts:
+  # From jobs_to_reddit.py - JTBD extraction prompt
+  jtbd_extraction: |
+    Based on this comprehensive market analysis, extract 20-30 specific Jobs-to-be-Done (JTBD) statements.
+    Each JTBD should follow one of these formats:
+    1. "When I [situation], I want to [motivation], so I can [expected outcome]"
+    2. "[Action verb] [object] without/while/before [constraint or context]"
+    
+    Focus on extracting JTBDs that represent real customer needs from the pain points, personas, and verticals described.
+    Make them specific and actionable.
+    
+    Analysis document:
+    {analysis_content}
+    
+    Return ONLY a numbered list of JTBD statements, one per line. Nothing else.
+  
+  # From jobs_to_reddit.py - Query translation prompt  
+  reddit_query_generation: |
+    Translate this Job-to-be-Done into 3-5 specific Reddit search queries that would find real user discussions:
+    
+    JTBD: {jtbd}
+    
+    Create queries that:
+    - Use natural Reddit language and terminology
+    - Focus on problems, frustrations, or needs
+    - Avoid jargon or formal business terms
+    - Are specific enough to find relevant threads
+    
+    Return one query per line, no numbering.
+  
+  # From opportunity_zone_analyzer.py - Pain dimension extraction
+  pain_dimension_scoring: |
+    Analyze this Reddit discussion about real estate and score it on each pain dimension.
+    
+    Reddit Discussion:
+    {text}
+    
+    Score each dimension from 0.0 to 1.0 based on how strongly it is expressed:
+    
+    Pain Dimensions:
+    - timing_coordination: Issues with scheduling, deadlines, synchronization
+    - financial_stress: Money concerns, costs, affordability issues  
+    - communication_gaps: Problems with updates, responses, being informed
+    - process_complexity: Confusion about steps, documentation, procedures
+    - trust_issues: Concerns about honesty, scams, manipulation
+    - technology_gaps: Frustration with manual processes, lack of automation
+    - decision_anxiety: Worry, stress, uncertainty about choices
+    - market_dynamics: Competition, bidding wars, inventory issues
+    
+    Return ONLY a JSON object with dimension names as keys and scores as values.
+    Example: {{"timing_coordination": 0.7, "financial_stress": 0.3, ...}}
+  
+  # From opportunity_zone_analyzer.py - Solution requirements extraction
+  solution_requirements: |
+    Based on these Jobs-to-be-Done and Reddit discussions, extract specific solution requirements.
+    
+    JTBDs in this opportunity zone:
+    {jtbd_list}
+    
+    Sample Reddit discussions:
+    {sample_discussions}
+    
+    List 3-5 specific, actionable solution requirements that would address these needs.
+    Focus on technical capabilities, not vague benefits.
+    Return ONLY a JSON array of requirement strings.
+    
+    Example: ["Real-time transaction status dashboard", "Automated document verification system", "Multi-party communication hub"]
+    
+# Validation rules are handled by the schema, not stored in YAML
