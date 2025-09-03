@@ -1,0 +1,148 @@
+version: 1
+name: device_spec
+description: Generate medical device specifications from Opportunity Zones.
+
+reddit_strategy:
+  subreddit_selection: 
+    - "medicaldevices"
+    - "medtech"
+    - "nursing"
+    - "biomed"
+    - "anesthesia"
+    - "radiology"
+    - "EMS"
+    - "qualityassurance"
+
+keyword_strategy:
+  seed_terms:
+    include:
+      - "device recall"
+      - "usability issue"
+      - "underdiagnosed"
+      - "workflow bottleneck"
+      - "sterilization failure"
+      - "materials shortage"
+      - "sensor drift"
+      - "adhesion failure"
+      - "IEC 60601"
+      - "ISO 10993"
+      - "cybersecurity medical device"
+      - "predicate device"
+      - "510(k) denied"
+      - "human factors validation"
+    exclude: ["crypto", "airdrop", "drop-shipping"]
+  patterns:
+    - type: boolean
+      value: '("alarm fatigue" OR "false positives") AND (ICU OR med-surg)'
+    - type: phrase
+      value: '"reprocessing" AND (endoscope OR catheter)'
+    - type: phrase
+      value: '"adhesive failure" OR "skin tear"'
+    - type: boolean
+      value: '("prior authorization" OR "coverage denial") AND device'
+    - type: phrase
+      value: '"sensor drift" AND (glucometer OR SpO2 OR BP)'
+  expansions:
+    synonyms: true
+    stemming: true
+    entities_from_report: true
+  subreddit_hints:
+    - medicaldevices
+    - medtech
+    - nursing
+    - biomed
+    - anesthesia
+    - radiology
+    - EMS
+    - qualityassurance
+  max_queries: 24
+
+clustering:
+  min_cluster_size: 5
+  similarity_threshold: 0.70
+  technical_weights: 
+    clinical_usability: 0.30
+    regulatory_complexity: 0.25
+    safety_risk: 0.20
+    market_readiness: 0.25
+
+framework:
+  framework_type: "spec_trace"
+  adapter: "spec_trace_v1"
+  output_format: "device_specification"
+  analysis_dimensions:
+    - "clinical_fit"
+    - "regulatory_complexity" 
+    - "safety_risk"
+    - "build_feasibility"
+    - "human_factors"
+    - "data_cyber"
+    - "evidence_path"
+    - "time_to_market"
+  params:
+    weights: 
+      CF: 0.22  # Clinical Fit
+      RC: 0.10  # Regulatory Complexity (inverted)
+      SR: 0.10  # Safety & Risk (inverted)
+      BF: 0.18  # Build Feasibility
+      HF: 0.12  # Human Factors
+      DC: 0.08  # Data & Cyber
+      EP: 0.12  # Evidence Path
+      TTM: 0.08 # Time-to-Market
+    # Optional category tuning
+    category_overrides:
+      wound_care: 
+        HF: 0.16  # +0.04 prioritize usability
+        BF: 0.20  # +0.02 prioritize DFM
+        RC: 0.08  # -0.02 reduce regulatory weight
+      implantable: 
+        RC: 0.15  # +0.05 harder pathway
+        SR: 0.15  # +0.05 higher risk
+        EP: 0.15  # +0.03 more evidence needed
+        TTM: 0.05 # -0.03 longer timeline expected
+    require_standards_map: true
+
+output:
+  schema_type: "device_spec"
+  required_fields:
+    - "title"
+    - "device_category"
+    - "intended_use"
+    - "clinical_need"
+    - "target_setting"
+    - "user_profiles"
+    - "performance_requirements"
+    - "regulatory_pathway"
+    - "applicable_standards"
+    - "materials_and_biocompatibility"
+    - "human_factors"
+    - "manufacturing_processes"
+    - "top_level_BOM"
+    - "unit_cost_target"
+    - "supply_chain_notes"
+    - "verification_plan"
+    - "validation_plan"
+    - "risk_register"
+    - "spec_trace_scores"
+    - "citations"
+  optional_fields:
+    - "sterilization_reprocessing"
+    - "power_connectivity"
+    - "environmental_constraints"
+    - "form_factor_constraints"
+    - "ip_landscape"
+    - "postmarket_surveillance"
+  repo_naming_pattern: "device-specs-{flavor_name}-{timestamp}"
+  issue_labels:
+    - "opportunity"
+    - "device-spec"
+    - "medical-device"
+    - "spec-trace"
+  use_private_repo: true
+
+github:
+  repo_owner: your-org
+  repo_name_prefix: "ideation-"
+  visibility: "private"
+  branch: "main"
+  update_strategy: "upsert"

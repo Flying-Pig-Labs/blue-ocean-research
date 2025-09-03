@@ -474,6 +474,10 @@ Example: ["Real-time transaction status dashboard", "Automated document verifica
 
     def generate_zone_name(self, dominant_dimensions: Dict[str, float]) -> str:
         """Generate a descriptive name for an opportunity zone based on dominant pain dimensions."""
+        # Handle empty dimensions (no significant pain points found)
+        if not dominant_dimensions:
+            return "General Solution Platform"
+            
         # Get top 2 dimensions
         sorted_dims = sorted(
             dominant_dimensions.items(), key=lambda x: x[1], reverse=True
@@ -943,6 +947,12 @@ Deliver actionable intelligence for product innovation decisions."""
             significant_dims = {
                 dim: score for dim, score in avg_dimensions.items() if score > 0.3
             }
+            
+            # Fallback: if no significant dimensions, use top dimension regardless of threshold
+            if not significant_dims and avg_dimensions:
+                top_dim = max(avg_dimensions.items(), key=lambda x: x[1])
+                significant_dims = {top_dim[0]: top_dim[1]}
+                logger.info(f"Zone {zone_id + 1}: No dimensions > 0.3, using top dimension {top_dim[0]} ({top_dim[1]:.3f})")
 
             # Calculate evidence strength
             zone_jtbd_texts = [jtbds[idx] for idx in zone_jtbd_indices]

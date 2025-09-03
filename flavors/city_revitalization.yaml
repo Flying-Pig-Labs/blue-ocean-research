@@ -1,0 +1,258 @@
+name: "city_revitalization"
+description: "Generate city revitalization initiatives from opportunity zones, emphasizing unexpected alliances"
+version: "1.0.0"
+
+# City revitalization keyword strategy
+reddit_strategy:
+  subreddit_discovery_prompt: |
+    Based on the urban analysis below, identify Reddit communities where people discuss:
+    - City planning and urban development challenges
+    - Community partnerships and unusual collaborations
+    - Downtown revitalization and economic development
+    - Local government initiatives and civic engagement
+    - Housing, transportation, and community services
+    
+    Focus on communities discussing cross-sector partnerships and innovative urban solutions.
+    
+    Analysis Context:
+    {analysis_content}
+    
+    Return ONLY valid JSON:
+    {{
+        "subreddits": [
+            "urbanplanning",
+            "cityporn", 
+            "civictech",
+            "community",
+            "homelessness",
+            "architecture",
+            "bicycling",
+            "environment",
+            "transit",
+            "smallbusiness"
+        ]
+    }}
+
+  fallback_subreddits: []
+  
+  # City revitalization-specific keyword strategy  
+  seed_terms:
+    - "downtown vacancy"
+    - "food desert"
+    - "public health disparity"
+    - "community trust"
+    - "transport gaps"
+    - "historic district decline"
+    - "homeless encampment"
+    - "flood risk"
+    - "small business exodus"
+    - "arts funding cut"
+    - "youth unemployment"
+    - "brownfield redevelopment"
+    
+  exclusion_terms:
+    - "crypto"
+    - "dropshipping"
+    - "scam"
+    - "ponzi"
+    
+  query_patterns:
+    - '"downtown revitalization" AND ("partnership" OR "coalition")'
+    - '"brownfield" AND ("reuse" OR "redevelopment")'
+    - '"public library" AND ("health clinic" OR "shelter")'
+    - '("sports stadium" OR "arena") AND ("community use" OR "shared space")'
+    - '"urban farming" AND ("vacant lots" OR "housing projects")'
+    - "{term} community partnerships"
+    - "unusual {term} collaborations"
+    - "{term} cross-sector alliance"
+    
+  enable_synonyms: true
+  enable_stemming: true
+  enable_entity_extraction: true
+  
+  subreddit_hints:
+    urban_planning:
+      - "urbanplanning"
+      - "cityporn"
+      - "architecture"
+    community_development:
+      - "community" 
+      - "civictech"
+      - "smallbusiness"
+    social_issues:
+      - "homelessness"
+      - "environment"
+      - "transit"
+      
+  search_filters:
+    limit: 3
+    sort: "top"
+    time_filter: "year"
+    
+  max_subreddits: 8
+  max_queries_per_jtbd: 4
+  max_posts_per_query: 3
+
+framework:
+  framework_type: "unify"
+  adapter: "unify_v1"
+  output_format: "structured_json"
+  
+  # UNIFY framework configuration with 6 dimensions
+  params:
+    weights:
+      NA: 0.20   # Need Alignment
+      UPS: 0.25  # Uncommon Pairing Strength
+      FZ: 0.15   # Feasibility
+      IP: 0.20   # Impact Potential
+      NR: 0.10   # Narrative Resonance
+      RS: 0.10   # Resilience
+    require_alliance_map: true
+    callouts:
+      gather_stakeholders: true
+      fetch_recent_events: true
+      alliance_templates: true
+      
+  # City revitalization clustering
+  clustering:
+    algorithm: "hierarchical"
+    n_zones: 6
+    linkage_method: "ward"
+    
+    # Urban development dimension weights
+    pain_dimension_weights:
+      "community_disconnect": 2.0
+      "economic_decline": 1.8
+      "infrastructure_gaps": 1.6
+      "governance_barriers": 1.4
+      "resource_scarcity": 1.2
+      
+    pain_dimension_threshold: 0.25
+    required_dimensions:
+      - "community_disconnect"
+      - "economic_decline"
+      
+    max_discussions_per_jtbd: 4
+    preserve_baseline_logic: false
+    
+  # UNIFY analysis dimensions
+  analysis_dimensions:
+    - "need_alignment"
+    - "uncommon_pairing_strength" 
+    - "feasibility"
+    - "impact_potential"
+    - "narrative_resonance"
+    - "resilience"
+
+output:
+  schema_type: "revitalization_initiative"
+  required_fields:
+    - "title"
+    - "zone_focus"
+    - "uncommon_alliance"
+    - "rationale"
+    - "initiative_plan"
+    - "stakeholder_map"
+    - "alliance_origin"
+    - "impact_metrics"
+    - "resilience_notes"
+    - "unify_scores"
+    - "citations"
+  optional_fields:
+    - "funding_channels"
+    - "timeline_milestones"
+    - "risk_mitigation"
+    - "success_stories"
+  repo_naming_pattern: "city-revitalization-{timestamp}"
+  issue_labels:
+    - "opportunity"
+    - "revitalization"
+    - "uncommon-alliance"
+    - "city-planning"
+    - "community-partnership"
+  use_private_repo: true
+
+default_models:
+  research_analysis: "claude-3-5-sonnet-20241022"
+  reddit_analysis: "claude-3-5-sonnet-20241022"
+  opportunity_zones: "claude-3-5-sonnet-20241022"
+  idea_generation: "claude-3-opus-20240229"
+  consolidation: "claude-3-5-sonnet-20241022"
+  github_content: "gpt-4o"
+
+stage_overrides:
+  research_analysis:
+    model: "claude-3-5-sonnet-20241022"
+    max_tokens: 5000
+    temperature: 0.4
+    
+  jobs_to_reddit:
+    jtbd_extraction_model: "claude-3-5-sonnet-20241022"
+    target_jtbds: "15-25"
+    
+  opportunity_zones:
+    enable_perplexity_enrichment: true
+    perplexity_model: "sonar-deep-research"
+    stage1_reasoning_effort: "medium"
+    stage2_reasoning_effort: "high"
+    
+  idea_generation:
+    total_ideas: 10
+    ideas_per_zone_strategy: "weighted_distribution"
+    framework_model: "claude-3-5-sonnet-20241022"
+    idea_model: "claude-3-opus-20240229"
+    
+  github_integration:
+    organization: "ocean-studio-repos"
+    create_exactly_10_issues: true
+    issue_quality: "revitalization_specification"
+    readme_model: "gpt-4o"
+    issue_model: "gpt-4o"
+
+# City revitalization-specific prompts
+current_prompts:
+  stakeholder_identification: |
+    Based on these urban opportunity zones and community discussions, identify key local stakeholders
+    who could form unexpected but powerful alliances for city revitalization:
+    
+    Zone Context: {zone_context}
+    Community Needs: {community_discussions}
+    Local Assets: {asset_inventory}
+    
+    Extract 5-7 stakeholder categories that represent different sectors, disciplines, or communities.
+    Focus on groups that don't typically collaborate but could create synergistic partnerships.
+    
+    Return ONLY a JSON array of stakeholder categories with brief descriptions.
+    Example: [{"category": "Arena concessionaires", "description": "Underutilized commercial kitchens and supply chains"}, {"category": "Neighborhood food co-ops", "description": "Community-driven food access networks"}]
+    
+  alliance_generation: |
+    Generate 2-3 unusual but plausible partnerships for this revitalization opportunity zone:
+    
+    Zone Focus: {zone_focus}
+    Available Stakeholders: {stakeholder_pool}
+    Recent Events: {current_events}
+    
+    For each alliance, identify:
+    - Primary partnership (2-3 specific stakeholder types)
+    - Why this pairing is unexpected but logical
+    - Specific synergies that make collaboration powerful
+    - Resource/capability complementarity
+    
+    Return alliance proposals as JSON with partnership rationale.
+    
+  unify_scoring: |
+    Score this city revitalization alliance using the UNIFY framework:
+    
+    Initiative: {initiative_description}
+    Alliance Partners: {alliance_partners}
+    Implementation Plan: {implementation_plan}
+    
+    Rate each dimension 0.0-1.0:
+    - Need Alignment (NA): How directly does this address urban pain points?
+    - Uncommon Pairing Strength (UPS): How novel and cross-boundary is this alliance?
+    - Feasibility (FZ): How practical in terms of cost, governance, logistics?
+    - Impact Potential (IP): Expected economic, social, cultural, environmental uplift?
+    - Narrative Resonance (NR): How compelling for community buy-in and funding?
+    - Resilience (RS): Likelihood alliance survives under stress?
+    
+    Return UNIFY scores as JSON with rationale for each dimension.

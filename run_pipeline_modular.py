@@ -77,10 +77,26 @@ def configure_pipeline_for_flavor(flavor: FlavorConfig):
         "current_prompts": flavor.custom_prompts if hasattr(flavor, 'custom_prompts') else {}
     })
 
-def main():
-    """Main entry point for the modular pipeline runner."""
+def main(flavor=None, interactive=False, verbose=False, input_file=None, use_cache=False, skip_github=False):
+    """Main entry point for the modular pipeline runner.
     
-    parser = argparse.ArgumentParser(
+    Can be called programmatically or from command line.
+    """
+    
+    # If called programmatically, use provided parameters
+    if flavor is not None:
+        args = type('Args', (), {
+            'flavor': flavor,
+            'interactive': interactive,
+            'verbose': verbose,
+            'input': input_file,
+            'use_cache': use_cache,
+            'skip_github': skip_github,
+            'list_flavors': False
+        })()
+    else:
+        # Parse command line arguments
+        parser = argparse.ArgumentParser(
         description="Multi-Step LLM Pipeline with Flavor Support",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
@@ -141,7 +157,7 @@ Examples:
         help="Skip GitHub repository creation"
     )
     
-    args = parser.parse_args()
+        args = parser.parse_args()
     
     # Handle list flavors command
     if args.list_flavors:

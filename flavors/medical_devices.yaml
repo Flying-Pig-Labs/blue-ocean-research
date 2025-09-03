@@ -1,0 +1,252 @@
+name: "medical_devices"  
+description: "Medical device innovation pipeline with JTBD framework and specialized clustering"
+version: "1.0.0"
+
+# Medical device market research strategy
+reddit_strategy:
+  subreddit_discovery_prompt: |
+    Based on the healthcare analysis below, identify Reddit communities where people discuss:
+    - Medical device user experiences and pain points
+    - Healthcare provider workflow challenges
+    - Patient care accessibility and quality issues
+    - Medical technology adoption barriers
+    
+    Focus on communities with authentic user discussions about healthcare experiences.
+    
+    Analysis Context: 
+    {analysis_content}
+    
+    Return ONLY valid JSON:
+    {{
+        "subreddits": [
+            "medical",
+            "medicine", 
+            "nursing",
+            "healthcare",
+            "disability",
+            "ChronicPain",
+            "diabetes",
+            "AskDocs",
+            "medicaldevices",
+            "biomedicalengineering"
+        ]
+    }}
+
+  fallback_subreddits:
+    - "medical"
+    - "medicine"
+    - "nursing" 
+    - "healthcare"
+    - "disability"
+    - "ChronicPain"
+    - "diabetes"
+    - "AskDocs"
+
+  # Healthcare-specific keyword strategy
+  seed_terms:
+    - "medical device"
+    - "patient monitoring" 
+    - "diagnostic equipment"
+    - "assistive technology"
+    - "therapeutic device"
+    - "clinical workflow"
+    - "patient safety"
+    - "accessibility"
+    - "home healthcare"
+    - "telemedicine"
+
+  exclusion_terms:
+    - "illegal"
+    - "unauthorized" 
+    - "experimental"
+    - "unproven"
+    - "dangerous"
+
+  query_patterns:
+    - "{term} problems"
+    - "{term} user experience"
+    - "issues with {term}"
+    - "{term} accessibility"
+    - "improving {term}"
+    - "{term} for elderly"
+    - "pediatric {term}"
+    - "{term} cost concerns"
+
+  enable_synonyms: true
+  enable_stemming: false  # Medical terminology is precise
+  enable_entity_extraction: true
+
+  subreddit_hints:
+    patient_experience:
+      - "ChronicPain"
+      - "disability" 
+      - "diabetes"
+    clinical_workflow:
+      - "medicine"
+      - "nursing"
+      - "healthcare"
+    device_technology:
+      - "biomedicalengineering"
+      - "medicaldevices"
+
+  search_filters:
+    limit: 2
+    sort: "relevance"
+    time_filter: "year"
+    
+  max_subreddits: 6
+  max_queries_per_jtbd: 3
+  max_posts_per_query: 2
+
+framework:
+  framework_type: "jobs_to_be_done"
+  output_format: "structured_json"
+  
+  # JTBD framework configuration
+  jtbd_situations:
+    - "functional"    # What task is the patient/provider trying to accomplish?
+    - "emotional"     # How do they want to feel during/after using the device?
+    - "social"        # How do they want to be perceived by others?
+  
+  # Medical device-specific clustering
+  clustering:
+    algorithm: "hierarchical"
+    n_zones: 6  # More zones for diverse medical conditions
+    linkage_method: "complete"  # Stricter clustering for medical precision
+    
+    # Medical-specific pain dimension weights
+    pain_dimension_weights:
+      "accessibility_barriers": 2.5    # Critical for medical devices
+      "safety_concerns": 2.0          # Patient safety paramount  
+      "usability_issues": 1.8         # Device must be intuitive
+      "cost_burden": 1.5              # Healthcare cost sensitivity
+      "clinical_workflow": 1.5        # Provider integration needs
+      
+    pain_dimension_threshold: 0.2  # Lower threshold for medical nuances
+    required_dimensions:            # Dimensions that must be present
+      - "safety_concerns"
+      - "usability_issues"
+      
+    max_discussions_per_jtbd: 4
+    preserve_baseline_logic: false  # Use medical-specific clustering
+    
+  # Custom analysis dimensions for medical devices
+  analysis_dimensions:
+    - "accessibility_barriers"      # Physical/cognitive accessibility
+    - "safety_concerns"            # Patient safety and adverse events  
+    - "usability_issues"           # User interface and ease of use
+    - "cost_burden"                # Device cost and insurance coverage
+    - "clinical_workflow"          # Provider workflow integration
+    - "regulatory_compliance"      # FDA and medical regulations
+    - "technology_adoption"        # Healthcare technology adoption barriers
+    - "patient_outcomes"           # Impact on health outcomes
+
+output:
+  schema_type: "device_spec"
+  required_fields:
+    - "device_category"
+    - "target_population" 
+    - "clinical_indication"
+    - "functional_requirements"
+    - "safety_specifications"
+    - "usability_requirements"
+    - "regulatory_pathway"
+    - "user_interface_design"
+  optional_fields:
+    - "connectivity_features"
+    - "data_privacy_measures"
+    - "maintenance_requirements"
+    - "training_needs"
+  repo_naming_pattern: "medical-device-innovation-{timestamp}"
+  issue_labels:
+    - "medical-device"
+    - "healthcare-innovation"
+    - "patient-centered-design"
+    - "clinical-workflow"
+    - "regulatory-compliance"
+  use_private_repo: true  # Medical IP protection
+
+default_models:
+  research_analysis: "claude-3-5-sonnet-20241022"
+  reddit_analysis: "claude-3-5-sonnet-20241022" 
+  opportunity_zones: "claude-3-5-sonnet-20241022"
+  idea_generation: "claude-3-opus-20240229"
+  consolidation: "claude-3-5-sonnet-20241022"
+  github_content: "gpt-4o"
+
+stage_overrides:
+  research_analysis:
+    model: "claude-3-5-sonnet-20241022"
+    max_tokens: 5000
+    temperature: 0.3  # Lower temperature for medical precision
+    
+  jobs_to_reddit:
+    jtbd_extraction_model: "claude-3-5-sonnet-20241022"  
+    target_jtbds: "20-30"  # Standard JTBD count
+    
+  opportunity_zones:
+    enable_perplexity_enrichment: true
+    perplexity_model: "sonar-deep-research"
+    stage1_reasoning_effort: "medium"
+    stage2_reasoning_effort: "high"  # Deep clinical analysis
+    
+  idea_generation:
+    total_ideas: 12  # More device concepts for medical diversity
+    ideas_per_zone_strategy: "weighted_distribution"
+    framework_model: "claude-3-5-sonnet-20241022"  # JTBD analysis 
+    idea_model: "claude-3-opus-20240229"
+    
+  github_integration:
+    organization: "ocean-studio-repos"
+    create_exactly_10_issues: false
+    issue_quality: "clinical_specification"
+    readme_model: "gpt-4o"
+    issue_model: "gpt-4o"
+
+# Medical device-specific prompts
+current_prompts:
+  clinical_needs_analysis: |
+    Based on these healthcare Jobs-to-be-Done and clinical discussions, extract specific 
+    medical device requirements that would improve patient outcomes:
+    
+    Clinical Context: {clinical_jtbds}
+    Patient Experiences: {patient_discussions}
+    Provider Workflows: {provider_feedback}
+    
+    List 5-8 specific device requirements addressing clinical needs.
+    Focus on evidence-based requirements that improve safety, efficacy, or accessibility.
+    
+    Return ONLY a JSON array of clinical requirement strings.
+    Example: ["Real-time glucose monitoring with 15-minute lag maximum", "One-handed operation for patients with limited dexterity", "FDA 510(k) clearance pathway compatibility"]
+    
+  patient_safety_assessment: |
+    Analyze patient safety considerations for medical devices in this opportunity zone:
+    
+    Device Context: {device_requirements}
+    Safety Discussions: {safety_concerns}
+    Adverse Event Reports: {adverse_events}
+    
+    Assess safety risk levels and required mitigations across:
+    - Device malfunction risks and failure modes
+    - User error potential and prevention
+    - Cybersecurity vulnerabilities (for connected devices)
+    - Biocompatibility and material safety
+    - Clinical contraindications and warnings
+    
+    Return safety assessment as JSON with risk levels (1-10) and specific mitigation strategies.
+    
+  regulatory_compliance_roadmap: |
+    Develop FDA regulatory pathway recommendations for this medical device opportunity:
+    
+    Device Classification: {device_category}
+    Intended Use: {clinical_indication} 
+    Risk Profile: {safety_assessment}
+    
+    Recommend regulatory strategy including:
+    - FDA device classification (Class I/II/III)
+    - Appropriate regulatory pathway (510(k), PMA, De Novo)
+    - Required clinical evidence and studies
+    - Quality system and manufacturing requirements
+    - Post-market surveillance obligations
+    
+    Return regulatory roadmap as structured JSON with timeline and requirements.

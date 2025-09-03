@@ -474,6 +474,9 @@ def main(
     skip_github=False,
 ):
     """Run the complete pipeline with PRAW-based flow (no Exa dependency).
+    
+    Automatically uses modular system with baseline flavor if available,
+    otherwise falls back to original implementation.
 
     This is the main orchestration function that coordinates all pipeline stages.
     It manages the flow from raw research input through to GitHub repository
@@ -512,6 +515,26 @@ def main(
     mode_str = "INTERACTIVE" if interactive else "HEADLESS"
     verbose_str = "YES" if verbose else "NO"
     cache_str = "ENABLED" if use_cache else "DISABLED"
+
+    # Check if modular system is available and use it transparently
+    from pathlib import Path
+    if Path("flavors/baseline.yaml").exists() and Path("run_pipeline_modular.py").exists():
+        print("🔄 Using modular system with baseline flavor (maintains exact behavior)")
+        
+        # Import and run modular pipeline with baseline flavor
+        import sys
+        import os
+        sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+        
+        from run_pipeline_modular import main as modular_main
+        return modular_main(
+            flavor="baseline",
+            interactive=interactive,
+            verbose=verbose,
+            input_file=input_file,
+            use_cache=use_cache,
+            skip_github=skip_github
+        )
 
     print(f"""
 ╔══════════════════════════════════════════════════════════════╗

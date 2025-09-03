@@ -1,0 +1,242 @@
+name: "crypto_mining_sites"
+description: "Cryptocurrency mining site location analysis with advanced keyword strategy"
+version: "1.0.0"
+
+# Demonstrates advanced keyword strategy features
+reddit_strategy:
+  # Custom subreddit discovery for crypto mining contexts
+  subreddit_discovery_prompt: |
+    Based on the analysis context below, identify Reddit communities where people discuss:
+    - Cryptocurrency mining site selection and challenges
+    - Industrial real estate and data center locations
+    - Energy costs, regulations, and infrastructure needs
+    - Government policies affecting crypto operations
+    
+    Focus on communities discussing location-based business decisions, energy costs,
+    regulatory compliance, and infrastructure requirements.
+    
+    Analysis Context:
+    {analysis_content}
+    
+    Return ONLY valid JSON with exactly 10 subreddit names:
+    {{
+        "subreddits": [
+            "CryptoCurrency",
+            "BitcoinMining",
+            "gpumining",
+            "CommercialRealEstate",
+            "datacenter",
+            "energy",
+            "business",
+            "investing",
+            "logistics",
+            "industrialengineering"
+        ]
+    }}
+
+  fallback_subreddits:
+    - "CryptoCurrency"
+    - "BitcoinMining" 
+    - "gpumining"
+    - "CommercialRealEstate"
+    - "datacenter"
+    - "energy"
+    - "business"
+    - "investing"
+
+  # Advanced keyword strategy configuration
+  seed_terms:
+    - "mining farm"
+    - "ASIC hosting"
+    - "data center"
+    - "electricity rates"
+    - "cooling costs"
+    - "regulatory compliance"
+    - "noise ordinances"
+    - "power infrastructure"
+    - "tax incentives"
+    - "corruption"  # Political risk factor
+    - "tariffs"     # Trade policy impact
+    
+  exclusion_terms:
+    - "scam"
+    - "ponzi"
+    - "fake"
+    - "fraud"
+    - "illegal mining"  # Avoid illegal operations
+    - "residential"     # Focus on commercial/industrial
+    
+  query_patterns:
+    - "where to setup {term}"
+    - "{term} location requirements"
+    - "{term} site selection"
+    - "best states for {term}"
+    - "{term} regulatory issues" 
+    - "{term} infrastructure needs"
+    - "industrial {term} challenges"
+    - "{term} zoning problems"
+
+  enable_synonyms: true
+  enable_stemming: true  
+  enable_entity_extraction: true
+
+  # Domain-specific subreddit targeting
+  subreddit_hints:
+    crypto_mining:
+      - "CryptoCurrency"
+      - "BitcoinMining"
+      - "gpumining"
+    industrial_real_estate:
+      - "CommercialRealEstate"
+      - "datacenter"
+    regulatory_compliance:
+      - "business"
+      - "legaladvice"
+      - "energy"
+
+  search_filters:
+    limit: 3
+    sort: "top"
+    time_filter: "year"
+    
+  max_subreddits: 8  # More subreddits for specialized domain
+  max_queries_per_jtbd: 4  # More queries per JTBD
+  max_posts_per_query: 3  # More posts per query
+
+framework:
+  framework_type: "custom"
+  output_format: "structured_json"
+  
+  # Custom framework for site location analysis
+  custom_prompts:
+    site_location_analysis: |
+      Analyze this opportunity zone using the PESTLE + Infrastructure framework:
+      
+      POLITICAL: Government stability, crypto regulations, tax policies
+      ECONOMIC: Electricity costs, land prices, labor costs, incentives  
+      SOCIAL: Community acceptance, skilled workforce availability
+      TECHNOLOGICAL: Grid infrastructure, internet connectivity, cooling systems
+      LEGAL: Zoning laws, noise ordinances, environmental regulations
+      ENVIRONMENTAL: Climate conditions, natural disaster risks, sustainability
+      INFRASTRUCTURE: Power capacity, transportation, telecommunications
+      
+      Rate each factor's impact on mining site success (1-10) and identify specific requirements.
+
+  # Clustering optimized for site location factors  
+  clustering:
+    algorithm: "hierarchical"
+    n_zones: 5  # Fewer zones for focused site analysis
+    linkage_method: "ward"
+    
+    # Custom clustering weights for site selection
+    pain_dimension_weights:
+      "technology_gaps": 2.0      # Critical for mining operations
+      "regulatory_barriers": 1.8  # High regulatory complexity
+      "cost_optimization": 1.5    # Electricity and operational costs
+      "infrastructure_needs": 1.5 # Power and cooling infrastructure
+      
+    pain_dimension_threshold: 0.25  # Lower threshold for specialized domain
+    max_discussions_per_jtbd: 5     # More discussions for specialized analysis
+    
+    # Override baseline logic for specialized clustering
+    preserve_baseline_logic: false
+
+output:
+  schema_type: "site_candidate"
+  required_fields:
+    - "location_type"
+    - "power_requirements"
+    - "cooling_specifications"
+    - "regulatory_compliance_needs"
+    - "infrastructure_score"
+    - "cost_analysis"
+    - "risk_assessment"
+    - "site_selection_criteria"
+  optional_fields:
+    - "environmental_impact"
+    - "community_relations"
+    - "expansion_potential"
+    - "backup_power_options"
+  repo_naming_pattern: "crypto-mining-site-analysis-{timestamp}"
+  issue_labels:
+    - "site-selection"
+    - "crypto-mining"
+    - "industrial-real-estate"
+    - "regulatory-compliance"
+    - "infrastructure-analysis"
+  use_private_repo: true  # Sensitive business intelligence
+
+default_models:
+  research_analysis: "claude-3-5-sonnet-20241022"
+  reddit_analysis: "claude-3-5-sonnet-20241022"
+  opportunity_zones: "claude-3-5-sonnet-20241022"
+  idea_generation: "claude-3-opus-20240229"  # Creative site optimization
+  consolidation: "claude-3-5-sonnet-20241022"
+  github_content: "gpt-4o"
+
+stage_overrides:
+  # Enhanced research analysis for regulatory environment
+  research_analysis:
+    model: "claude-3-5-sonnet-20241022"
+    max_tokens: 6000  # More detailed analysis needed
+    temperature: 0.5  # More focused analysis
+    
+  # Specialized JTBD extraction for site location
+  jobs_to_reddit:
+    jtbd_extraction_model: "claude-3-5-sonnet-20241022"
+    jtbd_max_tokens: 4000
+    target_jtbds: "15-25"  # Focused set for site selection
+    
+  # Custom opportunity zone analysis
+  opportunity_zones:
+    enable_perplexity_enrichment: true
+    perplexity_model: "sonar-deep-research"
+    stage1_reasoning_effort: "high"  # Deep infrastructure analysis
+    stage2_reasoning_effort: "high"
+    
+  # Site candidate generation instead of business ideas
+  idea_generation:
+    total_ideas: 8  # Fewer, higher-quality site candidates
+    ideas_per_zone_strategy: "equal_distribution"  # Each zone gets equal consideration
+    framework_model: "claude-3-5-sonnet-20241022"  # Use Sonnet for site analysis
+    idea_model: "claude-3-opus-20240229"
+    
+  # Specialized GitHub integration
+  github_integration:
+    organization: "ocean-studio-repos"
+    create_exactly_10_issues: false  # Different issue count
+    issue_quality: "technical_specification"
+    readme_model: "gpt-4o"
+    issue_model: "gpt-4o"
+
+# Current prompts for crypto mining site analysis
+current_prompts:
+  site_selection_requirements: |
+    Based on these cryptocurrency mining site requirements and Reddit discussions, 
+    extract specific technical and regulatory requirements:
+    
+    Mining Operations: {mining_requirements}
+    Infrastructure Needs: {infrastructure_needs}
+    Regulatory Context: {regulatory_discussions}
+    
+    List 5-7 critical site requirements that would address these mining operation needs.
+    Focus on measurable technical specifications and regulatory compliance requirements.
+    
+    Return ONLY a JSON array of requirement strings.
+    Example: ["Power capacity: minimum 10MW grid connection", "Zoning: industrial M-2 or equivalent", "Cooling: ambient temperature <75°F year-round"]
+    
+  regulatory_risk_assessment: |
+    Analyze regulatory risks for cryptocurrency mining in this opportunity zone:
+    
+    Zone Context: {zone_context}
+    Legal Environment: {legal_discussions}
+    Policy Trends: {policy_analysis}
+    
+    Assess regulatory risk levels (1-10) across:
+    - Federal cryptocurrency regulations
+    - State energy policies and mining restrictions  
+    - Local zoning and noise ordinances
+    - Environmental compliance requirements
+    - Tax treatment and incentive programs
+    
+    Return regulatory risk profile as JSON with risk scores and mitigation strategies.

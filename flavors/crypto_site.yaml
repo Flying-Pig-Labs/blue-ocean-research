@@ -1,0 +1,87 @@
+version: 1
+name: crypto_site
+description: Site-location viability for crypto mining.
+
+reddit_strategy:
+  subreddit_selection:
+    - "energymarkets"
+    - "cryptoMining"
+    - "grid_operator" 
+    - "datacenters"
+    - "energy"
+    - "business"
+
+keyword_strategy:
+  seed_terms:
+    include: ["power price", "grid interconnection", "PPA", "transformer lead time",
+              "tariffs", "import duties", "cooling", "flare gas", "wheeling", "hosting"]
+    exclude: ["airdrop", "giveaway"]
+  patterns:
+    - type: phrase
+      value: '"interconnection queue" OR "curtailment"'
+    - type: boolean
+      value: '(substation OR "MVA capacity") AND (upgrade OR backlog)'
+    - type: phrase
+      value: '"noise ordinance" OR "industrial zoning" OR "conditional use permit"'
+    - type: phrase
+      value: '"corruption" OR "informal payments" OR "customs delays"'
+  expansions:
+    synonyms: true
+    stemming: true
+    entities_from_report: true
+  subreddit_hints: ["energymarkets", "cryptoMining", "grid_operator", "datacenters", "energy"]
+  max_queries: 24
+
+clustering:
+  min_cluster_size: 6
+  similarity_threshold: 0.72
+  market_weights:
+    power_market_dynamics: 0.35
+    regulatory_environment: 0.25
+    infrastructure_readiness: 0.40
+
+framework:
+  framework_type: "site_feasibility"
+  adapter: "site_feasibility_v1"
+  output_format: "site_analysis"
+  analysis_dimensions:
+    - "power_cost"
+    - "grid_access"
+    - "timeline_risk"
+    - "regulatory_risk"
+    - "logistics_cost"
+    - "corruption_risk"
+  params:
+    weights:
+      power_cost: 0.25
+      grid_access: 0.25
+      timeline_risk: 0.15
+      regulatory_risk: 0.15
+      logistics_cost: 0.10
+      corruption_risk: 0.10
+
+output:
+  schema_type: "site_candidate"
+  required_fields:
+    - "title"
+    - "rationale"
+    - "grid_notes"
+    - "regulatory_flags"
+    - "risk_score"
+    - "citations"
+  optional_fields:
+    - "power_price_estimate"
+    - "logistics"
+  repo_naming_pattern: "crypto-sites-{flavor_name}-{timestamp}"
+  issue_labels:
+    - "opportunity"
+    - "site-location"
+    - "crypto-mining"
+  use_private_repo: true
+
+github:
+  repo_owner: your-org
+  repo_name_prefix: "ideation-"
+  visibility: "private"
+  branch: "main"
+  update_strategy: "upsert"

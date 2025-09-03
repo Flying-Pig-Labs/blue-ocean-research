@@ -1,0 +1,380 @@
+name: "private_equity_acquisitions"
+description: "Build a deal book from brokerage listings and draft 10 preliminary LOIs"
+version: "1.0.0"
+
+# PE acquisition-specific keyword strategy
+reddit_strategy:
+  subreddit_discovery_prompt: |
+    Based on the market analysis below, identify Reddit communities where people discuss:
+    - Small business acquisitions and sales
+    - Industry consolidation and market fragmentation
+    - Business valuations and deal structures
+    - Private equity and business brokerage
+    - Specific industry challenges and opportunities
+    
+    Focus on communities discussing business ownership, M&A activity, and market dynamics.
+    
+    Analysis Context:
+    {analysis_content}
+    
+    Return ONLY valid JSON:
+    {{
+        "subreddits": [
+            "smallbusiness",
+            "entrepreneur", 
+            "business",
+            "investing",
+            "SecurityAnalysis",
+            "venturecapital",
+            "CommercialRealEstate",
+            "financialindependence",
+            "hvac",
+            "veterinary"
+        ]
+    }}
+
+  fallback_subreddits: []
+  
+  # PE acquisition keyword strategy
+  seed_terms:
+    - "business for sale"
+    - "succession planning"
+    - "owner retirement"
+    - "management buyout"
+    - "roll-up strategy"
+    - "market consolidation"
+    - "recurring revenue"
+    - "maintenance contracts"
+    - "MSP business"
+    - "dental practice sale"
+    - "veterinary clinic acquisition"
+    - "HVAC business valuation"
+    
+  exclusion_terms:
+    - "scam"
+    - "pyramid"
+    - "MLM"
+    - "get rich quick"
+    - "passive income myth"
+    
+  query_patterns:
+    - "{term} valuation multiples"
+    - "buying {term} business"
+    - "{term} industry consolidation"
+    - "selling {term} to private equity"
+    - "{term} market fragmentation"
+    - "{term} acquisition opportunities"
+    
+  enable_synonyms: true
+  enable_stemming: true
+  enable_entity_extraction: true
+  
+  subreddit_hints:
+    business_sales:
+      - "smallbusiness"
+      - "entrepreneur"
+      - "business"
+    investment_analysis:
+      - "investing"
+      - "SecurityAnalysis"
+      - "venturecapital"
+    industry_specific:
+      - "hvac"
+      - "veterinary"
+      - "CommercialRealEstate"
+      
+  search_filters:
+    limit: 3
+    sort: "relevance"
+    time_filter: "year"
+    
+  max_subreddits: 8
+  max_queries_per_jtbd: 4
+  max_posts_per_query: 3
+
+# Data sources configuration
+sources:
+  broker_sites:
+    - name: "BizBuySell"
+    - name: "BizQuest" 
+    - name: "DealStream"
+    - name: "Transworld"
+    - name: "Sunbelt"
+    - name: "Axial"
+    - name: "Acquire.com"
+  fields_expected: 
+    - "title"
+    - "industry"
+    - "subindustry"
+    - "location"
+    - "asking_price"
+    - "gross_rev"
+    - "cash_flow"
+    - "sde"
+    - "ebitda"
+    - "year_founded"
+    - "employees"
+    - "description"
+    - "url"
+    - "broker_contact"
+
+# Investment thesis preferences
+thesis_preferences:
+  target_industries:
+    - "HVAC services"
+    - "veterinary clinics"
+    - "dental practices"
+    - "managed IT services"
+  ownership_types:
+    - "Founder-Led"
+    - "Family-Owned"
+    - "Management-Owned"
+  primary_value_drivers:
+    - "Consolidation"
+    - "Digitization"
+    - "Geographic Expansion"
+    - "Operational Excellence"
+  geography:
+    include_states: ["VA", "NC", "SC", "MD", "PA", "TN", "GA"]
+    cluster_radius_km: 300
+  size_bounds:
+    revenue_min: 1000000
+    revenue_max: 20000000
+    sde_min: 250000
+    sde_max: 4000000
+  negative_screens:
+    industries: ["firearms", "adult", "cannabis", "payday lending", "illegal goods"]
+    risk_flags: ["active litigation", "regulatory cease-and-desist"]
+  seller_motivation_weights:
+    retirement: 0.08
+    succession: 0.06
+    burnout: 0.04
+    relocation: 0.03
+    other: 0.00
+
+framework:
+  framework_type: "acquire"
+  adapter: "acquire_v1"
+  output_format: "structured_json"
+  
+  # ACQUIRE framework configuration with 7 dimensions
+  params:
+    weights:
+      A: 0.15   # Addressable Fragmentation
+      C: 0.20   # Cashflow Quality
+      Q: 0.15   # Quality of Operations
+      U: 0.20   # Upside Levers
+      I: 0.10   # Integration Readiness
+      R: 0.10   # Risk & Compliance (inverted)
+      E: 0.10   # Exit Pathways
+    boost:
+      ownership_match: 0.05
+      cluster_fit: 0.05
+    signals:
+      recurring_revenue_keywords: 
+        - "maintenance contract"
+        - "MSP"
+        - "managed services"
+        - "retainer"
+        - "subscription"
+        - "recurring"
+      digitization_keywords:
+        - "PSA"
+        - "RMM"
+        - "CRM"
+        - "ERP"
+        - "EDI"
+        - "e-commerce"
+        - "API"
+        - "automation"
+        
+  # PE-specific clustering for market analysis
+  clustering:
+    algorithm: "hierarchical"
+    n_zones: 5
+    linkage_method: "complete"
+    
+    # Market-based dimension weights
+    market_weights:
+      "market_fragmentation": 2.0
+      "consolidation_opportunity": 1.8
+      "competitive_moats": 1.6
+      "scalability_potential": 1.4
+      "exit_readiness": 1.2
+      
+    pain_dimension_threshold: 0.3
+    required_dimensions:
+      - "market_fragmentation"
+      - "consolidation_opportunity"
+      
+    max_discussions_per_jtbd: 3
+    preserve_baseline_logic: false
+    
+  # ACQUIRE analysis dimensions
+  analysis_dimensions:
+    - "addressable_fragmentation"
+    - "cashflow_quality"
+    - "quality_of_operations"
+    - "upside_levers"
+    - "integration_readiness"
+    - "risk_compliance"
+    - "exit_pathways"
+
+# Enrichment configuration
+enrichment:
+  enable: true
+  tasks:
+    - name: "company_site_lookup"
+    - name: "linkedin_snapshot"
+    - name: "maps_density"
+    - name: "reviews_scan"
+    - name: "secret_shopper_prompt"
+    - name: "news_headlines"
+  rate_limit:
+    per_minute: 20
+
+# LOI synthesis configuration
+synthesis:
+  loi_currency: "USD"
+  default_terms:
+    exclusivity_days: 45
+    diligence_period_days: 60
+    drop_dead_date_days: 120
+  structure_policy:
+    choose_by:
+      if_sde_missing: "price_range_from_comps_or_flag_unknown"
+      if_sde_present:
+        sde_multiple_bounds: [2.5, 4.5]
+    preferred_mix:
+      cash_at_close_pct: 70
+      seller_note_pct: 15
+      earnout_pct: 15
+    working_capital_target: "normalised"
+    rollover_equity_allowed: true
+  legal_disclaimers:
+    non_binding: true
+    subject_to_diligence: true
+    financing_condition: "customizable"
+
+output:
+  schema_type: "preliminary_loi"
+  required_fields:
+    - "title"
+    - "target_company"
+    - "industry"
+    - "location"
+    - "source_url"
+    - "quick_facts"
+    - "thesis_fit"
+    - "acquire_scores"
+    - "offer_summary"
+    - "contingencies"
+    - "exclusivity_days"
+    - "diligence_period_days"
+    - "key_risks"
+    - "post_close_plan"
+    - "citations"
+  optional_fields:
+    - "seller_motivation"
+    - "broker_contact"
+    - "rollover_equity_terms"
+    - "management_retention"
+  repo_naming_pattern: "pe-acquisition-lois-{timestamp}"
+  issue_labels:
+    - "opportunity"
+    - "PE"
+    - "acquisition"
+    - "preliminary-LOI"
+    - "deal-book"
+  use_private_repo: true
+
+default_models:
+  research_analysis: "claude-3-5-sonnet-20241022"
+  reddit_analysis: "claude-3-5-sonnet-20241022"
+  opportunity_zones: "claude-3-5-sonnet-20241022"
+  idea_generation: "claude-3-opus-20240229"
+  consolidation: "claude-3-5-sonnet-20241022"
+  github_content: "gpt-4o"
+
+stage_overrides:
+  research_analysis:
+    model: "claude-3-5-sonnet-20241022"
+    max_tokens: 6000
+    temperature: 0.3  # Lower temperature for financial precision
+    
+  jobs_to_reddit:
+    jtbd_extraction_model: "claude-3-5-sonnet-20241022"
+    target_jtbds: "15-25"
+    
+  opportunity_zones:
+    enable_perplexity_enrichment: true
+    perplexity_model: "sonar-deep-research"
+    stage1_reasoning_effort: "high"
+    stage2_reasoning_effort: "high"
+    
+  idea_generation:
+    total_ideas: 10
+    ideas_per_zone_strategy: "weighted_distribution"
+    framework_model: "claude-3-5-sonnet-20241022"
+    idea_model: "claude-3-opus-20240229"
+    
+  github_integration:
+    organization: "ocean-studio-repos"
+    create_exactly_10_issues: true
+    issue_quality: "preliminary_loi_specification"
+    readme_model: "gpt-4o"
+    issue_model: "gpt-4o"
+
+# PE acquisition-specific prompts
+current_prompts:
+  market_fragmentation_analysis: |
+    Based on these business acquisition opportunities and market discussions, analyze market fragmentation
+    and consolidation potential for PE investment:
+    
+    Acquisition Targets: {acquisition_targets}
+    Market Intelligence: {market_discussions}
+    Industry Context: {industry_analysis}
+    
+    Assess fragmentation indicators:
+    - Market concentration levels and competitor landscape
+    - Barriers to entry and competitive moats
+    - Roll-up potential and acquisition multiples
+    - Geographic density and cluster opportunities
+    - Technology adoption and digitization gaps
+    
+    Return ONLY a JSON array of market fragmentation insights.
+    Example: [{"market": "HVAC services", "fragmentation_score": 0.8, "consolidation_drivers": ["aging owners", "capital constraints"]}]
+    
+  deal_structuring_analysis: |
+    Analyze deal structuring opportunities for this acquisition target:
+    
+    Target Profile: {target_profile}
+    Financial Metrics: {financial_data}
+    Risk Assessment: {risk_factors}
+    
+    Recommend preliminary deal structure including:
+    - Valuation range based on industry comparables
+    - Cash/debt/earnout mix optimization
+    - Key contingencies and due diligence focus areas
+    - Integration timeline and value creation plan
+    - Exit strategy considerations
+    
+    Return deal structure recommendations as JSON with rationale.
+    
+  loi_generation: |
+    Generate preliminary Letter of Intent (LOI) terms for this acquisition target:
+    
+    Target Company: {company_name}
+    ACQUIRE Scores: {acquire_analysis}
+    Market Context: {market_position}
+    
+    Create non-binding LOI structure including:
+    - Purchase price range (preliminary, subject to diligence)
+    - Deal structure (cash, seller note, earnout percentages)
+    - Key contingencies and due diligence requirements
+    - Exclusivity period and timeline
+    - Post-closing integration outline
+    - Material risks and mitigation strategies
+    
+    Emphasize preliminary, non-binding nature throughout.
+    Return LOI structure as JSON with all required components.

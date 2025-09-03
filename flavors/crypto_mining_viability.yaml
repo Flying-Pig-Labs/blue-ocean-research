@@ -1,0 +1,351 @@
+name: "crypto_mining_viability"
+description: "Mining Viability Engine - Top 10 viable setups with risk-adjusted scores and execution packets"
+version: "1.0.0"
+
+# Mining viability research strategy
+reddit_strategy:
+  subreddit_discovery_prompt: |
+    Based on the mining analysis below, identify Reddit communities where people discuss:
+    - Cryptocurrency mining setup and profitability
+    - Mining hardware (ASIC) performance and reliability
+    - Power arrangements and electricity costs
+    - Mining facility infrastructure and cooling
+    - Regulatory challenges and compliance
+    - Mining hosting and data center operations
+    
+    Focus on communities with real operational mining discussions and experience.
+    
+    Analysis Context:
+    {analysis_content}
+    
+    Return ONLY valid JSON:
+    {{
+        "subreddits": [
+            "BitcoinMining",
+            "gpumining", 
+            "cryptomining",
+            "MiningPoolHub",
+            "asicmining",
+            "CryptoCurrency",
+            "ethermining",
+            "MoneroMining",
+            "mining",
+            "CryptoMiningTalk"
+        ]
+    }}
+
+  fallback_subreddits: []
+  
+  # Mining-specific keyword strategy
+  seed_terms:
+    - "mining profitability"
+    - "ASIC efficiency"
+    - "mining farm setup"
+    - "electricity rates"
+    - "mining hosting"
+    - "hashrate optimization"
+    - "mining pool"
+    - "cooling costs"
+    - "transformer capacity"
+    - "mining permits"
+    - "immersion cooling"
+    - "mining containers"
+    - "power purchase agreement"
+    - "curtailment risk"
+    
+  exclusion_terms:
+    - "scam"
+    - "ponzi"
+    - "free electricity"
+    - "unlimited power"
+    - "guaranteed profits"
+    
+  query_patterns:
+    - "{term} setup costs"
+    - "{term} ROI calculation"
+    - "best {term} regions"
+    - "{term} infrastructure requirements"
+    - "{term} regulatory issues"
+    - "{term} hardware reliability"
+    - "{term} power arrangements"
+    
+  enable_synonyms: true
+  enable_stemming: true
+  enable_entity_extraction: true
+  
+  subreddit_hints:
+    mining_operations:
+      - "BitcoinMining"
+      - "asicmining"
+      - "cryptomining"
+    hardware_discussion:
+      - "gpumining"
+      - "MiningPoolHub"
+      - "mining"
+    market_analysis:
+      - "CryptoCurrency"
+      - "CryptoMiningTalk"
+      
+  search_filters:
+    limit: 4
+    sort: "top"
+    time_filter: "year"
+    
+  max_subreddits: 10
+  max_queries_per_jtbd: 5
+  max_posts_per_query: 3
+
+# Mining viability input configuration
+user_inputs:
+  budget_usd: 5000000
+  timeline_days: 120
+  preferred_regions: ["US-TX", "PY", "CA-QC"]
+  power_pref: ["grid", "ppa", "flare"]
+  risk_tolerance: "medium"
+  mining_asset: "BTC"
+  cooling_pref: ["air", "immersion"] 
+  ownership_model: ["own", "hosted", "hybrid"]
+  max_kwh: 0.05
+  min_scale_mw: 1.0
+  capex_vs_opex_bias: "balanced"
+
+# Data connectors for MVP
+data_connectors:
+  community_signals:
+    sources: ["reddit", "forums", "telegram"]
+    processing: "topic_sentiment_claim_frequency"
+  power_data:
+    sources: ["public_tariffs", "curated_industrial_rates"]
+    refresh_frequency: "monthly"
+  regulation:
+    sources: ["crypto_stance", "energy_policy_flags"]
+    type: "curated"
+  hardware:
+    sources: ["asic_models_table"]
+    fields: ["hashrate", "w_th", "price_bands", "failure_anecdotes"]
+  logistics:
+    sources: ["freight_cost_matrix", "import_duty_bands"]
+    type: "lane_based"
+  climate:
+    sources: ["weather_data"]
+    fields: ["dry_bulb", "wet_bulb", "cooling_load"]
+
+framework:
+  framework_type: "mining_viability"
+  adapter: "mining_viability_v1"
+  output_format: "structured_json"
+  
+  # Mining Viability framework with 9 core modules
+  modules:
+    M1_decision_price_sensitivity:
+      purpose: "Establish ROI envelope before searching the world"
+      inputs: ["user_input", "asic_table", "price_scenarios", "difficulty_growth"]
+      outputs: ["feasible_efficiency_band", "power_price_ceiling"]
+      
+    M2_power_hunt_normalizer:
+      purpose: "Kill the hype; find real, contractable power"
+      inputs: ["power_rates_per_region", "grid_deregulation", "ppa_flare_leads"]
+      outputs: ["power_candidates_with_risk"]
+      
+    M3_infrastructure_feasibility:
+      purpose: "Can you physically land the MW?"
+      inputs: ["candidate_region", "substation_proximity", "transformer_lead_time", "permit_heuristics"]
+      outputs: ["setup_friction_score", "critical_path_timeline"]
+      
+    M4_hardware_selector:
+      purpose: "Pick rigs that fit the power + timeline reality"
+      inputs: ["asic_table", "supply_status", "ambient_constraints", "cooling_preference"]
+      outputs: ["hardware_bundles"]
+      
+    M5_logistics_customs:
+      purpose: "Get rigs there on time/cost sanely"
+      inputs: ["source_region", "destination", "lead_time_tables", "duty_bands"]
+      outputs: ["landed_cost_and_time", "seizure_risk"]
+      
+    M6_financial_synthesizer:
+      purpose: "Turn choices into cashflow and risk"
+      inputs: ["bundles_M2_M5", "price_difficulty_scenarios"]
+      outputs: ["capex_opex", "payback_irr", "sensitivity_tornado"]
+      
+    M7_compliance_policy:
+      purpose: "Don't get rug-pulled by politician or utility"
+      inputs: ["crypto_stance", "energy_rules", "esg_flags"]
+      outputs: ["go_condition_nogo", "mitigation_list"]
+      
+    M8_community_signal_overlay:
+      purpose: "Add 'what operators are seeing' layer"
+      inputs: ["normalized_claims"]
+      outputs: ["anecdote_risk_factor"]
+      
+    M9_ranker_explainer:
+      purpose: "Rank and explain top 10 transparently"
+      inputs: ["all_module_outputs"]
+      outputs: ["sorted_list", "why_why_not_rationales"]
+  
+  # Viability scoring configuration
+  scoring:
+    viability_formula: "100 - w1*CostIndex - w2*SetupFriction - w3*PolicyRisk - w4*LogisticsRisk - w5*CommunityAnecdoteRisk + w6*ROIQuality"
+    weights:
+      w1_cost_index: 0.25
+      w2_setup_friction: 0.20
+      w3_policy_risk: 0.15
+      w4_logistics_risk: 0.15
+      w5_community_anecdote_risk: 0.10
+      w6_roi_quality: 0.15
+    
+    components:
+      cost_index: "z-score of $/TH/day at base scenario"
+      setup_friction: "permits + transformer lead-time + contractor scarcity"
+      policy_risk: "stance + recent volatility + curtailment history"
+      logistics_risk: "delay/seizure band"
+      community_anecdote_risk: "frequency × severity × recency"
+      roi_quality: "payback months (inverse) + IRR (base) + downside protection (bear)"
+  
+  # Mining-specific clustering
+  clustering:
+    algorithm: "hierarchical"
+    n_zones: 10  # Top 10 viable setups
+    linkage_method: "ward"
+    pain_dimension_threshold: 0.2
+    required_dimensions:
+      - "power_cost_efficiency"
+      - "infrastructure_readiness"
+    max_discussions_per_jtbd: 5
+    preserve_baseline_logic: false
+  
+  # Mining viability dimension weights (separate from clustering)
+  viability_weights:
+    power_cost_efficiency: 2.5
+    infrastructure_readiness: 2.0
+    regulatory_stability: 1.8
+    hardware_availability: 1.5
+    logistics_feasibility: 1.2
+
+output:
+  schema_type: "mining_setup"
+  required_fields:
+    - "setup_id"
+    - "region_power_hardware_config"
+    - "viability_score" 
+    - "payback_months_base"
+    - "payback_months_bear"
+    - "payback_months_bull"
+    - "bill_of_hardware"
+    - "power_plan"
+    - "setup_friction_score"
+    - "capex_breakdown"
+    - "opex_breakdown"
+    - "cashflow_curve"
+    - "sensitivity_analysis"
+    - "execution_timeline"
+    - "critical_dependencies"
+    - "customs_shipping_plan"
+    - "draft_contracts_rfqs"
+    - "disqualifiers"
+    - "mitigation_options"
+    - "citations"
+  optional_fields:
+    - "vendor_shortlists"
+    - "curtailment_risk_details"
+    - "failure_scenarios"
+    - "expansion_roadmap"
+  repo_naming_pattern: "mining-viability-analysis-{timestamp}"
+  issue_labels:
+    - "opportunity"
+    - "crypto-mining"
+    - "viability-analysis"
+    - "mining-setup" 
+    - "power-infrastructure"
+  use_private_repo: true
+
+default_models:
+  research_analysis: "claude-3-5-sonnet-20241022"
+  reddit_analysis: "claude-3-5-sonnet-20241022"
+  opportunity_zones: "claude-3-5-sonnet-20241022"
+  idea_generation: "claude-3-opus-20240229"
+  consolidation: "claude-3-5-sonnet-20241022"
+  github_content: "gpt-4o"
+
+stage_overrides:
+  research_analysis:
+    model: "claude-3-5-sonnet-20241022"
+    max_tokens: 8000
+    temperature: 0.2  # Low temperature for technical accuracy
+    
+  jobs_to_reddit:
+    jtbd_extraction_model: "claude-3-5-sonnet-20241022"
+    target_jtbds: "20-30"
+    
+  opportunity_zones:
+    enable_perplexity_enrichment: true
+    perplexity_model: "sonar-deep-research"
+    stage1_reasoning_effort: "high"
+    stage2_reasoning_effort: "high"  # Deep technical analysis
+    
+  idea_generation:
+    total_ideas: 10  # Top 10 viable mining setups
+    ideas_per_zone_strategy: "viability_ranked"
+    framework_model: "claude-3-5-sonnet-20241022"
+    idea_model: "claude-3-opus-20240229"
+    
+  github_integration:
+    organization: "ocean-studio-repos"
+    create_exactly_10_issues: true
+    issue_quality: "mining_setup_specification"
+    readme_model: "gpt-4o"
+    issue_model: "gpt-4o"
+
+# Mining viability-specific prompts
+current_prompts:
+  roi_envelope_analysis: |
+    Based on these mining parameters and market conditions, establish the ROI envelope:
+    
+    User Budget: {budget_usd}
+    Timeline: {timeline_days} days
+    Mining Asset: {mining_asset}
+    Risk Tolerance: {risk_tolerance}
+    
+    Price Scenarios:
+    - Bear: {bear_price}
+    - Base: {base_price}  
+    - Bull: {bull_price}
+    
+    Calculate feasible efficiency bands (W/TH) and power price ceilings for each scenario.
+    Consider difficulty growth projections and hardware depreciation.
+    
+    Return ONLY JSON with efficiency bands and power price limits per scenario.
+    
+  power_viability_assessment: |
+    Analyze power arrangements for crypto mining viability:
+    
+    Region: {region}
+    Power Sources Available: {power_sources}
+    Industrial Rates: {industrial_rates}
+    Regulatory Environment: {regulatory_status}
+    
+    Assess for each power source:
+    - Real contracted rate ($/kWh) 
+    - Minimum/maximum MW available
+    - Contract tenor options
+    - Curtailment risk level (low/medium/high)
+    - Lead time to energize
+    - Reliability and uptime guarantees
+    
+    Return power viability analysis as JSON with risk-adjusted recommendations.
+    
+  mining_setup_synthesis: |
+    Synthesize complete mining setup specification:
+    
+    Viable Configuration: {config_summary}
+    Power Plan: {power_arrangement}
+    Hardware Selection: {hardware_bundle}
+    Infrastructure Requirements: {infrastructure_needs}
+    
+    Generate comprehensive setup specification including:
+    - Complete bill of materials with vendor options
+    - Timeline with critical path analysis
+    - CapEx/OpEx breakdown with sensitivity analysis
+    - Risk assessment and mitigation strategies
+    - Execution roadmap with dependencies
+    
+    Return as detailed JSON specification for implementation.
