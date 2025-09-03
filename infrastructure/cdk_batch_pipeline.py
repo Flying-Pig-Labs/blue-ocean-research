@@ -165,6 +165,21 @@ class MultiStepLLMBatchStack(Stack):
             projection_type=dynamodb.ProjectionType.ALL,
         )
 
+        # Table for storing GitHub repositories and their issues
+        repos_table = dynamodb.Table(
+            self,
+            "ReposTable",
+            table_name="PipelineRepos",
+            partition_key=dynamodb.Attribute(
+                name="repoName", type=dynamodb.AttributeType.STRING
+            ),
+            sort_key=dynamodb.Attribute(
+                name="itemType", type=dynamodb.AttributeType.STRING
+            ),
+            billing_mode=dynamodb.BillingMode.PAY_PER_REQUEST,
+            removal_policy=RemovalPolicy.DESTROY,
+        )
+
         # =========================
         # VPC for Batch
         # =========================
@@ -285,6 +300,7 @@ class MultiStepLLMBatchStack(Stack):
         # Grant DynamoDB permissions
         research_table.grant_read_write_data(task_role)
         jobs_table.grant_read_write_data(task_role)
+        repos_table.grant_read_write_data(task_role)
 
         # Explicitly add permissions for PipelineBatchJobs table
         # This ensures the batch job can write to the tracking table
@@ -358,6 +374,7 @@ class MultiStepLLMBatchStack(Stack):
                     {"name": "RESEARCH_BUCKET", "value": research_bucket.bucket_name},
                     {"name": "RESEARCH_TABLE", "value": research_table.table_name},
                     {"name": "JOBS_TABLE", "value": jobs_table.table_name},
+                    {"name": "REPOS_TABLE", "value": repos_table.table_name},
                     {"name": "IAM_UPDATE", "value": "2025-08-09-permissions-fix"},
                 ],
                 # API keys injected from AWS Secrets Manager
@@ -616,6 +633,18 @@ def handler(event, context):
             iam.PolicyStatement(actions=["batch:DescribeJobs"], resources=["*"])
         )
 
+        # Lambda to fetch repository and issue records from DynamoDB
+        repo_records_lambda = lambda_.Function(
+            self,
+            "RepoRecordsLambda",
+            runtime=lambda_.Runtime.PYTHON_3_11,
+            handler="index.lambda_handler",
+            timeout=Duration.seconds(30),
+            environment={"REPOS_TABLE": repos_table.table_name},
+            code=lambda_.Code.from_inline(open("lambda_repo_records.py").read()),
+        )
+        repos_table.grant_read_data(repo_records_lambda)
+
         # Lambda for monitoring job logs
         monitor_logs_lambda = lambda_.Function(
             self,
@@ -849,6 +878,13 @@ def handler(event, context):
             "GET", apigw.LambdaIntegration(pipeline_status_lambda)
         )
 
+        # /api/repos/{repoName} endpoint - Retrieve stored repo and issues
+        api_repos_resource = api_resource.add_resource("repos")
+        api_repos_name_resource = api_repos_resource.add_resource("{repoName}")
+        api_repos_name_resource.add_method(
+            "GET", apigw.LambdaIntegration(repo_records_lambda)
+        )
+
         # Output important values
         self.output_values = {
             "api_url": api.url,
@@ -858,4 +894,5 @@ def handler(event, context):
             "research_bucket": research_bucket.bucket_name,
             "research_table": research_table.table_name,
             "jobs_table": jobs_table.table_name,
+            "repos_table": repos_table.table_name,
         }

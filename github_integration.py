@@ -50,6 +50,7 @@ import time
 import random
 import openai
 import requests
+import boto3
 
 
 logger = logging.getLogger(__name__)
@@ -143,6 +144,11 @@ class GitHubIntegration:
         self.perplexity_api_key = os.getenv("PERPLEXITY_API_KEY")
         if self.perplexity_api_key:
             logger.info("✅ Perplexity API key loaded for deep research validation")
+
+        # Initialize DynamoDB for repo and issue storage
+        dynamodb = boto3.resource("dynamodb", region_name=os.getenv("AWS_REGION", "us-east-1"))
+        table_name = os.getenv("REPOS_TABLE", "PipelineRepos")
+        self.repos_table = dynamodb.Table(table_name)
 
     def check_repo_exists(self, repo_name: str) -> bool:
         """
@@ -1662,6 +1668,21 @@ Output the complete markdown content that will be the issue body:"""
             )
             results["repo_url"] = repo.html_url
 
+            # Store repository metadata in DynamoDB
+            try:
+                self.repos_table.put_item(
+                    Item={
+                        "repoName": repo_name,
+                        "itemType": "REPO",
+                        "repoUrl": repo.html_url,
+                        "createdAt": datetime.utcnow().isoformat(),
+                        "private": private,
+                    }
+                )
+                logger.info("Stored repository metadata in DynamoDB")
+            except Exception as e:
+                logger.warning(f"Failed to store repository metadata: {e}")
+
             # Create labels
             logger.info("Creating repository labels...")
             created_labels = self.create_labels(repo)
@@ -1763,6 +1784,26 @@ Output the complete markdown content that will be the issue body:"""
                             body=issue_data["body"],
                             labels=issue_labels,
                         )
+
+                        # Store issue in DynamoDB
+                        try:
+                            self.repos_table.put_item(
+                                Item={
+                                    "repoName": repo_name,
+                                    "itemType": f"ISSUE#{issue.number}",
+                                    "issueNumber": issue.number,
+                                    "title": issue.title,
+                                    "body": issue_data["body"],
+                                    "labels": issue_labels,
+                                    "url": issue.html_url,
+                                    "createdAt": datetime.utcnow().isoformat(),
+                                }
+                            )
+                            logger.info(f"Stored issue #{issue.number} in DynamoDB")
+                        except Exception as e:
+                            logger.warning(
+                                f"Failed to store issue {issue.number} in DynamoDB: {e}"
+                            )
 
                         results["issues_created"].append(
                             {
