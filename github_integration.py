@@ -149,6 +149,9 @@ class GitHubIntegration:
         dynamodb = boto3.resource("dynamodb", region_name=os.getenv("AWS_REGION", "us-east-1"))
         table_name = os.getenv("REPOS_TABLE", "PipelineRepos")
         self.repos_table = dynamodb.Table(table_name)
+        # Username used for DynamoDB records and S3 paths
+        # Defaults to 'fprior' for backward compatibility
+        self.username = os.getenv("USERNAME", "fprior")
 
     def check_repo_exists(self, repo_name: str) -> bool:
         """
@@ -1677,6 +1680,8 @@ Output the complete markdown content that will be the issue body:"""
                         "repoUrl": repo.html_url,
                         "createdAt": datetime.utcnow().isoformat(),
                         "private": private,
+                        "username": self.username,
+                        "body": readme_content,
                     }
                 )
                 logger.info("Stored repository metadata in DynamoDB")
@@ -1797,6 +1802,7 @@ Output the complete markdown content that will be the issue body:"""
                                     "labels": issue_labels,
                                     "url": issue.html_url,
                                     "createdAt": datetime.utcnow().isoformat(),
+                                    "username": self.username,
                                 }
                             )
                             logger.info(f"Stored issue #{issue.number} in DynamoDB")

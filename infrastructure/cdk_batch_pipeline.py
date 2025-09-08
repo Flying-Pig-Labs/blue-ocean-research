@@ -468,8 +468,9 @@ def handler(event, context):
         body = json.loads(event.get('body', '{}'))
         research_id = body.get('researchId')
         team = body.get('team')
-        
-        print(f"Received request: researchId={research_id}, team={team}")
+        username = body.get('username', 'fprior')
+
+        print(f"Received request: researchId={research_id}, team={team}, username={username}")
         
         if not research_id:
             return {
@@ -486,9 +487,9 @@ def handler(event, context):
             }
         
         # The research markdown files are stored in color-code-research-results bucket
-        # Path format: users/fprior/research/{team}/{reportId}/report.md
+        # Path format: users/{username}/research/{team}/{reportId}/report.md
         source_bucket = 'color-code-research-results-984906149037'
-        source_key = f"users/fprior/research/{team}/{research_id}/report.md"
+        source_key = f"users/{username}/research/{team}/{research_id}/report.md"
         
         # Full S3 path for passing to batch job
         s3_full_path = f"s3://{source_bucket}/{source_key}"
@@ -529,7 +530,8 @@ def handler(event, context):
             containerOverrides={
                 'environment': [
                     {'name': 'S3_INPUT_KEY', 'value': s3_full_path},
-                    {'name': 'RESEARCH_ID', 'value': research_id}
+                    {'name': 'RESEARCH_ID', 'value': research_id},
+                    {'name': 'USERNAME', 'value': username}
                     # Don't pass JOB_ID - use AWS_BATCH_JOB_ID instead
                 ],
                 'command': ['--s3-input', s3_full_path]  # Pass the full S3 path
@@ -546,7 +548,8 @@ def handler(event, context):
                 'status': 'SUBMITTED',
                 'createdAt': datetime.now().isoformat() + 'Z',
                 'ttl': int((datetime.now() + timedelta(days=30)).timestamp()),
-                'logStreamName': f"pipeline/default/{batch_response['jobId']}"
+                'logStreamName': f"pipeline/default/{batch_response['jobId']}",
+                'username': username
             }
         )
         
