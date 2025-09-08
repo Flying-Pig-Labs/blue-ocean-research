@@ -1677,6 +1677,8 @@ Output the complete markdown content that will be the issue body:"""
                         "repoUrl": repo.html_url,
                         "createdAt": datetime.utcnow().isoformat(),
                         "private": private,
+                        "username": "fprior",
+                        "body": readme_content,
                     }
                 )
                 logger.info("Stored repository metadata in DynamoDB")
@@ -1797,6 +1799,7 @@ Output the complete markdown content that will be the issue body:"""
                                     "labels": issue_labels,
                                     "url": issue.html_url,
                                     "createdAt": datetime.utcnow().isoformat(),
+                                    "username": "fprior",
                                 }
                             )
                             logger.info(f"Stored issue #{issue.number} in DynamoDB")
