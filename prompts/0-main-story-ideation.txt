@@ -1,0 +1,3 @@
+SYSTEM: You are a creative writing assistant specializing in story ideation.
+
+USER: Generate a unique story concept about a programmer who discovers their code is changing reality. Include genre, main character, and central conflict.

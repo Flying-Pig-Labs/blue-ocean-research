@@ -1,0 +1,21 @@
+{
+  "version": "48.0.0",
+  "files": {
+    "eaceefc882fcf3e85b82cc2970afad7fd7eb38d07cbf07290f2510e158e3818b": {
+      "displayName": "MultiStepLLMBatch-dev Template",
+      "source": {
+        "path": "MultiStepLLMBatch-dev.template.json",
+        "packaging": "file"
+      },
+      "destinations": {
+        "984906149037-us-east-1-179133cc": {
+          "bucketName": "cdk-hnb659fds-assets-984906149037-us-east-1",
+          "objectKey": "eaceefc882fcf3e85b82cc2970afad7fd7eb38d07cbf07290f2510e158e3818b.json",
+          "region": "us-east-1",
+          "assumeRoleArn": "arn:${AWS::Partition}:iam::984906149037:role/cdk-hnb659fds-file-publishing-role-984906149037-us-east-1"
+        }
+      }
+    }
+  },
+  "dockerImages": {}
+}

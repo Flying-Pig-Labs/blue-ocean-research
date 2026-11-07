@@ -1,0 +1,331 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: AppSync GraphQL API for Multi-Step LLM Pipeline Real-Time Updates
+
+Parameters:
+  EnvironmentName:
+    Type: String
+    Default: production
+    Description: Environment name
+  
+  JobsTableName:
+    Type: String
+    Description: DynamoDB table name for pipeline jobs
+  
+  JobsTableArn:
+    Type: String
+    Description: DynamoDB table ARN for pipeline jobs
+
+Resources:
+  # AppSync GraphQL API
+  GraphQLApi:
+    Type: AWS::AppSync::GraphQLApi
+    Properties:
+      Name: !Sub "multi-step-pipeline-${EnvironmentName}"
+      AuthenticationType: API_KEY
+      AdditionalAuthenticationProviders:
+        - AuthenticationType: AWS_IAM
+      LogConfig:
+        FieldLogLevel: ALL
+        CloudWatchLogsRoleArn: !GetAtt AppSyncServiceRole.Arn
+      XrayEnabled: true
+      Tags:
+        - Key: Environment
+          Value: !Ref EnvironmentName
+        - Key: Application
+          Value: MultiStepPipeline
+
+  # API Key for development/testing
+  GraphQLApiKey:
+    Type: AWS::AppSync::ApiKey
+    Properties:
+      ApiId: !GetAtt GraphQLApi.ApiId
+      Description: !Sub "API Key for ${EnvironmentName} environment"
+      Expires: !Sub 
+        - "${ExpirationEpoch}"
+        - ExpirationEpoch: !Select [0, !Split [".", !Sub "${Expiration}.0"]]
+      Variables:
+        Expiration: !Sub 
+          - "${CurrentEpoch}+31536000"
+          - CurrentEpoch: !Ref AWS::NoValue
+
+  # GraphQL Schema
+  GraphQLSchema:
+    Type: AWS::AppSync::GraphQLSchema
+    Properties:
+      ApiId: !GetAtt GraphQLApi.ApiId
+      DefinitionS3Location: ./schema.graphql
+
+  # DynamoDB Data Source
+  DynamoDBDataSource:
+    Type: AWS::AppSync::DataSource
+    Properties:
+      ApiId: !GetAtt GraphQLApi.ApiId
+      Name: DynamoDBJobsTable
+      Type: AMAZON_DYNAMODB
+      ServiceRoleArn: !GetAtt AppSyncServiceRole.Arn
+      DynamoDBConfig:
+        TableName: !Ref JobsTableName
+        AwsRegion: !Ref AWS::Region
+
+  # Lambda Data Source for complex operations
+  LambdaDataSource:
+    Type: AWS::AppSync::DataSource
+    Properties:
+      ApiId: !GetAtt GraphQLApi.ApiId
+      Name: PipelineResolverLambda
+      Type: AWS_LAMBDA
+      ServiceRoleArn: !GetAtt AppSyncServiceRole.Arn
+      LambdaConfig:
+        LambdaFunctionArn: !GetAtt PipelineResolverFunction.Arn
+
+  # Service Role for AppSync
+  AppSyncServiceRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: appsync.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: AppSyncDynamoDBPolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - dynamodb:GetItem
+                  - dynamodb:PutItem
+                  - dynamodb:UpdateItem
+                  - dynamodb:DeleteItem
+                  - dynamodb:Query
+                  - dynamodb:Scan
+                Resource: !Ref JobsTableArn
+        - PolicyName: AppSyncLambdaPolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - lambda:InvokeFunction
+                Resource: !GetAtt PipelineResolverFunction.Arn
+        - PolicyName: AppSyncLogsPolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                Resource: "*"
+
+  # Lambda function for complex GraphQL resolvers
+  PipelineResolverFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub "pipeline-graphql-resolver-${EnvironmentName}"
+      CodeUri: ./resolvers/
+      Handler: index.handler
+      Runtime: nodejs18.x
+      Timeout: 30
+      MemorySize: 512
+      Environment:
+        Variables:
+          JOBS_TABLE: !Ref JobsTableName
+          GRAPHQL_API_ID: !GetAtt GraphQLApi.ApiId
+          ENVIRONMENT: !Ref EnvironmentName
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref JobsTableName
+        - Statement:
+          - Effect: Allow
+            Action:
+              - appsync:GraphQL
+            Resource: !Sub "${GraphQLApi.Arn}/*"
+
+  # Resolvers
+  
+  # Query: getExecution
+  GetExecutionResolver:
+    Type: AWS::AppSync::Resolver
+    Properties:
+      ApiId: !GetAtt GraphQLApi.ApiId
+      TypeName: Query
+      FieldName: getExecution
+      DataSourceName: !GetAtt DynamoDBDataSource.Name
+      RequestMappingTemplate: |
+        {
+          "version": "2017-02-28",
+          "operation": "GetItem",
+          "key": {
+            "jobId": $util.dynamodb.toDynamoDBJson($ctx.args.jobId)
+          }
+        }
+      ResponseMappingTemplate: |
+        #if($ctx.error)
+          $util.error($ctx.error.message, $ctx.error.type)
+        #end
+        #if($ctx.result)
+          $util.toJson($ctx.result)
+        #else
+          null
+        #end
+
+  # Query: listExecutions
+  ListExecutionsResolver:
+    Type: AWS::AppSync::Resolver
+    Properties:
+      ApiId: !GetAtt GraphQLApi.ApiId
+      TypeName: Query
+      FieldName: listExecutions
+      DataSourceName: !GetAtt LambdaDataSource.Name
+      RequestMappingTemplate: |
+        {
+          "version": "2017-02-28",
+          "operation": "Invoke",
+          "payload": {
+            "field": "listExecutions",
+            "arguments": $util.toJson($ctx.args)
+          }
+        }
+      ResponseMappingTemplate: |
+        #if($ctx.error)
+          $util.error($ctx.error.message, $ctx.error.type)
+        #end
+        $util.toJson($ctx.result)
+
+  # Mutation: startExecution
+  StartExecutionResolver:
+    Type: AWS::AppSync::Resolver
+    Properties:
+      ApiId: !GetAtt GraphQLApi.ApiId
+      TypeName: Mutation
+      FieldName: startExecution
+      DataSourceName: !GetAtt LambdaDataSource.Name
+      RequestMappingTemplate: |
+        {
+          "version": "2017-02-28",
+          "operation": "Invoke",
+          "payload": {
+            "field": "startExecution",
+            "arguments": $util.toJson($ctx.args),
+            "identity": $util.toJson($ctx.identity)
+          }
+        }
+      ResponseMappingTemplate: |
+        #if($ctx.error)
+          $util.error($ctx.error.message, $ctx.error.type)
+        #end
+        $util.toJson($ctx.result)
+
+  # Mutation: updateStageProgress
+  UpdateStageProgressResolver:
+    Type: AWS::AppSync::Resolver
+    Properties:
+      ApiId: !GetAtt GraphQLApi.ApiId
+      TypeName: Mutation
+      FieldName: updateStageProgress
+      DataSourceName: !GetAtt LambdaDataSource.Name
+      RequestMappingTemplate: |
+        {
+          "version": "2017-02-28",
+          "operation": "Invoke",
+          "payload": {
+            "field": "updateStageProgress",
+            "arguments": $util.toJson($ctx.args),
+            "identity": $util.toJson($ctx.identity)
+          }
+        }
+      ResponseMappingTemplate: |
+        #if($ctx.error)
+          $util.error($ctx.error.message, $ctx.error.type)
+        #end
+        $util.toJson($ctx.result)
+
+  # EventBridge for real-time updates
+  PipelineEventBus:
+    Type: AWS::Events::EventBus
+    Properties:
+      Name: !Sub "pipeline-events-${EnvironmentName}"
+
+  # EventBridge rule to catch DynamoDB streams
+  DynamoDBStreamRule:
+    Type: AWS::Events::Rule
+    Properties:
+      EventBusName: !Ref PipelineEventBus
+      EventPattern:
+        source: ["aws.dynamodb"]
+        detail-type: ["DynamoDB Stream Record"]
+        detail:
+          eventSourceARN: [!Sub "${JobsTableArn}/stream/*"]
+      Targets:
+        - Arn: !GetAtt GraphQLUpdateFunction.Arn
+          Id: "GraphQLUpdateTarget"
+
+  # Lambda function to process DynamoDB streams and trigger GraphQL updates
+  GraphQLUpdateFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub "pipeline-graphql-updates-${EnvironmentName}"
+      CodeUri: ./stream-processor/
+      Handler: index.handler
+      Runtime: nodejs18.x
+      Timeout: 30
+      MemorySize: 256
+      Environment:
+        Variables:
+          GRAPHQL_API_URL: !GetAtt GraphQLApi.GraphQLUrl
+          GRAPHQL_API_ID: !GetAtt GraphQLApi.ApiId
+          ENVIRONMENT: !Ref EnvironmentName
+      Events:
+        DynamoDBStream:
+          Type: DynamoDB
+          Properties:
+            Stream: !GetAtt JobsTable.StreamArn
+            StartingPosition: LATEST
+            BatchSize: 10
+            MaximumBatchingWindowInSeconds: 5
+      Policies:
+        - Statement:
+          - Effect: Allow
+            Action:
+              - appsync:GraphQL
+            Resource: !Sub "${GraphQLApi.Arn}/*"
+
+  # Permission for EventBridge to invoke Lambda
+  EventBridgeLambdaPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref GraphQLUpdateFunction
+      Action: lambda:InvokeFunction
+      Principal: events.amazonaws.com
+      SourceArn: !GetAtt DynamoDBStreamRule.Arn
+
+Outputs:
+  GraphQLApiUrl:
+    Description: GraphQL API URL
+    Value: !GetAtt GraphQLApi.GraphQLUrl
+    Export:
+      Name: !Sub "${AWS::StackName}-GraphQLUrl"
+
+  GraphQLApiId:
+    Description: GraphQL API ID
+    Value: !GetAtt GraphQLApi.ApiId
+    Export:
+      Name: !Sub "${AWS::StackName}-GraphQLApiId"
+
+  GraphQLApiKey:
+    Description: GraphQL API Key
+    Value: !GetAtt GraphQLApiKey.ApiKey
+    Export:
+      Name: !Sub "${AWS::StackName}-GraphQLApiKey"
+
+  EventBusName:
+    Description: EventBridge Event Bus Name
+    Value: !Ref PipelineEventBus
+    Export:
+      Name: !Sub "${AWS::StackName}-EventBus"

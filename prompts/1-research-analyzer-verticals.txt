@@ -1,0 +1,7 @@
+SYSTEM: You are an expert analyst providing detailed, actionable insights.
+
+USER: Research Document:
+
+{research_content}
+
+Given this research document, which industry verticals or domains do you see emerging as distinct from the others with regard to dynamic factors and other differentiating characteristics you believe are worthy of setting them as unique verticals? Please provide a structured analysis with clear categories and reasoning.

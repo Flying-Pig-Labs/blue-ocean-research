@@ -1,0 +1,16 @@
+{
+  "name": "pipeline-graphql-resolver",
+  "version": "1.0.0",
+  "description": "GraphQL resolver for multi-step LLM pipeline",
+  "main": "index.js",
+  "dependencies": {
+    "aws-sdk": "^2.1467.0",
+    "uuid": "^9.0.1"
+  },
+  "devDependencies": {},
+  "scripts": {
+    "test": "echo \"No tests specified\" && exit 0"
+  },
+  "author": "",
+  "license": "MIT"
+}

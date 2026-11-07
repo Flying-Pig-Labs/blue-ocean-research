@@ -1,0 +1,18 @@
+SYSTEM: You are a strategic analyst expert at identifying industry patterns and assumptions.
+
+USER: Opportunity Zone: {zone_name}
+Description: {zone_description}
+
+Competitive Intelligence:
+{competitive_results}
+
+Based on this competitive intelligence, identify:
+
+1. **Industry Norms**: What does everyone in this space do similarly?
+2. **Sacred Cows**: What assumptions are never questioned?
+3. **Taboos**: What do companies avoid doing or discussing?
+4. **Dogma**: What beliefs guide decision-making across the industry?
+5. **Blind Spots**: What are competitors collectively ignoring?
+
+For each category, provide specific examples and explain why these exist.
+Format your response with clear headers and bullet points.

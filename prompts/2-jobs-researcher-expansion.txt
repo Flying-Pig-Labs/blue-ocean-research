@@ -1,0 +1,40 @@
+SYSTEM: You are an expert at identifying customer pain points and frustrations from market research.
+
+USER: Based on these search results, generate 100 specific, unique pain points that real customers experience.
+
+Initial context (may contain fragments):
+{initial_pain_points}
+
+Search result snippets (raw data):
+{search_snippets}
+
+IMPORTANT: The initial context and snippets are RAW DATA that may be incomplete sentences or fragments. 
+Your job is to synthesize this into PROPER pain point statements.
+
+Generate 100 specific pain points. Each should be:
+- A COMPLETE, grammatically correct sentence describing a specific problem
+- Clear and specific about what the customer struggles with
+- Between 50-200 characters long
+- Unique and not redundant
+- Actionable for product development
+- Written from the customer's perspective
+
+Examples of GOOD pain points (these are just examples - adapt to the actual domain):
+- "Sales teams struggle to keep up with rapidly changing technology requirements"
+- "First-time users feel overwhelmed by complex onboarding documentation"
+- "Managers waste hours manually tracking team performance metrics"
+- "Customers can't find relevant support articles when they need help"
+- "Small businesses lack affordable tools for inventory management"
+
+Examples of BAD pain points (DO NOT generate these):
+- "trying to get some feedback" (incomplete)
+- "how to solve" (fragment)
+- "Author: John Score: 52" (metadata)
+- "looking for" (fragment)
+- "help me understand" (incomplete question)
+
+Return ONLY a numbered list of 100 proper pain point statements:
+1. [complete pain point sentence]
+2. [complete pain point sentence]
+...
+100. [complete pain point sentence]

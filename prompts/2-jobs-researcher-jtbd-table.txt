@@ -1,0 +1,14 @@
+SYSTEM: You are an expert at Jobs-to-be-Done framework analysis.
+
+USER: Based on the following job contexts from real customer research:
+
+{job_contexts}
+
+Create a Jobs-to-be-Done table with these columns:
+1. Job Statement (When I... I want to... So I can...)
+2. Frequency (Daily/Weekly/Monthly)
+3. Current Solutions
+4. Pain Level (1-10)
+5. Opportunity Score
+
+For each job, craft a proper JTBD statement following the format. Ensure jobs are distinct and actionable.

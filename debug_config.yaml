@@ -1,0 +1,195 @@
+# Debug Configuration for Helios Multi-step LLM Application
+# This file controls debug mode behavior, model mappings, and cost limits
+
+# Debug mode settings
+debug:
+  enabled: true  # Can be overridden by DEBUG environment variable
+  mapping_strategy: "smart_mapping"  # Options: haiku_only, smart_mapping, tier_based, custom
+
+# Cost and usage limits for debug mode
+limits:
+  max_total_tokens: 50000        # Maximum tokens per debug session
+  max_single_call_tokens: 1000   # Maximum tokens per single API call
+  max_cost_per_session: 5.0      # Maximum cost in USD per session
+  max_api_calls: 100             # Maximum API calls per session
+  token_warning_threshold: 0.8   # Warn when 80% of token limit reached
+  cost_warning_threshold: 0.8    # Warn when 80% of cost limit reached
+
+# Model mappings: production model -> debug model
+model_mappings:
+  # Anthropic models - map expensive models to Haiku
+  "claude-3-5-sonnet-20241022": "claude-3-haiku-20240307"
+  "claude-3-opus-20240229": "claude-3-haiku-20240307"
+  "claude-3-sonnet-20240229": "claude-3-haiku-20240307"
+  
+  # OpenAI models - map to cheaper alternatives
+  "gpt-4": "gpt-3.5-turbo"
+  "gpt-4-turbo": "gpt-3.5-turbo"
+  "gpt-4o": "gpt-3.5-turbo"
+  
+  # Cohere models
+  "command": "command-light"
+  "command-r": "command-light"
+  "command-r-plus": "command-light"
+
+# Operation-specific model mappings
+operation_mappings:
+  # Simple operations that can use the cheapest models
+  "test": "claude-3-haiku-20240307"
+  "validation": "claude-3-haiku-20240307"
+  "simple_analysis": "claude-3-haiku-20240307"
+  "quick_check": "claude-3-haiku-20240307"
+  "format_validation": "claude-3-haiku-20240307"
+  
+  # Medium complexity operations
+  "analysis": "claude-3-haiku-20240307"
+  "content_processing": "claude-3-haiku-20240307"
+  "data_extraction": "claude-3-haiku-20240307"
+  
+  # Complex operations that may need mid-tier models (but budget permitting)
+  "complex_analysis": "claude-3-5-sonnet-20241022"
+  "detailed_research": "claude-3-5-sonnet-20241022"
+  "comprehensive_review": "claude-3-5-sonnet-20241022"
+  "critical_operation": "claude-3-5-sonnet-20241022"
+
+# Token limits by operation type
+operation_token_limits:
+  # Simple operations get smaller token allocations
+  "test": 200
+  "validation": 300
+  "simple_analysis": 500
+  "quick_check": 200
+  
+  # Standard operations
+  "analysis": 800
+  "content_processing": 1000
+  "data_extraction": 600
+  
+  # Complex operations get full allocation
+  "complex_analysis": 1000
+  "detailed_research": 1000
+  "comprehensive_review": 1000
+
+# Logging settings for debug mode
+logging:
+  verbose_api_logging: true      # Log detailed API request/response info
+  log_model_switches: true       # Log when models are switched
+  log_content_truncation: true   # Log when content is truncated
+  log_cost_tracking: true        # Log detailed cost tracking
+  real_time_dashboard: true      # Enable real-time debug dashboard
+  
+  # Log file settings
+  debug_log_dir: "logs/debug"
+  max_log_files: 10
+  compress_old_logs: true
+
+# Performance limits to prevent runaway debug sessions
+performance:
+  max_session_duration_minutes: 30  # Auto-stop after 30 minutes
+  api_call_rate_limit: 10           # Max 10 calls per minute in debug
+  auto_truncate_large_inputs: true  # Automatically truncate large inputs
+  truncation_threshold_chars: 50000 # Truncate inputs larger than this
+  
+# Content processing settings
+content:
+  # Truncation rules for different content types
+  truncation_rules:
+    "research_content": 40000     # Research documents
+    "user_input": 10000          # User-provided content
+    "api_response": 20000        # Responses from APIs
+    "context": 15000             # Context for subsequent calls
+  
+  # Content preview lengths for logging
+  preview_lengths:
+    "prompt": 500
+    "response": 500
+    "system_prompt": 200
+
+# Smart mapping configuration
+smart_mapping:
+  # Keywords that indicate simple operations
+  simple_keywords:
+    - "test"
+    - "simple"
+    - "quick"
+    - "check"
+    - "validate"
+    - "format"
+    - "parse"
+  
+  # Keywords that indicate complex operations
+  complex_keywords:
+    - "complex"
+    - "detailed"
+    - "comprehensive"
+    - "analysis"
+    - "research"
+    - "critical"
+    - "important"
+  
+  # Budget thresholds for smart mapping
+  budget_thresholds:
+    high_budget: 0.3      # Use better models if under 30% of budget used
+    medium_budget: 0.6    # Use mid-tier models if under 60% of budget used
+    low_budget: 0.8       # Use only cheap models if over 80% of budget used
+
+# Tier-based mapping configuration
+tier_mapping:
+  # Session progress thresholds
+  early_session: 0.3    # First 30% of budget - can use mid-tier models
+  mid_session: 0.7      # 30-70% of budget - prefer cheap models
+  late_session: 1.0     # 70%+ of budget - cheap models only
+  
+  # Model tiers by cost (relative)
+  model_tiers:
+    tier_1_cheap:
+      - "claude-3-haiku-20240307"
+      - "gpt-3.5-turbo"
+      - "command-light"
+    tier_2_medium:
+      - "claude-3-5-sonnet-20241022"
+      - "gpt-4-turbo"
+      - "command"
+    tier_3_expensive:
+      - "claude-3-opus-20240229"
+      - "gpt-4"
+
+# Fallback models by provider
+fallback_models:
+  anthropic: "claude-3-haiku-20240307"
+  openai: "gpt-3.5-turbo"
+  cohere: "command-light"
+
+# Dashboard configuration
+dashboard:
+  enabled: true
+  update_frequency_seconds: 2
+  show_cost_savings: true
+  show_token_usage: true
+  show_operation_progress: true
+  auto_display_summary: true
+
+# Alerts and notifications
+alerts:
+  # Cost alerts
+  cost_warning_at_percentage: 80
+  cost_critical_at_percentage: 95
+  
+  # Token alerts
+  token_warning_at_percentage: 80
+  token_critical_at_percentage: 95
+  
+  # Enable different alert types
+  console_alerts: true
+  log_alerts: true
+  dashboard_alerts: true
+
+# Integration settings
+integration:
+  # Pipeline logger integration
+  integrate_with_pipeline_logger: true
+  log_debug_events_to_pipeline: true
+  
+  # Cost tracking integration
+  track_savings_in_pipeline: true
+  export_cost_data: true

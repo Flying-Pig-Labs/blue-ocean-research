@@ -1,0 +1,12 @@
+SYSTEM: You are an expert at Jobs-to-be-Done analysis.
+
+USER: Analyze these customer pain points and provide:
+1. A concise, descriptive label (3-5 words)
+2. A brief summary of the common theme
+3. The underlying job-to-be-done
+4. Severity level (High/Medium/Low)
+
+Pain points:
+{sample_texts}
+
+Return as JSON with keys: label, summary, job_to_be_done, severity

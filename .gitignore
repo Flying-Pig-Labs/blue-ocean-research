@@ -1,0 +1,89 @@
+# Environment variables
+.env
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+env/
+ENV/
+.venv/
+.ENV/
+*.egg-info/
+.pytest_cache/
+htmlcov/
+.coverage
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Output files in data/ directory
+data/*.json
+data/*.txt
+data/*.csv
+data/*.xlsx
+
+# Output files in docs/ directory
+docs/analysis_results.md
+docs/jtbd_research.md
+docs/*_report.md
+docs/*_summary.md
+
+# Legacy output files (keep for backwards compatibility)
+analysis_results.md
+jtbd_research.md
+jtbd_research_pain_points.txt
+jtbd_clusters.json
+opportunity_zones.json
+value_curves.json
+value_curves_report.md
+pain_points.txt
+workflow_results.md
+
+# Logs
+logs/
+*.log
+
+# Claude Flow
+.claude-flow/
+memory/
+
+# Test files
+demo_*.py
+test_*.py
+
+# Archive and temporary directories
+archive/
+temp/
+
+# E2E test outputs
+test_outputs/
+
+# AWS SAM
+.aws-sam/
+samconfig.toml
+
+# Large data files
+*.npy
+*.xlsx
+reddit_embeddings_*.npy
+reddit_analysis_*.xlsx
+reddit_cluster_report_*.xlsx
+
+infrastructure/layers/python/
+infrastructure/layers/python/*
+infrastructure/layers/llm-sdks/
+infrastructure/layers/llm-sdks/*
+infrastructure/layers/ml-stack/
+infrastructure/layers/ml-stack/*

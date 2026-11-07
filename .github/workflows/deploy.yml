@@ -1,0 +1,324 @@
+name: Deploy Multi-Step LLM Pipeline
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+    types: [opened, synchronize, reopened]
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to deploy to'
+        required: true
+        default: 'dev'
+        type: choice
+        options:
+          - dev
+          - staging
+          - production
+
+env:
+  AWS_REGION: us-east-1
+  ECR_REPOSITORY: multi-step-llm-pipeline
+  AWS_ACCOUNT_ID: '984906149037'  # Your AWS Account ID
+  CDK_DEFAULT_ACCOUNT: '984906149037'
+  CDK_DEFAULT_REGION: us-east-1
+
+permissions:
+  id-token: write   # Required for OIDC
+  contents: read    # Required for actions/checkout
+  statuses: write   # Required for creating commit statuses
+  pull-requests: write  # Required for PR comments
+
+jobs:
+  test:
+    name: Run Tests
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+          
+      - name: Cache pip packages
+        uses: actions/cache@v3
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
+            
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pytest pytest-cov pytest-asyncio
+          
+      - name: Configure AWS credentials for tests
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::${{ env.AWS_ACCOUNT_ID }}:role/github-actions-flying-pig-labs
+          role-session-name: GitHubActions-Tests-${{ github.run_id }}
+          aws-region: ${{ env.AWS_REGION }}
+          
+      - name: Retrieve secrets from AWS
+        id: secrets
+        run: |
+          # Fetch secrets from AWS Secrets Manager
+          SECRET_JSON=$(aws secretsmanager get-secret-value --secret-id ColorCodeResearchHubSecrets --query SecretString --output text)
+          echo "::add-mask::$(echo $SECRET_JSON | jq -r '.ANTHROPIC_API_KEY')"
+          echo "::add-mask::$(echo $SECRET_JSON | jq -r '.OPENAI_API_KEY')"
+          echo "::add-mask::$(echo $SECRET_JSON | jq -r '.GITHUB_PAT')"
+          echo "ANTHROPIC_API_KEY=$(echo $SECRET_JSON | jq -r '.ANTHROPIC_API_KEY')" >> $GITHUB_ENV
+          echo "OPENAI_API_KEY=$(echo $SECRET_JSON | jq -r '.OPENAI_API_KEY')" >> $GITHUB_ENV
+          echo "GITHUB_TOKEN=$(echo $SECRET_JSON | jq -r '.GITHUB_PAT')" >> $GITHUB_ENV
+          
+      - name: Run unit tests
+        run: |
+          python -m pytest tests/ -v --cov=. --cov-report=xml --cov-report=html
+          
+      - name: Upload coverage reports
+        uses: codecov/codecov-action@v3
+        if: always()
+        with:
+          file: ./coverage.xml
+          flags: unittests
+          name: codecov-umbrella
+
+  build-and-push:
+    name: Build and Push Docker Image
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    outputs:
+      image-tag: ${{ steps.meta.outputs.tags }}
+      image-digest: ${{ steps.build.outputs.digest }}
+      
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::${{ env.AWS_ACCOUNT_ID }}:role/github-actions-flying-pig-labs
+          role-session-name: GitHubActions-${{ github.run_id }}
+          aws-region: ${{ env.AWS_REGION }}
+          
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+        
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+        
+      - name: Generate Docker metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}
+          tags: |
+            type=ref,event=branch
+            type=ref,event=pr
+            type=sha,prefix={{branch}}-
+            type=raw,value=latest,enable={{is_default_branch}}
+            type=raw,value={{date 'YYYYMMDD-HHmmss'}}
+            
+      - name: Build and push Docker image
+        id: build
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          platforms: linux/amd64
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          build-args: |
+            BUILD_DATE=${{ github.event.head_commit.timestamp }}
+            VCS_REF=${{ github.sha }}
+            VERSION=${{ github.run_number }}
+            
+      - name: Create image artifact
+        run: |
+          echo "${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:latest" > image-uri.txt
+          echo "Image digest: ${{ steps.build.outputs.digest }}" >> image-uri.txt
+          
+      - name: Upload image URI artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: docker-image-uri
+          path: image-uri.txt
+
+  deploy-cdk:
+    name: Deploy CDK Stack
+    runs-on: ubuntu-latest
+    needs: build-and-push
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    environment:
+      name: ${{ github.event.inputs.environment || 'dev' }}
+      
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+          
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::${{ env.AWS_ACCOUNT_ID }}:role/github-actions-flying-pig-labs
+          role-session-name: GitHubActions-${{ github.run_id }}
+          aws-region: ${{ env.AWS_REGION }}
+          
+      - name: Install AWS CDK
+        run: |
+          npm install -g aws-cdk@latest
+          cdk --version
+          
+      - name: Install Python dependencies
+        working-directory: ./infrastructure
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          
+      - name: Cache CDK assets
+        uses: actions/cache@v3
+        with:
+          path: ./infrastructure/cdk.out
+          key: ${{ runner.os }}-cdk-${{ hashFiles('**/cdk.json') }}
+          restore-keys: |
+            ${{ runner.os }}-cdk-
+            
+      - name: CDK Bootstrap (if needed)
+        working-directory: ./infrastructure
+        run: |
+          cdk bootstrap aws://${{ env.AWS_ACCOUNT_ID }}/${{ env.AWS_REGION }} || true
+        env:
+          CDK_DEFAULT_ACCOUNT: ${{ env.AWS_ACCOUNT_ID }}
+          CDK_DEFAULT_REGION: ${{ env.AWS_REGION }}
+          
+      - name: CDK Diff
+        working-directory: ./infrastructure
+        run: |
+          cdk diff --context env=${{ github.event.inputs.environment || 'dev' }}
+        env:
+          CDK_DEFAULT_ACCOUNT: ${{ env.AWS_ACCOUNT_ID }}
+          CDK_DEFAULT_REGION: ${{ env.AWS_REGION }}
+          
+      - name: CDK Deploy
+        working-directory: ./infrastructure
+        run: |
+          cdk deploy --require-approval never \
+            --context env=${{ github.event.inputs.environment || 'dev' }} \
+            --outputs-file ./cdk-outputs.json
+        env:
+          CDK_DEFAULT_ACCOUNT: ${{ env.AWS_ACCOUNT_ID }}
+          CDK_DEFAULT_REGION: ${{ env.AWS_REGION }}
+          
+      - name: Upload CDK outputs
+        uses: actions/upload-artifact@v3
+        with:
+          name: cdk-outputs
+          path: ./infrastructure/cdk-outputs.json
+          
+      - name: Display deployment info
+        working-directory: ./infrastructure
+        run: |
+          echo "🚀 Deployment completed successfully!"
+          echo "Environment: ${{ github.event.inputs.environment || 'dev' }}"
+          echo "API Endpoint:"
+          cat cdk-outputs.json | python -m json.tool | grep -i endpoint || true
+
+  update-batch-job-definition:
+    name: Update Batch Job Definition
+    runs-on: ubuntu-latest
+    needs: [build-and-push, deploy-cdk]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    
+    steps:
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::${{ env.AWS_ACCOUNT_ID }}:role/github-actions-flying-pig-labs
+          role-session-name: GitHubActions-${{ github.run_id }}
+          aws-region: ${{ env.AWS_REGION }}
+          
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+        
+      - name: Update Batch Job Definition
+        run: |
+          # Get the latest image URI
+          IMAGE_URI="${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:latest"
+          echo "Updating Batch job definition with image: $IMAGE_URI"
+          
+          # Get current job definition
+          CURRENT_JOB_DEF=$(aws batch describe-job-definitions \
+            --job-definition-name multi-step-llm-pipeline \
+            --status ACTIVE \
+            --query 'jobDefinitions[0]' \
+            --output json)
+          
+          if [ "$CURRENT_JOB_DEF" != "null" ]; then
+            echo "Found existing job definition, updating..."
+            # Update would go here if needed
+          else
+            echo "No active job definition found, CDK should have created it"
+          fi
+
+  notify:
+    name: Send Notification
+    runs-on: ubuntu-latest
+    needs: [deploy-cdk]
+    if: always() && github.ref == 'refs/heads/main'
+    
+    steps:
+      - name: Send deployment notification
+        run: |
+          if [ "${{ needs.deploy-cdk.result }}" == "success" ]; then
+            echo "✅ Deployment successful!"
+            echo "Environment: ${{ github.event.inputs.environment || 'dev' }}"
+            echo "Commit: ${{ github.sha }}"
+            echo "Author: ${{ github.actor }}"
+            echo "Message: ${{ github.event.head_commit.message }}"
+          else
+            echo "❌ Deployment failed!"
+            echo "Check the workflow logs for details."
+          fi
+          
+      - name: Create deployment status
+        if: always()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const status = '${{ needs.deploy-cdk.result }}' === 'success' ? 'success' : 'failure';
+            const description = status === 'success' 
+              ? 'Deployment completed successfully' 
+              : 'Deployment failed';
+              
+            await github.rest.repos.createCommitStatus({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              sha: context.sha,
+              state: status,
+              description: description,
+              context: 'continuous-deployment'
+            });

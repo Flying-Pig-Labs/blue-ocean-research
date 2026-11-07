@@ -1,0 +1,184 @@
+{
+  "jtbd_data": {
+    "research_summary": "Jobs-to-be-Done research conducted across 150 participants in the SaaS productivity tools market",
+    "methodology": "Customer interviews, contextual inquiry, and job mapping exercises",
+    "jobs_list": [
+      {
+        "job_id": "JTBD001",
+        "job_statement": "When I start my workday, I want to quickly access all relevant information and tasks so that I can begin productive work immediately",
+        "context": "Daily morning routine, checking multiple tools and platforms",
+        "frequency": "daily",
+        "importance": 9,
+        "satisfaction": 4,
+        "opportunity_score": 45,
+        "triggers": ["Starting computer", "Opening first application", "Reviewing calendar"],
+        "desired_outcomes": ["Quick overview of priorities", "Access to all relevant data", "Smooth workflow initiation"],
+        "current_solutions": ["Email check", "Calendar review", "Slack messages", "Project management tools"],
+        "pain_points": ["Too many tools to check", "Information scattered", "Context switching overhead"]
+      },
+      {
+        "job_id": "JTBD002", 
+        "job_statement": "When I'm switching between tools, I want to maintain context and data continuity so that I don't lose my train of thought",
+        "context": "Working on complex tasks requiring multiple applications",
+        "frequency": "hourly",
+        "importance": 8,
+        "satisfaction": 3,
+        "opportunity_score": 40,
+        "triggers": ["Need different functionality", "Accessing different data", "Collaborating with team"],
+        "desired_outcomes": ["Seamless data transfer", "Preserved work context", "No redundant data entry"],
+        "current_solutions": ["Copy-paste between apps", "Manual data re-entry", "Browser tabs", "Desktop switching"],
+        "pain_points": ["Lost context", "Manual data transfer", "Authentication fatigue", "Inconsistent interfaces"]
+      },
+      {
+        "job_id": "JTBD003",
+        "job_statement": "When I need to update project status, I want to do it once and have it reflected everywhere so that I don't waste time on redundant updates",
+        "context": "Regular project reporting and status communication",
+        "frequency": "daily",
+        "importance": 7,
+        "satisfaction": 3,
+        "opportunity_score": 28,
+        "triggers": ["Weekly status meetings", "Stakeholder requests", "Project milestones", "Team updates"],
+        "desired_outcomes": ["Single source of truth", "Automatic synchronization", "Consistent reporting"],
+        "current_solutions": ["Multiple manual updates", "Email reports", "Meeting presentations", "Dashboard updates"],
+        "pain_points": ["Redundant work", "Inconsistent information", "Time-consuming updates", "Version conflicts"]
+      },
+      {
+        "job_id": "JTBD004",
+        "job_statement": "When I'm collaborating with team members, I want to see real-time changes and contributions so that we can work together effectively",
+        "context": "Team collaboration on shared documents and projects",
+        "frequency": "multiple times daily",
+        "importance": 9,
+        "satisfaction": 5,
+        "opportunity_score": 36,
+        "triggers": ["Team meetings", "Shared document editing", "Project coordination", "Knowledge sharing"],
+        "desired_outcomes": ["Real-time visibility", "Clear attribution", "Conflict resolution", "Seamless collaboration"],
+        "current_solutions": ["Google Docs", "Slack", "Video calls", "Email threads", "Version control"],
+        "pain_points": ["Delayed updates", "Version conflicts", "Poor visibility", "Communication overhead"]
+      },
+      {
+        "job_id": "JTBD005",
+        "job_statement": "When I'm away from my desk, I want to complete meaningful work on my mobile device so that I can maintain productivity regardless of location",
+        "context": "Mobile work scenarios including travel, remote locations, and flexible schedules",
+        "frequency": "daily",
+        "importance": 8,
+        "satisfaction": 4,
+        "opportunity_score": 32,
+        "triggers": ["Commuting", "Travel", "Flexible work hours", "Emergency requests", "Inspiration moments"],
+        "desired_outcomes": ["Full functionality on mobile", "Seamless sync", "Touch-optimized interface", "Offline capability"],
+        "current_solutions": ["Mobile apps", "Browser access", "Phone calls", "Text messages", "Voice notes"],
+        "pain_points": ["Limited functionality", "Poor interfaces", "Slow synchronization", "Network dependency"]
+      },
+      {
+        "job_id": "JTBD006",
+        "job_statement": "When I need to understand team or project performance, I want comprehensive analytics and insights so that I can make informed decisions",
+        "context": "Management and leadership responsibilities requiring data-driven decisions",
+        "frequency": "weekly",
+        "importance": 9,
+        "satisfaction": 4,
+        "opportunity_score": 45,
+        "triggers": ["Performance reviews", "Project planning", "Resource allocation", "Problem solving", "Strategic planning"],
+        "desired_outcomes": ["Clear metrics", "Actionable insights", "Trend analysis", "Predictive information"],
+        "current_solutions": ["Manual reports", "Dashboard tools", "Spreadsheets", "Meeting discussions", "Data exports"],
+        "pain_points": ["Manual data collection", "Delayed insights", "Fragmented information", "Limited analysis"]
+      },
+      {
+        "job_id": "JTBD007",
+        "job_statement": "When I'm working offline, I want to continue being productive and sync changes when connectivity returns so that I'm not blocked by network issues",
+        "context": "Situations with poor or no internet connectivity",
+        "frequency": "weekly",
+        "importance": 7,
+        "satisfaction": 2,
+        "opportunity_score": 35,
+        "triggers": ["Travel", "Network outages", "Remote locations", "Security restrictions", "Focus sessions"],
+        "desired_outcomes": ["Offline functionality", "Intelligent sync", "Conflict resolution", "No data loss"],
+        "current_solutions": ["Local files", "Mobile hotspots", "Offline apps", "Note-taking", "Delayed updates"],
+        "pain_points": ["Lost productivity", "Sync conflicts", "Limited functionality", "Data loss risk"]
+      },
+      {
+        "job_id": "JTBD008",
+        "job_statement": "When communicating with team members, I want context-aware conversations that include relevant project information so that discussions are more productive",
+        "context": "Team communication and coordination",
+        "frequency": "multiple times daily",
+        "importance": 8,
+        "satisfaction": 5,
+        "opportunity_score": 24,
+        "triggers": ["Questions", "Updates", "Problem solving", "Decision making", "Information sharing"],
+        "desired_outcomes": ["Relevant context", "Efficient communication", "Clear understanding", "Actionable outcomes"],
+        "current_solutions": ["Slack", "Email", "Video calls", "Screen sharing", "Documentation links"],
+        "pain_points": ["Missing context", "Information hunting", "Repeated explanations", "Communication overhead"]
+      },
+      {
+        "job_id": "JTBD009",
+        "job_statement": "When working with sensitive data, I want to ensure it's protected and compliant with regulations so that the organization avoids security breaches and penalties",
+        "context": "Handling confidential, personal, or regulated data",
+        "frequency": "ongoing",
+        "importance": 10,
+        "satisfaction": 6,
+        "opportunity_score": 40,
+        "triggers": ["Data access", "Sharing information", "Compliance audits", "Security reviews", "Incident response"],
+        "desired_outcomes": ["Data protection", "Compliance assurance", "Risk mitigation", "Audit readiness"],
+        "current_solutions": ["Security policies", "Access controls", "Encryption", "Audit logs", "Training"],
+        "pain_points": ["Complex procedures", "User friction", "Compliance uncertainty", "Security vs productivity"]
+      },
+      {
+        "job_id": "JTBD010",
+        "job_statement": "When planning future work, I want predictive insights based on historical data so that I can set realistic expectations and timelines",
+        "context": "Project planning, resource allocation, and timeline estimation",
+        "frequency": "monthly",
+        "importance": 8,
+        "satisfaction": 3,
+        "opportunity_score": 40,
+        "triggers": ["New projects", "Quarterly planning", "Resource requests", "Client estimates", "Team planning"],
+        "desired_outcomes": ["Accurate predictions", "Data-driven decisions", "Realistic timelines", "Resource optimization"],
+        "current_solutions": ["Historical analysis", "Expert judgment", "Comparative estimates", "Buffer calculations"],
+        "pain_points": ["Inaccurate estimates", "Limited historical data", "Subjective assessments", "Poor visibility"]
+      }
+    ],
+    "participant_demographics": {
+      "total_participants": 150,
+      "roles": {
+        "product_managers": 35,
+        "engineering_managers": 28,
+        "marketing_directors": 22,
+        "operations_leads": 20,
+        "sales_managers": 18,
+        "designers": 15,
+        "executives": 12
+      },
+      "company_sizes": {
+        "10-50_employees": 45,
+        "50-200_employees": 58,
+        "200-500_employees": 32,
+        "500+_employees": 15
+      },
+      "industries": {
+        "technology": 52,
+        "professional_services": 31,
+        "financial_services": 28,
+        "healthcare": 21,
+        "education": 18
+      }
+    },
+    "analysis_summary": {
+      "total_jobs_identified": 10,
+      "average_importance": 8.3,
+      "average_satisfaction": 3.9,
+      "average_opportunity_score": 36.5,
+      "top_opportunity_areas": [
+        "Workflow integration and context preservation",
+        "Predictive analytics and insights",
+        "Security and compliance automation",
+        "Mobile productivity optimization",
+        "Real-time collaboration enhancement"
+      ],
+      "key_themes": [
+        "Tool fragmentation and context switching",
+        "Data and information management",
+        "Collaboration and communication",
+        "Mobile and remote work",
+        "Analytics and decision making",
+        "Security and compliance"
+      ]
+    }
+  }
+}

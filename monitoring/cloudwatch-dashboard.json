@@ -1,0 +1,284 @@
+{
+  "widgets": [
+    {
+      "type": "metric",
+      "x": 0,
+      "y": 0,
+      "width": 12,
+      "height": 6,
+      "properties": {
+        "metrics": [
+          ["AWS/States", "ExecutionsSucceeded", "StateMachineArn", "${StateMachineArn}", { "stat": "Sum" }],
+          [".", "ExecutionsFailed", ".", ".", { "stat": "Sum" }],
+          [".", "ExecutionsTimedOut", ".", ".", { "stat": "Sum" }],
+          [".", "ExecutionsAborted", ".", ".", { "stat": "Sum" }]
+        ],
+        "view": "timeSeries",
+        "stacked": false,
+        "region": "${AWS::Region}",
+        "title": "Pipeline Executions",
+        "period": 300,
+        "annotations": {
+          "horizontal": [
+            {
+              "label": "Target Success Rate > 95%",
+              "value": 0.95
+            }
+          ]
+        },
+        "yAxis": {
+          "left": {
+            "min": 0
+          }
+        }
+      }
+    },
+    {
+      "type": "metric",
+      "x": 12,
+      "y": 0,
+      "width": 12,
+      "height": 6,
+      "properties": {
+        "metrics": [
+          ["AWS/States", "ExecutionTime", "StateMachineArn", "${StateMachineArn}", { "stat": "Average" }],
+          [".", ".", ".", ".", { "stat": "p95" }],
+          [".", ".", ".", ".", { "stat": "p99" }]
+        ],
+        "view": "timeSeries",
+        "stacked": false,
+        "region": "${AWS::Region}",
+        "title": "Pipeline Execution Duration",
+        "period": 300,
+        "annotations": {
+          "horizontal": [
+            {
+              "label": "SLA: 25 minutes",
+              "value": 1500000
+            }
+          ]
+        },
+        "yAxis": {
+          "left": {
+            "min": 0
+          }
+        }
+      }
+    },
+    {
+      "type": "metric",
+      "x": 0,
+      "y": 6,
+      "width": 8,
+      "height": 6,
+      "properties": {
+        "metrics": [
+          ["AWS/Lambda", "Duration", "FunctionName", "${ResearchAnalysisFunction}", { "stat": "Average" }],
+          [".", ".", ".", "${JTBDResearchFunction}", { "stat": "Average" }],
+          [".", ".", ".", "${ClusteringFunction}", { "stat": "Average" }],
+          [".", ".", ".", "${ValueCurveMappingFunction}", { "stat": "Average" }],
+          [".", ".", ".", "${ProductIdeaGenerationFunction}", { "stat": "Average" }],
+          [".", ".", ".", "${IdeaConsolidationFunction}", { "stat": "Average" }],
+          [".", ".", ".", "${GitHubIntegrationFunction}", { "stat": "Average" }]
+        ],
+        "view": "timeSeries",
+        "stacked": false,
+        "region": "${AWS::Region}",
+        "title": "Lambda Function Duration (Average)",
+        "period": 300,
+        "yAxis": {
+          "left": {
+            "min": 0
+          }
+        }
+      }
+    },
+    {
+      "type": "metric",
+      "x": 8,
+      "y": 6,
+      "width": 8,
+      "height": 6,
+      "properties": {
+        "metrics": [
+          ["AWS/Lambda", "Errors", "FunctionName", "${ResearchAnalysisFunction}", { "stat": "Sum" }],
+          [".", ".", ".", "${JTBDResearchFunction}", { "stat": "Sum" }],
+          [".", ".", ".", "${ClusteringFunction}", { "stat": "Sum" }],
+          [".", ".", ".", "${ValueCurveMappingFunction}", { "stat": "Sum" }],
+          [".", ".", ".", "${ProductIdeaGenerationFunction}", { "stat": "Sum" }],
+          [".", ".", ".", "${IdeaConsolidationFunction}", { "stat": "Sum" }],
+          [".", ".", ".", "${GitHubIntegrationFunction}", { "stat": "Sum" }]
+        ],
+        "view": "timeSeries",
+        "stacked": false,
+        "region": "${AWS::Region}",
+        "title": "Lambda Function Errors",
+        "period": 300,
+        "yAxis": {
+          "left": {
+            "min": 0
+          }
+        }
+      }
+    },
+    {
+      "type": "metric",
+      "x": 16,
+      "y": 6,
+      "width": 8,
+      "height": 6,
+      "properties": {
+        "metrics": [
+          ["AWS/Lambda", "Throttles", "FunctionName", "${ResearchAnalysisFunction}", { "stat": "Sum" }],
+          [".", ".", ".", "${JTBDResearchFunction}", { "stat": "Sum" }],
+          [".", ".", ".", "${ClusteringFunction}", { "stat": "Sum" }],
+          [".", ".", ".", "${ValueCurveMappingFunction}", { "stat": "Sum" }],
+          [".", ".", ".", "${ProductIdeaGenerationFunction}", { "stat": "Sum" }],
+          [".", ".", ".", "${IdeaConsolidationFunction}", { "stat": "Sum" }],
+          [".", ".", ".", "${GitHubIntegrationFunction}", { "stat": "Sum" }]
+        ],
+        "view": "timeSeries",
+        "stacked": false,
+        "region": "${AWS::Region}",
+        "title": "Lambda Function Throttles",
+        "period": 300,
+        "yAxis": {
+          "left": {
+            "min": 0
+          }
+        }
+      }
+    },
+    {
+      "type": "metric",
+      "x": 0,
+      "y": 12,
+      "width": 12,
+      "height": 6,
+      "properties": {
+        "metrics": [
+          ["AWS/DynamoDB", "ConsumedReadCapacityUnits", "TableName", "${PipelineJobsTable}", { "stat": "Sum" }],
+          [".", "ConsumedWriteCapacityUnits", ".", ".", { "stat": "Sum" }],
+          [".", "ThrottledRequests", ".", ".", { "stat": "Sum" }]
+        ],
+        "view": "timeSeries",
+        "stacked": false,
+        "region": "${AWS::Region}",
+        "title": "DynamoDB Capacity and Throttling",
+        "period": 300,
+        "yAxis": {
+          "left": {
+            "min": 0
+          }
+        }
+      }
+    },
+    {
+      "type": "metric",
+      "x": 12,
+      "y": 12,
+      "width": 12,
+      "height": 6,
+      "properties": {
+        "metrics": [
+          ["AWS/DynamoDB", "ItemCount", "TableName", "${PipelineJobsTable}", { "stat": "Average" }],
+          [".", "TableSizeBytes", ".", ".", { "stat": "Average" }]
+        ],
+        "view": "timeSeries",
+        "stacked": false,
+        "region": "${AWS::Region}",
+        "title": "DynamoDB Table Size",
+        "period": 300,
+        "yAxis": {
+          "left": {
+            "min": 0
+          }
+        }
+      }
+    },
+    {
+      "type": "metric",
+      "x": 0,
+      "y": 18,
+      "width": 12,
+      "height": 6,
+      "properties": {
+        "metrics": [
+          ["AWS/S3", "NumberOfObjects", "BucketName", "${PipelineBucket}", "StorageType", "AllStorageTypes", { "stat": "Average" }],
+          [".", "BucketSizeBytes", ".", ".", ".", ".", { "stat": "Average" }]
+        ],
+        "view": "timeSeries",
+        "stacked": false,
+        "region": "${AWS::Region}",
+        "title": "S3 Bucket Metrics",
+        "period": 86400,
+        "yAxis": {
+          "left": {
+            "min": 0
+          }
+        }
+      }
+    },
+    {
+      "type": "metric",
+      "x": 12,
+      "y": 18,
+      "width": 12,
+      "height": 6,
+      "properties": {
+        "metrics": [
+          ["AWS/ApiGateway", "4XXError", "ApiName", "${ApiGatewayName}", { "stat": "Sum" }],
+          [".", "5XXError", ".", ".", { "stat": "Sum" }],
+          [".", "Count", ".", ".", { "stat": "Sum" }],
+          [".", "Latency", ".", ".", { "stat": "Average" }]
+        ],
+        "view": "timeSeries",
+        "stacked": false,
+        "region": "${AWS::Region}",
+        "title": "API Gateway Metrics",
+        "period": 300,
+        "yAxis": {
+          "left": {
+            "min": 0
+          }
+        }
+      }
+    },
+    {
+      "type": "log",
+      "x": 0,
+      "y": 24,
+      "width": 24,
+      "height": 6,
+      "properties": {
+        "query": "SOURCE '/aws/stepfunctions/${StateMachineName}' | fields @timestamp, type, execution_arn, state_name, details\n| filter type = \"ExecutionFailed\" or type = \"ExecutionAborted\" or type = \"ExecutionTimedOut\"\n| sort @timestamp desc\n| limit 50",
+        "region": "${AWS::Region}",
+        "title": "Recent Pipeline Failures",
+        "view": "table"
+      }
+    },
+    {
+      "type": "log",
+      "x": 0,
+      "y": 30,
+      "width": 24,
+      "height": 6,
+      "properties": {
+        "query": "SOURCE '/aws/lambda/${ResearchAnalysisFunction}' \n| SOURCE '/aws/lambda/${JTBDResearchFunction}' \n| SOURCE '/aws/lambda/${ClusteringFunction}' \n| SOURCE '/aws/lambda/${ValueCurveMappingFunction}' \n| SOURCE '/aws/lambda/${ProductIdeaGenerationFunction}' \n| SOURCE '/aws/lambda/${IdeaConsolidationFunction}' \n| SOURCE '/aws/lambda/${GitHubIntegrationFunction}'\n| fields @timestamp, @message\n| filter @message like /ERROR/ or @message like /WARN/\n| sort @timestamp desc\n| limit 100",
+        "region": "${AWS::Region}",
+        "title": "Recent Lambda Errors and Warnings",
+        "view": "table"
+      }
+    }
+  ],
+  "annotations": {
+    "horizontal": [
+      {
+        "color": "#d62728",
+        "label": "Critical Threshold",
+        "value": 0.95,
+        "fill": "above"
+      }
+    ]
+  }
+}

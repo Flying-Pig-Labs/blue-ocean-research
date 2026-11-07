@@ -1,0 +1,14 @@
+SYSTEM: You are a product strategy expert.
+
+USER: Based on these clustered pain points, identify up to 5 opportunity zones for product development.
+Clusters:
+{cluster_summaries}
+
+For each opportunity zone:
+1. Name (clear, strategic)
+2. Description (1-2 sentences)
+3. Importance percentage (must total 100% across all zones)
+4. Potential impact (High/Medium/Low)
+5. Related cluster IDs
+
+Return as JSON with key "opportunity_zones" containing an array of zones.

@@ -1,0 +1,131 @@
+type ExecutionUpdate {
+  jobId: ID!
+  status: ExecutionStatus!
+  currentStage: Int!
+  stageName: String!
+  stageProgress: Float!
+  overallProgress: Float!
+  estimatedRemainingMinutes: Int
+  completedStages: [StageUpdate!]!
+  currentStageUpdate: StageUpdate
+  error: String
+  timestamp: AWSDateTime!
+  metadata: ExecutionMetadata
+  results: ExecutionResults
+}
+
+type StageUpdate {
+  stageId: Int!
+  name: String!
+  status: StageStatus!
+  progress: Float!
+  startedAt: AWSDateTime
+  completedAt: AWSDateTime
+  estimatedMinutes: Int
+  actualMinutes: Int
+  outputs: [StageOutput!]
+  error: String
+  metadata: AWSJSON
+}
+
+type StageOutput {
+  fileName: String!
+  fileSize: Int
+  contentPreview: String
+  s3Location: String
+  generatedAt: AWSDateTime!
+}
+
+type ExecutionMetadata {
+  researchDocId: String!
+  username: String!
+  startedAt: AWSDateTime!
+  completedAt: AWSDateTime
+  totalStages: Int!
+  estimatedTotalMinutes: Int!
+  actualDurationMinutes: Int
+  pipelineVersion: String
+}
+
+type ExecutionResults {
+  githubRepoUrl: String
+  githubRepoName: String
+  issuesCreated: Int
+  analysisResults: AWSJSON
+  finalPortfolio: AWSJSON
+}
+
+enum ExecutionStatus {
+  QUEUED
+  RUNNING
+  COMPLETED
+  FAILED
+  CANCELLED
+}
+
+enum StageStatus {
+  PENDING
+  RUNNING
+  COMPLETED
+  FAILED
+  SKIPPED
+}
+
+# Queries
+type Query {
+  getExecution(jobId: ID!): ExecutionUpdate
+  listExecutions(username: String, status: ExecutionStatus, limit: Int, nextToken: String): ExecutionConnection
+  getExecutionHistory(jobId: ID!): [ExecutionUpdate!]!
+}
+
+type ExecutionConnection {
+  items: [ExecutionUpdate!]!
+  nextToken: String
+}
+
+# Mutations
+type Mutation {
+  startExecution(input: StartExecutionInput!): ExecutionUpdate!
+  cancelExecution(jobId: ID!): ExecutionUpdate!
+  updateStageProgress(input: UpdateStageProgressInput!): ExecutionUpdate!
+}
+
+input StartExecutionInput {
+  researchDocId: String!
+  username: String!
+  pipelineConfig: AWSJSON
+}
+
+input UpdateStageProgressInput {
+  jobId: ID!
+  stageId: Int!
+  progress: Float!
+  status: StageStatus
+  outputs: [StageOutputInput!]
+  metadata: AWSJSON
+}
+
+input StageOutputInput {
+  fileName: String!
+  fileSize: Int
+  contentPreview: String
+  s3Location: String
+}
+
+# Subscriptions
+type Subscription {
+  onExecutionUpdate(jobId: ID): ExecutionUpdate
+    @aws_subscribe(mutations: ["updateStageProgress"])
+  
+  onStageComplete(jobId: ID): StageUpdate
+    @aws_subscribe(mutations: ["updateStageProgress"])
+  
+  onExecutionStatusChange(username: String): ExecutionUpdate
+    @aws_subscribe(mutations: ["startExecution", "updateStageProgress"])
+}
+
+schema {
+  query: Query
+  mutation: Mutation
+  subscription: Subscription
+}
